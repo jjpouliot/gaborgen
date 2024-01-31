@@ -5,7 +5,7 @@ known_gaborgen_local_gits <- c('~/Documents/GitHub/gaborgen')
 known_data_locations <- c('~/research_data/gaborgen/raw_data/')
 
 # Put the participant ID numbers that you would like to preprocess (eg c(118,119))
-participants_to_preprocess <- c(119)
+participants_to_preprocess <- c(119,120)
 
 
 existing_git_locations <- file.exists(known_gaborgen_local_gits)
@@ -81,19 +81,21 @@ for (participant_index in 1:length(participants_to_preprocess)) {
                           participants_to_preprocess[participant_index],
                           "_logfile.dat")
   
-  file.exists(dat_file_path)
+  if(!file.exists(dat_file_path)){
+    stop(paste0(dat_file_path, " does not exist. You must have the directory in the correct structure"))
+  }
   
   log_file <- read.delim(dat_file_path, header = T, sep = ",")
   
-  stim_onset_and_duration <- log_file$timeSinceFirstTR
+  stim_onset <- log_file$timeSinceFirstTR |> data.frame()
   #start here
-  write_delim(stim_onset_and_duration, 
-              file = "/Users/andrewfarkas/research_data/gaborgen/raw_data/GABORGEN24_120/stim_times.1D",
+  write_delim(stim_onset, 
+              file = paste0(participant_directories[participant_index], "/stim_times.1D"),
               col_names = F)
   
 }
 
 # Preprocess MRI per participant
+where_results_should_be_saved <- "/Users/andrewfarkas/research_data/gaborgen/results"
 
-
-
+source("afni_proc_py_prepro.R", local = T, echo = T)

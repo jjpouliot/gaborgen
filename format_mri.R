@@ -2,6 +2,9 @@
 # functional should not need to be deobliqued
 for (participant_index in 1:length(participants_to_preprocess)) {
   
+  print(paste("Reformat MRI volumnes for participant ", 
+              participants_to_preprocess[participant_index]))
+  
   current_structural_path <- paste0(participant_directories[participant_index],
                                     '/fMRI/T1_MPRAGE_SAG_P2_ISO_0005')
   
