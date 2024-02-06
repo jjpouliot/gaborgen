@@ -4,13 +4,15 @@
 # The code will force you to have it in the correct format
 
 ## Add where your local git repository is ####
-known_gaborgen_local_gits <- c('~/Documents/GitHub/gaborgen')
+known_gaborgen_local_gits <- c('~/Documents/GitHub/gaborgen',
+                               '/blue/akeil/andrew.farkas/gaborgen24_eeg_fmri/code_repository/gaborgen')
 
 ## Add where your data is, it should be the same format and organization as it was in the dropbox ####
-known_data_locations <- c('~/research_data/gaborgen/raw_data/')
+known_data_locations <- c('~/research_data/gaborgen/raw_data',
+                          '/blue/akeil/andrew.farkas/gaborgen24_eeg_fmri/raw_data')
 
 ## Put the participant ID numbers that you would like to preprocess (eg c(118,119))
-participants_to_preprocess <- c(119,120)
+participants_to_preprocess <- c(122)
 
 
 
@@ -57,7 +59,7 @@ if (number_of_found_locations > 1) {
 }
 
 
-participant_directories <- paste0(data_directory,'GABORGEN24_', 
+participant_directories <- paste0(data_directory,'/GABORGEN24_', 
                                   participants_to_preprocess)
 
 if (!all(file.exists(participant_directories))){
@@ -65,6 +67,19 @@ if (!all(file.exists(participant_directories))){
 }
 
 ## Check that the correct terminal is available ####
+tryCatch({
+  # Execute the command and check the exit status
+  tcsh_status <- system('tcsh -c "echo tcsh is available"', 
+                        intern = TRUE, 
+                        ignore.stderr = F)
+}, error = function(e) {
+  tcsh_status <- "tcsh is unavailable"
+  stop("The recommend terminal for afni (tcsh) is not available")
+})
+
+
+
+
 if(
   system2('tcsh', 
         args = c('-c', '"echo tcsh is available"'), 
