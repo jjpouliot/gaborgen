@@ -10,7 +10,7 @@ known_gaborgen_local_gits <- c('~/Documents/GitHub/gaborgen')
 known_data_locations <- c('~/research_data/gaborgen/raw_data/')
 
 ## Put the participant ID numbers that you would like to preprocess (eg c(118,119))
-participants_to_preprocess <- c(119,120)
+participants_to_preprocess <- c(122)
 
 
 
@@ -94,11 +94,11 @@ for (participant_index in 1:length(participants_to_preprocess)) {
   
   log_file <- read.delim(dat_file_path, header = T, sep = ",")
   
-  stim_onset <- log_file$timeSinceFirstTR |> data.frame()
+  stim_onset <- log_file$timeSinceFirstTR
   #start here
-  write_delim(stim_onset, 
-              file = paste0(participant_directories[participant_index], "/stim_times.1D"),
-              col_names = F)
+  write(x = stim_onset, 
+        file = paste0(participant_directories[participant_index], "/stim_times.1D"),
+        ncolumns = 1)
   
 }
 
