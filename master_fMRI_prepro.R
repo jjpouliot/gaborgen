@@ -11,9 +11,20 @@ known_gaborgen_local_gits <- c('~/Documents/GitHub/gaborgen',
 known_data_locations <- c('~/research_data/gaborgen/raw_data',
                           '/blue/akeil/andrew.farkas/gaborgen24_eeg_fmri/raw_data')
 
+## Where the results should be saved
+# Andrew Farkas Mac
+# where_results_should_be_saved <- "/Users/andrewfarkas/research_data/gaborgen/results"
+# Andrew Farkas hipergator
+where_results_should_be_saved <- "/blue/akeil/andrew.farkas/gaborgen24_eeg_fmri/results"
+
+if(!file.exists(where_results_should_be_saved)){
+  stop("Choose a results folder that exists")
+}
+
 ## Put the participant ID numbers that you would like to preprocess (eg c(118,119))
 participants_to_preprocess <- c(122)
 
+# End of user input ####
 
 
 # Begin checking that everything is correctly organized ####
@@ -77,18 +88,6 @@ tryCatch({
   stop("The recommend terminal for afni (tcsh) is not available")
 })
 
-
-
-
-if(
-  system2('tcsh', 
-        args = c('-c', '"echo tcsh is available"'), 
-        stdout = TRUE, 
-        stderr = TRUE) != 
-  "tcsh is available") {
-  stop('The tcsh terminal is not available. This is the prefered terminal for AFNI')
-}
-
 # Begin data preprocessing ####
 
 ## Convert structural and functional images to nifti fomat, deoblique structural ####
@@ -118,6 +117,6 @@ for (participant_index in 1:length(participants_to_preprocess)) {
 }
 
 ## Preprocess MRI per participant ####
-where_results_should_be_saved <- "/Users/andrewfarkas/research_data/gaborgen/results"
+
 
 source("afni_proc_py_prepro.R", local = T, echo = T)
