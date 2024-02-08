@@ -4,14 +4,27 @@
 # The code will force you to have it in the correct format
 
 ## Add where your local git repository is ####
-known_gaborgen_local_gits <- c('~/Documents/GitHub/gaborgen')
+known_gaborgen_local_gits <- c('~/Documents/GitHub/gaborgen',
+                               '/blue/akeil/andrew.farkas/gaborgen24_eeg_fmri/code_repository/gaborgen')
 
 ## Add where your data is, it should be the same format and organization as it was in the dropbox ####
-known_data_locations <- c('~/research_data/gaborgen/raw_data/')
+known_data_locations <- c('~/research_data/gaborgen/raw_data',
+                          '/blue/akeil/andrew.farkas/gaborgen24_eeg_fmri/raw_data')
+
+## Where the results should be saved
+# Andrew Farkas Mac
+# where_results_should_be_saved <- "/Users/andrewfarkas/research_data/gaborgen/results"
+# Andrew Farkas hipergator
+where_results_should_be_saved <- "/blue/akeil/andrew.farkas/gaborgen24_eeg_fmri/results"
+
+if(!file.exists(where_results_should_be_saved)){
+  stop("Choose a results folder that exists")
+}
 
 ## Put the participant ID numbers that you would like to preprocess (eg c(118,119))
 participants_to_preprocess <- c(122)
 
+# End of user input ####
 
 
 # Begin checking that everything is correctly organized ####
@@ -57,7 +70,7 @@ if (number_of_found_locations > 1) {
 }
 
 
-participant_directories <- paste0(data_directory,'GABORGEN24_', 
+participant_directories <- paste0(data_directory,'/GABORGEN24_', 
                                   participants_to_preprocess)
 
 if (!all(file.exists(participant_directories))){
@@ -65,14 +78,15 @@ if (!all(file.exists(participant_directories))){
 }
 
 ## Check that the correct terminal is available ####
-if(
-  system2('tcsh', 
-        args = c('-c', '"echo tcsh is available"'), 
-        stdout = TRUE, 
-        stderr = TRUE) != 
-  "tcsh is available") {
-  stop('The tcsh terminal is not available. This is the prefered terminal for AFNI')
-}
+tryCatch({
+  # Execute the command and check the exit status
+  tcsh_status <- system('tcsh -c "echo tcsh is available"', 
+                        intern = TRUE, 
+                        ignore.stderr = F)
+}, error = function(e) {
+  tcsh_status <- "tcsh is unavailable"
+  stop("The recommend terminal for afni (tcsh) is not available")
+})
 
 # Begin data preprocessing ####
 
@@ -103,6 +117,6 @@ for (participant_index in 1:length(participants_to_preprocess)) {
 }
 
 ## Preprocess MRI per participant ####
-where_results_should_be_saved <- "/Users/andrewfarkas/research_data/gaborgen/results"
+
 
 source("afni_proc_py_prepro.R", local = T, echo = T)
