@@ -1,0 +1,14 @@
+bidsify.py is a python script that converts the original DICOM files into NIfTI files arranged in a BIDS-compliant file structure.  
+
+fmriprep_singleSubj.sh runs the entire fmriPrep pipeline, from slice timing up until smoothing.
+
+finishPrePro.sh runs the remaining preprocessing steps, including smoothing the data (FWHM=4.0) and scaling such that any BOLD activations are quantified as a percent change from the mean.
+
+readDat.py is a python script that reads in the subject log file and outputs .1D files containing the TR time indices, separated by condition for use in the regression model. It also reads in the confounds .tsv produced from fmriPrep and 
+produces a vector of 1's and 0's, which is used for TR censoring. 
+
+doDecon.sh runs 3dDeconvolve in AFNI. It fits a regression model to all TRs across all conditions, including motion regressors. It censors TRs which exhibit framewise displacement (FD) > 0.3 and which are statistical outliers in terms of motion. These
+usually overlap. This is designed to mirror the base afni_proc.py pipeline for comparison.
+
+deconCS+VsGSs.sh uses 3dDeconvolve to estimate the effect of aversive conditioning on univariate BOLD activity during different phases of the experiment. In particular, it runs a T-contrast with the following coefficients: [+3 -1 -1 -1], where  
+the CSplus predictor is given a weighting of 3, while the other orientations are assigned a weighting of -1. A separate model is run for habituation, acquisition, and extinction.
