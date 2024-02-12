@@ -1,5 +1,7 @@
 bidsify.py is a python script that converts the original DICOM files into NIfTI files arranged in a BIDS-compliant file structure.  
 
+BIDS_config.json is a customized JSON file which outlines the BIDS layout appropriate for this data and selects which files to store in the BIDS-compliant file structure. 
+
 fmriprep_singleSubj.sh runs the entire fmriPrep pipeline, from slice timing up until smoothing.
 
 finishPrePro.sh runs the remaining preprocessing steps, including smoothing the data (FWHM=4.0) and scaling such that any BOLD activations are quantified as a percent change from the mean.
