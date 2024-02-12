@@ -1,0 +1,69 @@
+{
+   "descriptions": [
+      {
+         "datatype": "anat",
+         "suffix": "T1w",
+         "criteria": {
+            "SeriesDescription": "t1_mprage_sag_p2_iso"
+         }
+      },
+      {
+         "id": "id_task-gaborgen_day-01",
+         "datatype": "func",
+         "suffix": "bold",
+         "custom_entities": "task-gaborgen",
+         "criteria": {
+            "SeriesDescription": "BOLD-EPI-cmrr-2s"
+         },
+         "sidecar_changes": {
+            "TaskName": "gaborgen"
+         }
+      },
+      {
+         "datatype": "fmap",
+         "suffix": "magnitude",
+         "criteria": {
+            "SeriesDescription": "gre_field_mapping_1.80",
+	    "ImageType": ["ORIGINAL", "PRIMARY", "M", "ND", "NORM"]
+         },
+         "sidecar_changes": {
+            "IntendedFor": [ "id_task-gaborgen_day-01" ]
+         }
+      },
+      {
+         "datatype": "fmap",
+         "suffix": "phasediff",
+         "criteria": {
+            "SeriesDescription": "gre_field_mapping_1.80",
+            "ImageType": ["ORIGINAL", "PRIMARY", "P", "ND", "PHASE"]     
+         },
+         "sidecar_changes": {
+            "EchoTime1": "4.92",
+            "EchoTime2": "7.38",
+            "IntendedFor": [ "id_task-gaborgen_day-01" ]
+         }
+      },
+      {
+         "datatype": "fmap",
+         "suffix": "epi",
+         "custom_entities": "dir-AP",
+         "criteria": {
+            "SeriesDescription": "cmmr-DistMap_AP"
+         },
+         "sidecar_changes": {
+            "IntendedFor": [ "id_task-gaborgen_day-01" ]
+         }
+      },
+      {
+         "datatype": "fmap",
+         "suffix": "epi",
+         "custom_entities": "dir-PA",
+         "criteria": {
+            "SeriesDescription": "cmmr-DistMap_PA"
+         },
+         "sidecar_changes": {
+            "IntendedFor": [ "id_task-gaborgen_day-01" ]
+         }
+      }
+   ]
+}
