@@ -1,3 +1,0 @@
-anat_final.GABORGEN24_120+tlrc is from AFNI (as you may have suspected)
-
-sub-120_space-MNI152NLin2009cAsym_res-2_desc-preproc_T1w is from fmriPrep
