@@ -8,8 +8,8 @@ for (participant_index in 1:length(participants_to_preprocess)) {
               participants_to_preprocess[participant_index]))
   
   current_participant_found_structural_directories <- list.files(
-    paste0(participant_directories[participant_index],'/fMRI/'),
-    pattern = 'T1_MPRAGE_SAG_P2_ISO')
+    paste0(participant_directories[participant_index],'/fMRI'),
+    pattern = 'T1_MPRAGE_SAG_P2_ISO', full.names = T)
   
   current_structural_path <- 
     current_participant_found_structural_directories[
@@ -17,8 +17,14 @@ for (participant_index in 1:length(participants_to_preprocess)) {
         sub(".*?(\\d+)$", "\\1", 
             current_participant_found_structural_directories)))]
   
-  current_functional_path <- paste0(participant_directories[participant_index],
-                                    '/fMRI/BOLD-EPI-CMRR-2S_0006')
+  current_participant_found_functional_directories <- list.files(
+    paste0(participant_directories[participant_index],'/fMRI/'),
+    pattern = 'BOLD-EPI-CMRR-2S', full.names = T)
+  
+  current_functional_path <- current_participant_found_functional_directories[
+    which.max(as.numeric(
+      sub(".*?(\\d+)$", "\\1", 
+          current_participant_found_functional_directories)))]
   
   # This terminal command (dcm2niix) may need to be installed on your system, homebrew is
   # a good option on a mac
