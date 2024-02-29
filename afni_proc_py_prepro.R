@@ -21,6 +21,24 @@ for(participant_index in 1:length(participant_directories)) {
       sub(".*?(\\d+)$", "\\1", 
           current_participant_found_functional_directories)))]
   
+  current_participant_found_blip_forward <- list.files(
+    paste0(participant_directories[participant_index],'/fMRI'),
+    pattern = 'CMMR-DISTMAP_AP', full.names = T)
+  
+  current_blip_forward_path <- current_participant_found_blip_forward[
+    which.max(as.numeric(
+      sub(".*?(\\d+)$", "\\1", 
+          current_participant_found_blip_forward)))]
+  
+  current_participant_found_blip_reverse <- list.files(
+    paste0(participant_directories[participant_index],'/fMRI'),
+    pattern = 'CMMR-DISTMAP_PA', full.names = T)
+  
+  current_blip_reverse_path <- current_participant_found_blip_reverse[
+    which.max(as.numeric(
+      sub(".*?(\\d+)$", "\\1", 
+          current_participant_found_blip_reverse)))]
+  
   current_structural_NIFTI_path <- list.files(current_structural_path, 
                                               pattern = '.nii$', 
                                               full.names = T)
@@ -29,14 +47,24 @@ for(participant_index in 1:length(participant_directories)) {
                                               pattern = '.nii$', 
                                               full.names = T)
   
+  current_blip_forward_NIFTI_path <- list.files(current_blip_forward_path, 
+                                                pattern = '.nii$', 
+                                                full.names = T)
+  
+  current_blip_reverse_NIFTI_path <- list.files(current_blip_reverse_path, 
+                                                pattern = '.nii$', 
+                                                full.names = T)
+  
   afni_proc_py_script <- paste0('afni_proc.py
-        -subj_id ', paste0("GABORGEN24_", participants_to_preprocess[participant_index], " "),
-                                '-dsets ', paste0(current_functional_NIFTI_path," "),
-                                '-copy_anat ', paste0(current_structural_NIFTI_path, " "), 
-                                '-blocks tshift align tlrc volreg mask blur scale regress
-        -tcat_remove_first_trs 0
-        -radial_correlate_blocks  tcat volreg
-        -align_unifize_epi        yes
+         -subj_id ', paste0("GABORGEN24_", participants_to_preprocess[participant_index], " "),
+        '-dsets ', paste0(current_functional_NIFTI_path," "),
+        '-copy_anat ', paste0(current_structural_NIFTI_path, " "), 
+        '-blocks tshift align tlrc volreg mask blur scale regress
+         -tcat_remove_first_trs 0
+         -radial_correlate_blocks  tcat volreg
+         -blip_forward_dset ', paste0(current_blip_forward_NIFTI_path," "),
+        '-blip_reverse_dset ', paste0(current_blip_reverse_NIFTI_path," "),
+        '-align_unifize_epi        yes
         -align_opts_aea           -cost lpc+ZZ   
                                   -giant_move  
                                   -check_flip
