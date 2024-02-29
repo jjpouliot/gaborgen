@@ -41,7 +41,7 @@ for(participant_index in 1:length(participant_directories)) {
         
         -regress_stim_times ', paste0(current_stim_onsets_path, " "),
         '-regress_stim_labels      stimulus                              
-        -regress_basis      "CSPLINzero(0,8,5)"                 
+        -regress_basis      "CSPLINzero(0,12,7)"                 
         -regress_motion_per_run                                           
         -regress_censor_motion    0.3                                     
         -regress_censor_outliers  0.05                                     

@@ -1,12 +1,21 @@
 # Convert structural and functional images to nifti fomat, deoblique structural
 # functional should not need to be deobliqued
+# If there are multiple of the same scan, it processes the last one recorded by
+# looking for the largest number at the end of folder
 for (participant_index in 1:length(participants_to_preprocess)) {
   
   print(paste("Reformat MRI volumnes for participant ", 
               participants_to_preprocess[participant_index]))
   
-  current_structural_path <- paste0(participant_directories[participant_index],
-                                    '/fMRI/T1_MPRAGE_SAG_P2_ISO_0005')
+  current_participant_found_structural_directories <- list.files(
+    paste0(participant_directories[participant_index],'/fMRI/'),
+    pattern = 'T1_MPRAGE_SAG_P2_ISO')
+  
+  current_structural_path <- 
+    current_participant_found_structural_directories[
+      which.max(as.numeric(
+        sub(".*?(\\d+)$", "\\1", 
+            current_participant_found_structural_directories)))]
   
   current_functional_path <- paste0(participant_directories[participant_index],
                                     '/fMRI/BOLD-EPI-CMRR-2S_0006')

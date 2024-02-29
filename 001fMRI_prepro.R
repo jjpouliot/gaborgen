@@ -13,16 +13,16 @@ known_data_locations <- c('~/research_data/gaborgen/raw_data',
 
 ## Where the results should be saved
 # Andrew Farkas Mac
-# where_results_should_be_saved <- "/Users/andrewfarkas/research_data/gaborgen/results"
+where_results_should_be_saved <- "/Users/andrewfarkas/research_data/gaborgen/results"
 # Andrew Farkas hipergator
-where_results_should_be_saved <- "/blue/akeil/andrew.farkas/gaborgen24_eeg_fmri/results"
+# where_results_should_be_saved <- "/blue/akeil/andrew.farkas/gaborgen24_eeg_fmri/results"
 
 if(!file.exists(where_results_should_be_saved)){
   stop("Choose a results folder that exists")
 }
 
 ## Put the participant ID numbers that you would like to preprocess (eg c(118,119))
-participants_to_preprocess <- c(122)
+participants_to_preprocess <- c(120)
 
 # End of user input ####
 
