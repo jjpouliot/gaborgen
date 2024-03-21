@@ -10,7 +10,7 @@ GABORGEN24_101
 
 - EEG
 
-- dat
+- DAT
 
 ## 001fMRI_prepro.R
 This script does the initial preprocessing per participant. It imposes restrictions to force the user to have the data in the correct format and to prevent incorrect analyses. It also forces the user to put their data and local git directory paths at the top of the script. The script forces the use of the tcsh terminal which is recommended for AFNI analyses. The system2 R function is used to force tcsh terminal calls.
