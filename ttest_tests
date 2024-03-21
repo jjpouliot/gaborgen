@@ -1,0 +1,47 @@
+# align_epi_anat.py for testing alignment options
+
+# how to make mask
+3dAutomask -prefix MNI152_2009_brain_mask.nii.gz MNI152_2009_template.nii.gz
+# mask has to be resampled so that it is the same resolution as the functional data
+3dresample -master TTnew+tlrc -prefix used_MNI_brain_mask.nii.gz -inset MNI152_2009_brain_mask.nii.gz
+
+3dttest++ -prefix ttest_mask_clust_17par \
+          -setA CSP_ACQ \
+            par102 "/Users/andrewfarkas/research_data/gaborgen/results/GABORGEN24_102.results/stats.GABORGEN24_102_REML+tlrc[13]" \
+            par101 "/Users/andrewfarkas/research_data/gaborgen/results/GABORGEN24_101.results/stats.GABORGEN24_101_REML+tlrc[13]" \
+            par103 "/Users/andrewfarkas/research_data/gaborgen/results/GABORGEN24_103.results/stats.GABORGEN24_103_REML+tlrc[13]" \
+            par106 "/Users/andrewfarkas/research_data/gaborgen/results/GABORGEN24_106.results/stats.GABORGEN24_106_REML+tlrc[13]" \
+            par107 "/Users/andrewfarkas/research_data/gaborgen/results/GABORGEN24_107.results/stats.GABORGEN24_107_REML+tlrc[13]" \
+            par108 "/Users/andrewfarkas/research_data/gaborgen/results/GABORGEN24_108.results/stats.GABORGEN24_108_REML+tlrc[13]" \
+            par109 "/Users/andrewfarkas/research_data/gaborgen/results/GABORGEN24_109.results/stats.GABORGEN24_109_REML+tlrc[13]" \
+            par113 "/Users/andrewfarkas/research_data/gaborgen/result_essentials/GABORGEN24_113.results/stats.GABORGEN24_113_REML+tlrc[13]" \
+            par114 "/Users/andrewfarkas/research_data/gaborgen/result_essentials/GABORGEN24_114.results/stats.GABORGEN24_114_REML+tlrc[13]" \
+            par115 "/Users/andrewfarkas/research_data/gaborgen/result_essentials/GABORGEN24_115.results/stats.GABORGEN24_115_REML+tlrc[13]" \
+            par116 "/Users/andrewfarkas/research_data/gaborgen/result_essentials/GABORGEN24_116.results/stats.GABORGEN24_116_REML+tlrc[13]" \
+            par117 "/Users/andrewfarkas/research_data/gaborgen/result_essentials/GABORGEN24_117.results/stats.GABORGEN24_117_REML+tlrc[13]" \
+            par119 "/Users/andrewfarkas/research_data/gaborgen/result_essentials/GABORGEN24_119.results/stats.GABORGEN24_119_REML+tlrc[13]" \
+            par120 "/Users/andrewfarkas/research_data/gaborgen/result_essentials/GABORGEN24_120.results/stats.GABORGEN24_120_REML+tlrc[13]" \
+            par121 "/Users/andrewfarkas/research_data/gaborgen/result_essentials/GABORGEN24_121.results/stats.GABORGEN24_121_REML+tlrc[13]" \
+            par122 "/Users/andrewfarkas/research_data/gaborgen/result_essentials/GABORGEN24_122.results/stats.GABORGEN24_122_REML+tlrc[13]" \
+            par123 "/Users/andrewfarkas/research_data/gaborgen/result_essentials/GABORGEN24_123.results/stats.GABORGEN24_123_REML+tlrc[13]" \
+          -setB GS3_ACQ \
+            par101 "/Users/andrewfarkas/research_data/gaborgen/results/GABORGEN24_101.results/stats.GABORGEN24_101_REML+tlrc[22]" \
+            par102 "/Users/andrewfarkas/research_data/gaborgen/results/GABORGEN24_102.results/stats.GABORGEN24_102_REML+tlrc[22]" \
+            par103 "/Users/andrewfarkas/research_data/gaborgen/results/GABORGEN24_103.results/stats.GABORGEN24_103_REML+tlrc[22]" \
+            par106 "/Users/andrewfarkas/research_data/gaborgen/results/GABORGEN24_106.results/stats.GABORGEN24_106_REML+tlrc[22]" \
+            par107 "/Users/andrewfarkas/research_data/gaborgen/results/GABORGEN24_107.results/stats.GABORGEN24_107_REML+tlrc[22]" \
+            par108 "/Users/andrewfarkas/research_data/gaborgen/results/GABORGEN24_108.results/stats.GABORGEN24_108_REML+tlrc[22]" \
+            par109 "/Users/andrewfarkas/research_data/gaborgen/results/GABORGEN24_109.results/stats.GABORGEN24_109_REML+tlrc[22]" \
+            par113 "/Users/andrewfarkas/research_data/gaborgen/result_essentials/GABORGEN24_113.results/stats.GABORGEN24_113_REML+tlrc[22]" \
+            par114 "/Users/andrewfarkas/research_data/gaborgen/result_essentials/GABORGEN24_114.results/stats.GABORGEN24_114_REML+tlrc[22]" \
+            par115 "/Users/andrewfarkas/research_data/gaborgen/result_essentials/GABORGEN24_115.results/stats.GABORGEN24_115_REML+tlrc[22]" \
+            par116 "/Users/andrewfarkas/research_data/gaborgen/result_essentials/GABORGEN24_116.results/stats.GABORGEN24_116_REML+tlrc[22]" \
+            par117 "/Users/andrewfarkas/research_data/gaborgen/result_essentials/GABORGEN24_117.results/stats.GABORGEN24_117_REML+tlrc[22]" \
+            par119 "/Users/andrewfarkas/research_data/gaborgen/result_essentials/GABORGEN24_119.results/stats.GABORGEN24_119_REML+tlrc[22]" \
+            par120 "/Users/andrewfarkas/research_data/gaborgen/result_essentials/GABORGEN24_120.results/stats.GABORGEN24_120_REML+tlrc[22]" \
+            par121 "/Users/andrewfarkas/research_data/gaborgen/result_essentials/GABORGEN24_121.results/stats.GABORGEN24_121_REML+tlrc[22]" \
+            par122 "/Users/andrewfarkas/research_data/gaborgen/result_essentials/GABORGEN24_122.results/stats.GABORGEN24_122_REML+tlrc[22]" \
+            par123 "/Users/andrewfarkas/research_data/gaborgen/result_essentials/GABORGEN24_123.results/stats.GABORGEN24_123_REML+tlrc[22]" \
+            -mask "/Users/andrewfarkas/research_data/gaborgen/results/ttest_cps_gs3_acq_113-117_119-120_clustsim/used_MNI_brain_mask.nii.gz" \
+            -Clustsim
+  

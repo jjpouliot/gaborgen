@@ -68,16 +68,15 @@ for(participant_index in 1:length(participant_directories)) {
   
   afni_proc_py_script <- paste0('afni_proc.py
         -subj_id ', paste0("GABORGEN24_", participants_to_preprocess[participant_index], " "),
-                                '-dsets ', paste0(current_functional_path," "),
-                                '-copy_anat ', paste0(current_structural_path, " "), 
-                                '-blocks tshift align tlrc volreg mask blur scale regress
+       '-dsets ', paste0(current_functional_path," "),
+       '-copy_anat ', paste0(current_structural_path, " "), 
+       '-blocks tshift align tlrc volreg mask blur scale regress
         -tcat_remove_first_trs 0
         -radial_correlate_blocks  tcat volreg
         -blip_forward_dset ', paste0(current_blip_forward_path," "),
        '-blip_reverse_dset ', paste0(current_blip_reverse_path," "),
         '-align_unifize_epi        yes
-        -align_opts_aea           -cost lpc+ZZ   
-                                  -giant_move  
+        -align_opts_aea           -cost lpc+ZZ  
                                   -check_flip
         -tlrc_base                MNI152_2009_template.nii.gz
         -tlrc_NL_warp
