@@ -67,7 +67,7 @@ for(participant_index in 1:length(participant_directories)) {
                            collapse = " "))
   
   afni_proc_py_script <- paste0('afni_proc.py
-        -subj_id ', paste0("GABORGEN24_", participants_to_preprocess[participant_index], " "),
+        -subj_id ', paste0(basename(participant_directories[participant_index]), " "),
        '-dsets ', paste0(current_functional_path," "),
        '-copy_anat ', paste0(current_structural_path, " "), 
        '-blocks tshift align tlrc volreg mask blur scale regress
