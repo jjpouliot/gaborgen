@@ -1,13 +1,13 @@
 # Convert files to NIFTI format and deobliques
 # If there are multiple of the same scan, it processes the last one recorded by
 # looking for the largest number at the end of folder
-for (participant_index in 1:length(participants_to_preprocess)) {
+for (directory_index in 1:length(participant_directories)) {
   
   print(paste("Reformat MRI volumnes for participant ", 
-              participants_to_preprocess[participant_index]))
+              basename(participant_directories[directory_index])))
   
   current_participant_found_structural_directories <- list.files(
-    paste0(participant_directories[participant_index],'/fMRI'),
+    paste0(participant_directories[directory_index],'/fMRI'),
     pattern = 'T1_MPRAGE_SAG_P2_ISO', full.names = T)
   
   current_structural_directory <- 
@@ -17,7 +17,7 @@ for (participant_index in 1:length(participants_to_preprocess)) {
             current_participant_found_structural_directories)))]
   
   current_participant_found_functional_directories <- list.files(
-    paste0(participant_directories[participant_index],'/fMRI'),
+    paste0(participant_directories[directory_index],'/fMRI'),
     pattern = 'BOLD-EPI-CMRR-2S', full.names = T)
   
   current_functional_directory <- current_participant_found_functional_directories[
@@ -26,7 +26,7 @@ for (participant_index in 1:length(participants_to_preprocess)) {
           current_participant_found_functional_directories)))]
   
   current_participant_found_blip_forward <- list.files(
-    paste0(participant_directories[participant_index],'/fMRI'),
+    paste0(participant_directories[directory_index],'/fMRI'),
     pattern = 'CMMR-DISTMAP_AP', full.names = T)
   
   current_blip_forward_directory <- current_participant_found_blip_forward[
@@ -35,7 +35,7 @@ for (participant_index in 1:length(participants_to_preprocess)) {
           current_participant_found_blip_forward)))]
   
   current_participant_found_blip_reverse <- list.files(
-    paste0(participant_directories[participant_index],'/fMRI'),
+    paste0(participant_directories[directory_index],'/fMRI'),
     pattern = 'CMMR-DISTMAP_PA', full.names = T)
   
   current_blip_reverse_directory <- current_participant_found_blip_reverse[

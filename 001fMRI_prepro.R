@@ -22,7 +22,7 @@ if(!file.exists(where_results_should_be_saved)){
 }
 
 ## Put the participant ID numbers that you would like to preprocess (eg c(118,119))
-participants_to_preprocess <- c(108:109)
+participants_to_preprocess <- c(126,125,108)
 
 # End of user input ####
 
@@ -69,9 +69,30 @@ if (number_of_found_locations > 1) {
   stop('Multiple data locations found on the current computer')
 }
 
+participant_directories <- c()
+for (participant_index in 1:length(participants_to_preprocess)) {
+  
+  if (participants_to_preprocess[participant_index] < 123) {
+    
+    participant_directories <- c(participant_directories,
+                                 paste0(data_directory,
+                                        '/GABORGEN24_', 
+                                        participants_to_preprocess[
+                                          participant_index]))
+    
+  } else if (participants_to_preprocess[participant_index] >= 123) {
+    
+    participant_directories <- c(participant_directories,
+                                 paste0(data_directory,
+                                        c('/GABORGEN24_DAY1_'#,'/GABORGEN24_DAY2_'
+                                          ), 
+                                        participants_to_preprocess[
+                                          participant_index]))
+    
+  }
+}
 
-participant_directories <- paste0(data_directory,'/GABORGEN24_', 
-                                  participants_to_preprocess)
+
 
 if (!all(file.exists(participant_directories))){
   stop('Not all the participant directories exist in the correct format')
@@ -88,122 +109,8 @@ tryCatch({
   stop("The recommend terminal for afni (tcsh) is not available")
 })
 
-# Make stim onset file for every stimulus as prepro sanity check and to get
-# nice quality control features
-for (participant_index in 1:length(participants_to_preprocess)) {
-  
-  dat_file_path <- paste0(participant_directories[participant_index],
-                          "/DAT/gaborgen24_fMRI_Day1_", 
-                          participants_to_preprocess[participant_index],
-                          "_logfile.dat")
-  
-  if(!file.exists(dat_file_path)){
-    stop(paste0(dat_file_path, " does not exist. You must have the directory in the correct structure"))
-  }
-  
-  log_file <- read.delim(dat_file_path, header = T, sep = ",")
-  
-  stim_onset <- log_file$timeSinceFirstTR
-  
-  write(x = stim_onset, 
-        file = paste0(participant_directories[participant_index], "/stim_times.1D"),
-        ncolumns = 1)
-  
-  # More stim files for later analyses
-  # phase 1 = habituation, 2 = acquisition, 3 = extinction
-  # stim 1 = CS+ to 4 = GS3
-  # This would be much prettier in an apply function
-  phase_1_stim_1_stim_times <- subset(log_file, 
-                                      phase == 1 & stim == 1,
-                                      select = timeSinceFirstTR,
-                                      drop = T)
-  phase_1_stim_2_stim_times <- subset(log_file, 
-                                      phase == 1 & stim == 2,
-                                      select = timeSinceFirstTR,
-                                      drop = T)
-  phase_1_stim_3_stim_times <- subset(log_file, 
-                                      phase == 1 & stim == 3,
-                                      select = timeSinceFirstTR,
-                                      drop = T)
-  phase_1_stim_4_stim_times <- subset(log_file, 
-                                      phase == 1 & stim == 4,
-                                      select = timeSinceFirstTR,
-                                      drop = T)
-  
-  phase_2_stim_1_stim_times <- subset(log_file, 
-                                      phase == 2 & stim == 1,
-                                      select = timeSinceFirstTR,
-                                      drop = T)
-  phase_2_stim_2_stim_times <- subset(log_file, 
-                                      phase == 2 & stim == 2,
-                                      select = timeSinceFirstTR,
-                                      drop = T)
-  phase_2_stim_3_stim_times <- subset(log_file, 
-                                      phase == 2 & stim == 3,
-                                      select = timeSinceFirstTR,
-                                      drop = T)
-  phase_2_stim_4_stim_times <- subset(log_file, 
-                                      phase == 2 & stim == 4,
-                                      select = timeSinceFirstTR,
-                                      drop = T)
-  
-  phase_3_stim_1_stim_times <- subset(log_file, 
-                                      phase == 3 & stim == 1,
-                                      select = timeSinceFirstTR,
-                                      drop = T)
-  phase_3_stim_2_stim_times <- subset(log_file, 
-                                      phase == 3 & stim == 2,
-                                      select = timeSinceFirstTR,
-                                      drop = T)
-  phase_3_stim_3_stim_times <- subset(log_file, 
-                                      phase == 3 & stim == 3,
-                                      select = timeSinceFirstTR,
-                                      drop = T)
-  phase_3_stim_4_stim_times <- subset(log_file, 
-                                      phase == 3 & stim == 4,
-                                      select = timeSinceFirstTR,
-                                      drop = T)
-  
-  write(x = phase_1_stim_1_stim_times, 
-        file = paste0(participant_directories[participant_index], "/phase_1_stim_1_stim_times.1D"),
-        ncolumns = 1)
-  write(x = phase_1_stim_2_stim_times, 
-        file = paste0(participant_directories[participant_index], "/phase_1_stim_2_stim_times.1D"),
-        ncolumns = 1)
-  write(x = phase_1_stim_3_stim_times, 
-        file = paste0(participant_directories[participant_index], "/phase_1_stim_3_stim_times.1D"),
-        ncolumns = 1)
-  write(x = phase_1_stim_4_stim_times, 
-        file = paste0(participant_directories[participant_index], "/phase_1_stim_4_stim_times.1D"),
-        ncolumns = 1)
-  
-  write(x = phase_2_stim_1_stim_times, 
-        file = paste0(participant_directories[participant_index], "/phase_2_stim_1_stim_times.1D"),
-        ncolumns = 1)
-  write(x = phase_2_stim_2_stim_times, 
-        file = paste0(participant_directories[participant_index], "/phase_2_stim_2_stim_times.1D"),
-        ncolumns = 1)
-  write(x = phase_2_stim_3_stim_times, 
-        file = paste0(participant_directories[participant_index], "/phase_2_stim_3_stim_times.1D"),
-        ncolumns = 1)
-  write(x = phase_2_stim_4_stim_times, 
-        file = paste0(participant_directories[participant_index], "/phase_2_stim_4_stim_times.1D"),
-        ncolumns = 1)
-  
-  write(x = phase_3_stim_1_stim_times, 
-        file = paste0(participant_directories[participant_index], "/phase_3_stim_1_stim_times.1D"),
-        ncolumns = 1)
-  write(x = phase_3_stim_2_stim_times, 
-        file = paste0(participant_directories[participant_index], "/phase_3_stim_2_stim_times.1D"),
-        ncolumns = 1)
-  write(x = phase_3_stim_3_stim_times, 
-        file = paste0(participant_directories[participant_index], "/phase_3_stim_3_stim_times.1D"),
-        ncolumns = 1)
-  write(x = phase_3_stim_4_stim_times, 
-        file = paste0(participant_directories[participant_index], "/phase_3_stim_4_stim_times.1D"),
-        ncolumns = 1)
-  
-}
+# Make stim onset files
+source("make_stim_times_files.R", local = T, echo = T)
 
 # Begin data preprocessing ####
 

@@ -1,9 +1,9 @@
 setwd(where_results_should_be_saved)
 
-for(participant_index in 1:length(participant_directories)) {
+for(directory_index in 1:length(participant_directories)) {
   
   current_participant_found_structural_directories <- list.files(
-    paste0(participant_directories[participant_index],'/fMRI'),
+    paste0(participant_directories[directory_index],'/fMRI'),
     pattern = 'T1_MPRAGE_SAG_P2_ISO', full.names = T)
   
   current_structural_directory <- 
@@ -13,7 +13,7 @@ for(participant_index in 1:length(participant_directories)) {
             current_participant_found_structural_directories)))]
   
   current_participant_found_functional_directories <- list.files(
-    paste0(participant_directories[participant_index],'/fMRI/'),
+    paste0(participant_directories[directory_index],'/fMRI'),
     pattern = 'BOLD-EPI-CMRR-2S', full.names = T)
   
   current_functional_directory <- current_participant_found_functional_directories[
@@ -22,7 +22,7 @@ for(participant_index in 1:length(participant_directories)) {
           current_participant_found_functional_directories)))]
   
   current_participant_found_blip_forward <- list.files(
-    paste0(participant_directories[participant_index],'/fMRI'),
+    paste0(participant_directories[directory_index],'/fMRI'),
     pattern = 'CMMR-DISTMAP_AP', full.names = T)
   
   current_blip_forward_directory <- current_participant_found_blip_forward[
@@ -31,7 +31,7 @@ for(participant_index in 1:length(participant_directories)) {
           current_participant_found_blip_forward)))]
   
   current_participant_found_blip_reverse <- list.files(
-    paste0(participant_directories[participant_index],'/fMRI'),
+    paste0(participant_directories[directory_index],'/fMRI'),
     pattern = 'CMMR-DISTMAP_PA', full.names = T)
   
   current_blip_reverse_directory <- current_participant_found_blip_reverse[
@@ -55,26 +55,26 @@ for(participant_index in 1:length(participant_directories)) {
                                           pattern = '.HEAD$',
                                           full.names = T)
   
-  current_stim_onsets_path <- paste(list.files(participant_directories[participant_index], 
+  current_stim_onsets_path <- paste(list.files(participant_directories[directory_index], 
                                                pattern = '_stim_times.1D$',
                                                full.names = T), 
                                     collapse = " ")
   
   stim_names <- gsub(pattern = "_stim_times\\.1D", 
                      replacement = "", 
-                     paste(list.files(participant_directories[participant_index], 
+                     paste(list.files(participant_directories[directory_index], 
                                       pattern = '_stim_times.1D$'), 
                            collapse = " "))
   
-  afni_proc_py_script <- paste0('afni_proc.py
-        -subj_id ', paste0(basename(participant_directories[participant_index]), " "),
+  afni_proc_py_script <- paste0('python3 ~/abin/afni_proc.py
+        -subj_id ', paste0(basename(participant_directories[directory_index]), " "),
        '-dsets ', paste0(current_functional_path," "),
        '-copy_anat ', paste0(current_structural_path, " "), 
        '-blocks tshift align tlrc volreg mask blur scale regress
         -tcat_remove_first_trs 0
         -radial_correlate_blocks  tcat volreg
-        -blip_forward_dset ', paste0(current_blip_forward_path," "),
-       '-blip_reverse_dset ', paste0(current_blip_reverse_path," "),
+        -blip_forward_dset ', paste0(current_blip_forward_path, " "),
+       '-blip_reverse_dset ', paste0(current_blip_reverse_path, " "),
         '-align_unifize_epi        yes
         -align_opts_aea           -cost lpc+ZZ  
                                   -check_flip
@@ -101,6 +101,7 @@ for(participant_index in 1:length(participant_directories)) {
         -execute')
   
   afni_proc_py_script <- gsub(pattern = "\n", replacement = "", x = afni_proc_py_script)
+
   
   system2('tcsh', 
           args = c('-c', 

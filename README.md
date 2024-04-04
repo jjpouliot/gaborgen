@@ -12,6 +12,24 @@ GABORGEN24_101
 
 - DAT
 
+Participants 123 and up have this format because there are two potential days of recording
+
+GABORGEN24_DAY1_123
+
+- fMRI
+
+- EEG
+
+- DAT
+
+GABORGEN24_DAY2_123
+
+- fMRI
+
+- EEG
+
+- DAT
+
 ## 001fMRI_prepro.R
 This script does the initial preprocessing per participant. It imposes restrictions to force the user to have the data in the correct format and to prevent incorrect analyses. It also forces the user to put their data and local git directory paths at the top of the script. The script forces the use of the tcsh terminal which is recommended for AFNI analyses. The system2 R function is used to force tcsh terminal calls.
 
