@@ -1,0 +1,13 @@
+
+# -------------------------------------------------------
+# for AFNI: auto-inserted by init_user_dotfiles.py
+
+# import the environment from .cshrc
+source $HOME/.cshrc
+# -------------------------------------------------------
+
+setenv DYLD_LIBRARY_PATH /opt/X11/lib/flat_namespace
+
+eval `/opt/homebrew/bin/brew shellenv`
+
+setenv PATH ${PATH}:/opt/homebrew/opt/python/libexec/bin

@@ -66,7 +66,7 @@ for(directory_index in 1:length(participant_directories)) {
                                       pattern = '_stim_times.1D$'), 
                            collapse = " "))
   
-  afni_proc_py_script <- paste0('python3 ~/abin/afni_proc.py
+  afni_proc_py_script <- paste0('afni_proc.py
         -subj_id ', paste0(basename(participant_directories[directory_index]), " "),
        '-dsets ', paste0(current_functional_path," "),
        '-copy_anat ', paste0(current_structural_path, " "), 

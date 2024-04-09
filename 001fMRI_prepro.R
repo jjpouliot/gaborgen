@@ -22,7 +22,7 @@ if(!file.exists(where_results_should_be_saved)){
 }
 
 ## Put the participant ID numbers that you would like to preprocess (eg c(118,119))
-participants_to_preprocess <- c(126,125,108)
+participants_to_preprocess <- c(127)
 
 # End of user input ####
 
@@ -84,7 +84,8 @@ for (participant_index in 1:length(participants_to_preprocess)) {
     
     participant_directories <- c(participant_directories,
                                  paste0(data_directory,
-                                        c('/GABORGEN24_DAY1_'#,'/GABORGEN24_DAY2_'
+                                        c('/GABORGEN24_DAY1_',
+                                          '/GABORGEN24_DAY2_'
                                           ), 
                                         participants_to_preprocess[
                                           participant_index]))
