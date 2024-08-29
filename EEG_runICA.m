@@ -1,13 +1,4 @@
 function EEG_runICA(partID, exclude4ICA, parentFolder, day1, day2)
-% setting paths
-if nargin < 3
-    error('Set a parentFolder')
-end
-
-dataFolder = [parentFolder '/raw_data'];
-if ~(exist(dataFolder) == 7)
-    error('raw_data folder not inside parentFolder')
-end
 
 if nargin < 4
     day1 = 1;
@@ -26,44 +17,15 @@ gaborgenCodeRepository = fileparts(mfilename('fullpath'));
 participantDirectories = dir(dataFolder);
 participantDirectories = participantDirectories(~ismember({participantDirectories.name}, {'.', '..'}));
 
+
 for partI = 1:length(partID)
     % set random number generator (just in case)
     rng(1);
 
-    matchingDirs = {};
-    for i = 1:length(participantDirectories)
-        dirname = participantDirectories(i).name;
-        if contains(dirname,num2str(partID(partI)))
-            matchingDirs{end+1} = dirname;
-        end
-    end
+    [currentParticipantDirectories, dataFolder, gaborgenCodeRepository] = ...
+        gaborgenMriReturnDirs(partID, parentFolder, day1, day2);
 
-    %day 1 or 2 exclusion
-    if day1 == 0
-        finalDirs = {};
-        for i = 1:length(matchingDirs)
-            if contains(matchingDirs{i}, 'DAY2')
-                finalDirs{end+1} = matchingDirs{i};
-            end
-        end
-        matchingDirs = finalDirs;
-    end
-
-    if day2 == 0
-        finalDirs = {};
-        for i = 1:length(matchingDirs)
-            if ~contains(matchingDirs{i}, 'DAY2')
-                finalDirs{end+1} = matchingDirs{i};
-            end
-        end
-        matchingDirs = finalDirs;
-    end
-
-    if length(matchingDirs) > 2
-        error('There are more than two directories with the same subject number which should be impossible.')
-    end
-
-    for j = 1:length(matchingDirs)
+    for j = 1:length(currentParticipantDirectories)
 
         % initialize eeglab
         [AllEEG, ~, ~, ~] = eeglab;
