@@ -87,7 +87,7 @@ for partI = 1:length(partID)
         % save prepped data
         disp('Step 10/10 - save data prepped 4 ICA');
         EEG = eeg_checkset(EEG);
-        pop_saveset(EEG, 'filename',[EEGFileName '_02_prepped4ICA.set'],'filepath',currentDir);
+        pop_saveset(EEG, 'filename',[EEGFileName '_02_prepped4ICA.set'],'filepath',currentDirectory);
 
         % generate logfile
         logText = strcat('logfile for gaborgen_mri_eeg: prepping 4 ICA\n', ...
