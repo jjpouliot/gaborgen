@@ -66,7 +66,7 @@ for partI = 1:length(partID)
     for j = 1:length(matchingDirs)
 
         % initialize eeglab
-        [ALLEEG, ~, ~, ~] = eeglab;
+        [AllEEG, ~, ~, ~] = eeglab;
 
         % load dataset
         disp('Step 1/3 - load EEG data');
@@ -85,7 +85,7 @@ for partI = 1:length(partID)
 
 
         EEG = pop_loadset('filename', EEGpreICAFileName, 'filepath', currentDir);
-        [ALLEEG, EEG, ~] = eeg_store(ALLEEG, EEG, 0);
+        [AllEEG, EEG, ~] = eeg_store(AllEEG, EEG, 0);
 
         % list indices of channels to include
         chanList = struct2cell(EEG.chanlocs);
@@ -100,9 +100,9 @@ for partI = 1:length(partID)
         % run ICA
         disp('Step 2/3 - run ICA');
         EEG = pop_runica(EEG,'icatype','sobi','chanind',chans2include);
-        [ALLEEG, EEG, CURRENTSET] = pop_newset(ALLEEG, EEG, 1, 'setname', ...
+        [AllEEG, EEG, CURRENTSET] = pop_newset(AllEEG, EEG, 1, 'setname', ...
             [EEGFileName '_ICA'],'gui','off');
-        [~, EEG] = eeg_store(ALLEEG, EEG, CURRENTSET);
+        [~, EEG] = eeg_store(AllEEG, EEG, CURRENTSET);
 
         % save data in eeglab format
         disp('Step 3/3 - save data with IC weights');

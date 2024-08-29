@@ -17,7 +17,7 @@ for partI = 1:length(partID)
     for j = 1:length(currentParticipantDirectories)
 
         % initialize eeg lab
-        [ALLEEG, ~, ~, ~] = eeglab;
+        [AllEEG, ~, ~, ~] = eeglab;
 
         % load dataset
         disp('Step 1/10 - import BVA data');
@@ -35,13 +35,13 @@ for partI = 1:length(partID)
         [~, EEGFileName, ~] = fileparts(currentFilenames{vhdrIndex});
 
         EEG = pop_loadbv(currentDirectory, vhdrFileName); % If line doesn't work, maybe get bva-io eeglab plugin
-        [ALLEEG, EEG, ~] = pop_newset(ALLEEG, EEG, 0, 'setname', EEGFileName, 'gui', 'off');
+        [AllEEG, EEG, ~] = pop_newset(AllEEG, EEG, 0, 'setname', EEGFileName, 'gui', 'off');
 
         % add channel locations
         disp('Step 2/10 - add channel coordinates');
         EEG = eeg_checkset(EEG);
         EEG = pop_chanedit(EEG, 'lookup',[gaborgenCodeRepository '/standard_1005.elc']);
-        %[ALLEEG EEG] = eeg_store(ALLEEG, EEG, CURRENTSET);
+        %[AllEEG EEG] = eeg_store(AllEEG, EEG, CURRENTSET);
 
         % save raw data in eeglab format
         disp('Step 3/10 - save raw data in eeglab format');
