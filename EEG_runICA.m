@@ -28,7 +28,7 @@ for partI = 1:length(partID)
         EEGpreICAIndex = find(endsWith(currentFilenames, '_02_prepped4ICA.set'));
         if ~isempty(EEGpreICAIndex)
             EEGpreICAFileName = currentFilenames{EEGpreICAIndex};
-        elseif EEGIndex > 1
+        elseif EEGpreICAIndex > 1
             error(['More than one 02_prepped4ICA.set file found in ' currentDirectory]);
         else
             error(['No 02_prepped4ICA.set file found in ' currentDirectory]);

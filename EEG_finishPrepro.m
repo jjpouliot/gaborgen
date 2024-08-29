@@ -18,13 +18,29 @@ for partI = 1:length(partID)
     for j = 1:length(currentParticipantDirectories)
 
         %% initialize eeglab
-        [ALLEEG, ~, ~, ~] = eeglab;
+        [AllEEG, ~, ~, ~] = eeglab;
 
         %% load dataset
         disp('Step 1/7 - load EEG data');
-        EEG = pop_loadset('filename',['ssv4att_MRI_' int2str(partID(partI)) '_03_ICA.set'], ...
-            'filepath',dataFolder);
-        [ALLEEG, EEG, ~] = eeg_store(ALLEEG, EEG, 0);
+
+        currentDirectory =  [dataFolder '/' currentParticipantDirectories{j} '/EEG'];
+
+        currentFilenames = {dir(currentDirectory).name};
+        EEGICAIndex = find(endsWith(currentFilenames, '_03_ICA.set'));
+        if length(EEGICAIndex) == 1
+            EEGICAFileName = currentFilenames{EEGICAIndex};
+        elseif EEGICAIndex > 1
+            error(['More than one 03_ICA.set file found in ' currentDirectory]);
+        else
+            error(['No 03_ICA.set file found in ' currentDirectory]);
+        end
+        [~, EEGFileName, ~] = fileparts(currentFilenames{EEGICAIndex});
+
+
+        EEG = pop_loadset('filename', EEGICAFileName, 'filepath', currentDirectory);
+
+
+        [AllEEG, EEG, ~] = eeg_store(AllEEG, EEG, 0);
 
         %% remove ICs
         disp('Step 2/7 - removing independent components from data');
@@ -51,7 +67,7 @@ for partI = 1:length(partID)
         disp('Step 5/7 - remove artifacts');
         EEG = eeg_checkset(EEG);
         EEG = pop_clean_rawdata(EEG, 'FlatlineCriterion','off','ChannelCriterion','off','LineNoiseCriterion','off','Highpass','off','BurstCriterion',20,'WindowCriterion',0.25,'BurstRejection','on','Distance','Euclidian','WindowCriterionTolerances',[-Inf 7] );
-        [~, EEG, ~] = pop_newset(ALLEEG, EEG, 1,'gui','off');
+        [~, EEG, ~] = pop_newset(AllEEG, EEG, 1,'gui','off');
 
         %% transform into CSD
         disp('Step 6/7 - CSD transformation');
@@ -60,7 +76,7 @@ for partI = 1:length(partID)
         EEG = pop_select(EEG, 'rmchannel',{'ECG'});
         % do the CSD transformation
         EEG = csdFromErplabAutomated(EEG); % using defaults: m = 4 splines, lambda = 1e-5, 10 cm radius
-        [~, EEG, ~] = pop_newset(ALLEEG, EEG, 1,'gui','off');
+        [~, EEG, ~] = pop_newset(AllEEG, EEG, 1,'gui','off');
 
         %% save data in eeglab format
         disp('Step 7/7 - save preprocessed data');
