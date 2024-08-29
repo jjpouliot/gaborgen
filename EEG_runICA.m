@@ -8,16 +8,6 @@ if nargin < 5
     day2 = 1;
 end
 
-if day1 == 0 && day2 == 0
-    error('day1 and day2 arguments are zero which means neither day should be processed')
-end
-
-gaborgenCodeRepository = fileparts(mfilename('fullpath'));
-
-participantDirectories = dir(dataFolder);
-participantDirectories = participantDirectories(~ismember({participantDirectories.name}, {'.', '..'}));
-
-
 for partI = 1:length(partID)
     % set random number generator (just in case)
     rng(1);
