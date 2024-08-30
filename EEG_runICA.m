@@ -59,7 +59,7 @@ for partI = 1:length(partID)
         % save data in eeglab format
         disp('Step 3/3 - save data with IC weights');
         EEG = eeg_checkset(EEG);
-        pop_saveset(EEG, 'filename', [EEGFileName '_03_ICA.set'], ...
+        pop_saveset(EEG, 'filename', [EEGFileName(1:(end - length('_02_prepped4ICA'))) '_03_ICA.set'], ...
             'filepath', currentDirectory);
 
         % generate logfile

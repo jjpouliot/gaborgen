@@ -75,22 +75,23 @@ for partI = 1:length(partID)
         % we have to remove non-EEG channels for the ERPlab plugin to work
         EEG = pop_select(EEG, 'rmchannel',{'ECG'});
         % do the CSD transformation
+        
         EEG = csdFromErplabAutomated(EEG); % using defaults: m = 4 splines, lambda = 1e-5, 10 cm radius
         [~, EEG, ~] = pop_newset(AllEEG, EEG, 1,'gui','off');
 
         %% save data in eeglab format
         disp('Step 7/7 - save preprocessed data');
         EEG = eeg_checkset(EEG);
-        pop_saveset(EEG, 'filename',['ssv4att_MRI_' int2str(partID(partI)) '_04_preprocessed.set'], ...
-            'filepath',dataFolder);
+        pop_saveset(EEG, 'filename',[EEGFileName(1:(end - length('_03_ICA'))) '_04_preprocessed.set'], ...
+            'filepath',currentDirectory);
 
         %% generate logfile
-        logText = strcat('logfile for ssv4att_MRI: finish preprocessing\n', ...
+        logText = strcat('logfile for gaborgen_mri_eeg: run ICA\n', ...
             'date_time: ', string(datetime()), '\n', ...
             'participant: ', int2str(partID(partI)), '\n', ...
             'removed ICs: ', int2str(excludeICs{partI}), '\n', ...
             'interpolated channels: ', sprintf('%s ',string(interpolateChans{partI})));
-        fID = fopen([dataFolder '/log03_finishPrepro_' int2str(partID(partI)) '.txt'], 'w');
+        fID = fopen([currentDirectory '/log03_finishPrepro_' int2str(partID(partI)) '.txt'], 'w');
         fprintf(fID, logText);
         fclose(fID);
     end
