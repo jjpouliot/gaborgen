@@ -60,7 +60,8 @@ for partI = 1:length(partID)
         % remove MRI gradient artifacts, need FMRIB plugin
         disp('Step 5/10 = remove gradient artifacts (this may take a while...)');
         EEG = eeg_checkset(EEG);
-        [EEG, ~] = pop_fmrib_fastr(EEG, 70, 4, 31, 'T1', 0, 0, 0, [], [], [], 32, 'auto');
+%         [EEG, ~] = pop_fmrib_fastr(EEG, 70, 4, 31, 'T1', 0, 0, 0, [], [], [], 32, 'auto');
+        [EEG, ~] = pop_fmrib_fastr(EEG, 70, 4, 31, 'T1', 0, 0, 0, [], [], [], 32, 0);
 
         % downsample
         disp('Step 6/10 - downsample data');

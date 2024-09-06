@@ -28,13 +28,13 @@ for partI = 1:length(partID)
             rng(1);
 
             %% initialize eeglab
-            [ALLEEG, ~, ~, ~] = eeglab;
+            [AllEEG, ~, ~, ~] = eeglab;
 
             %% load dataset
             dataFolder = [parentFolder '/data/' int2str(partID(partI)) '/EEG/'];
             EEG = pop_loadset('filename',['ssv4att_MRI_' int2str(partID(partI)) '_04_preprocessed.set'], ...
                 'filepath',dataFolder);
-            [ALLEEG, EEG, ~] = eeg_store(ALLEEG, EEG, 0);
+            [AllEEG, EEG, ~] = eeg_store(AllEEG, EEG, 0);
 
             %% list indices of channels to average across
             chanList = struct2cell(EEG.chanlocs);
@@ -48,7 +48,7 @@ for partI = 1:length(partID)
             %% extract epochs and remove baseline (whole epoch)
             EEG = eeg_checkset(EEG);
             EEG = pop_epoch(EEG, markerStrings{markI}, segTimesMs ./ 1000, 'newname', 'segmented', 'epochinfo', 'yes');
-            [~, EEG, ~] = pop_newset(ALLEEG, EEG, 1,'gui','off');
+            [~, EEG, ~] = pop_newset(AllEEG, EEG, 1,'gui','off');
 
 
             %             %% list the original trial indices from urevents for each trial category
@@ -166,8 +166,8 @@ for partI = 1:length(partID)
 
 
             %% compute and save Hilbert
-            hilb_857 = freqtag_HILB_chris(double(mean(EEG.data,3)),60/7,8,20,0,EEG.srate);
-            hilb_15 = freqtag_HILB_chris(double(mean(EEG.data,3)),15,8,20,0,EEG.srate);
+%             hilb_857 = freqtag_HILB_chris(double(mean(EEG.data,3)),60/7,8,20,0,EEG.srate);
+%             hilb_15 = freqtag_HILB_chris(double(mean(EEG.data,3)),15,8,20,0,EEG.srate);
 
             filename = [dataFolder, int2str(partID(partI)), '_hilbert_', condStrings{markI}, '_857.txt'];
             writematrix(hilb_857,filename);
