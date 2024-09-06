@@ -16,7 +16,7 @@ for partI = 1:length(partID)
     rng(1);
 
     [currentParticipantDirectories, dataFolder, gaborgenCodeRepository] = ...
-        gaborgenMriReturnDirs(partID, parentFolder, day1, day2);
+        gaborgenMriReturnDirs(partID(partI), parentFolder, day1, day2);
 
     for j = 1:length(currentParticipantDirectories)
 

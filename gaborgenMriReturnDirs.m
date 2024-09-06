@@ -23,40 +23,38 @@ allParticipantsDirectories = dir(dataFolder);
 allParticipantsDirectories = allParticipantsDirectories(~ismember({allParticipantsDirectories.name}, {'.', '..'}));
 
 
-for partI = 1:length(partID)
-    %% set random number generator (just in case)
-    rng(1);
+%% set random number generator (just in case)
+rng(1);
 
-    participantDirectories = {};
-    for i = 1:length(allParticipantsDirectories)
-        dirname = allParticipantsDirectories(i).name;
-        if contains(dirname, num2str(partID(partI)))
-            participantDirectories{end+1} = dirname;
+participantDirectories = {};
+for i = 1:length(allParticipantsDirectories)
+    dirname = allParticipantsDirectories(i).name;
+    if contains(dirname, num2str(partID))
+        participantDirectories{end+1} = dirname;
+    end
+end
+
+%day 1 or 2 exclusion
+finalDirs = {};
+if day1 == 1
+    for i = 1:length(participantDirectories)
+        if ~contains(participantDirectories{i}, 'DAY2')
+            finalDirs{end+1} = participantDirectories{i};
         end
     end
 
-    %day 1 or 2 exclusion
-    finalDirs = {};
-    if day1 == 1
-        for i = 1:length(participantDirectories)
-            if ~contains(participantDirectories{i}, 'DAY2')
-                finalDirs{end+1} = participantDirectories{i};
-            end
-        end
-        
-    end
+end
 
-    if day2 == 1
-        for i = 1:length(participantDirectories)
-            if contains(participantDirectories{i}, 'DAY2')
-                finalDirs{end+1} = participantDirectories{i};
-            end
+if day2 == 1
+    for i = 1:length(participantDirectories)
+        if contains(participantDirectories{i}, 'DAY2')
+            finalDirs{end+1} = participantDirectories{i};
         end
     end
+end
 
-    participantDirectories = finalDirs;
+participantDirectories = finalDirs;
 
-    if length(participantDirectories) > 2
-        error('There are more than two directories with the same subject number which should be impossible.')
-    end
+if length(participantDirectories) > 2
+    error('There are more than two directories with the same subject number which should be impossible.')
 end
