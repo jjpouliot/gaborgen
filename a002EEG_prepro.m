@@ -15,8 +15,9 @@ addpath(genpath(emegs28path), '-end');
 % correct for scanner & cardioballistic artifacts, downsample, and filter
 % EEG_prep4ICA(partID,newSamplingRate,filterCutOff,parentFolder)
 % Data should be dropbox organization: parentFolder/raw_data/...partID/EEG
-EEG_prep4ICA([130],500,[3 40], ...
-    '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI');
+%124 bad, may not have T1 triggers, not sure though
+EEG_prep4ICA([124], ...
+    500,[3 40], '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI');
 
 
 
@@ -33,9 +34,22 @@ EEG_prep4ICA([130],500,[3 40], ...
 % 
 
 %EEG_runICA(partID, exclude4ICA, parentFolder, day1, day2)
-EEG_runICA([130], ...
-    {{}}, ...
-    '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI')
+% day1 and day2 split here to exclude different channels
+%112 all bad after 600 seconds
+%115 most channels look identical so there could be a reference issue
+%116 seem to lose  F4, C4, Fz at 1862 seconds in, but only until 1905 or so
+%119 ECG seems to glitch out often, Fz out at 1501   hold:
+%121 C3 out at 380ish back at 934 and then gone again at 1090 haha, FC6 fading at 1390, may be possible to save channels with ICA
+%123 T7, T8 impossibly large and noisy, maybe P and F are too
+%128 ECG is there but drifts away for some reason
+EEG_runICA([110,111,    112,                                  113,   114,115,  116,117,118,119,   120,121,122,123,         125,126,127,128,129,130], ...
+                     {{},   {'FC1'},{'FC3', 'FC1', 'Cz', 'C3'},    {'C4'}, {},    {'F8'},{},    {},   {},    {'Fz'}, {},    {},    {},   {'T8','T7'},{},    {},    {},   {},    {},    {}}, ...
+    '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI', 1, 0)
+
+% Not done
+% EEG_runICA([123,124,125,126,127,128,129,130], ...
+%                      {}, ...
+%     '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI', 0, 1)
 
 
 %%% manual step: check which ICs to remove and which channels to interpolate
