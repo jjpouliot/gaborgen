@@ -31,9 +31,23 @@ for partI = 1:length(partID)
             [AllEEG, ~, ~, ~] = eeglab;
 
             %% load dataset
-            dataFolder = [parentFolder '/data/' int2str(partID(partI)) '/EEG/'];
-            EEG = pop_loadset('filename',['ssv4att_MRI_' int2str(partID(partI)) '_04_preprocessed.set'], ...
-                'filepath',dataFolder);
+            currentDirectory =  [dataFolder '/' currentParticipantDirectories{j} '/EEG/'];
+
+            currentFilenames = {dir(currentDirectory).name};
+            EEGIndex = find(endsWith(currentFilenames, '_04_preprocessed.set'));
+            if length(EEGIndex) == 1
+                EEGpreproFileName = currentFilenames{EEGIndex};
+            elseif EEGcurrentDirectoryIndex > 1
+                error(['More than one 04_preprocessed.set file found in ' currentDirectory]);
+            else
+                error(['No 04_preprocessed.set file found in ' currentDirectory]);
+            end
+            [~, EEGFileName, ~] = fileparts(currentFilenames{EEGIndex});
+
+
+            EEG = pop_loadset('filename', EEGpreproFileName, 'filepath', currentDirectory);
+
+
             [AllEEG, EEG, ~] = eeg_store(AllEEG, EEG, 0);
 
             %% list indices of channels to average across
@@ -43,12 +57,81 @@ for partI = 1:length(partID)
             avgChannels_ind = find(ismember(squeeze(chanList),avgChannels));
 
             %% resample
-            EEG = pop_resample(EEG, resampleTo);
+%             EEG = pop_resample(EEG, resampleTo);
 
             %% extract epochs and remove baseline (whole epoch)
             EEG = eeg_checkset(EEG);
             EEG = pop_epoch(EEG, markerStrings{markI}, segTimesMs ./ 1000, 'newname', 'segmented', 'epochinfo', 'yes');
             [~, EEG, ~] = pop_newset(AllEEG, EEG, 1,'gui','off');
+
+            %% list the original trial indices from urevents for each trial category
+            eventTable = struct2table(EEG.event);
+            ureventTable = struct2table(EEG.urevent);
+            %cleanSegmentsBool = cell(1);
+
+            eventInd = [];
+            ureventInd = [];
+            for i = 1:length(ureventTable.type)
+                if ismember(ureventTable.type{i}, markerStrings{markI})
+                    ureventInd = [ureventInd, i];
+                end
+            end
+            for i = 1:length(eventTable.type)
+                if ismember(eventTable.type{i}, markerStrings{markI})
+                    eventInd = [eventInd, eventTable.urevent(i)];
+                end
+            end
+            cleanSegmentsBool = ismember(ureventInd, eventInd);
+
+            %% determine baseline and data samples
+            blSamples_bl = (floor((blTimesMs_bl(1) - segTimesMs(1)) .* (EEG.srate/1000)) : ceil((blTimesMs_bl(2) - segTimesMs(1)) .* (EEG.srate/1000))) + 1;
+            ssvepSamples_bl = (floor((ssvepTimesMs_bl(1) - segTimesMs(1)) .* (EEG.srate/1000)) : ceil((ssvepTimesMs_bl(2) - segTimesMs(1)) .* (EEG.srate/1000))) + 1;
+            blSamples_cue = (floor((blTimesMs_cue(1) - segTimesMs(1)) .* (EEG.srate/1000)) : ceil((blTimesMs_cue(2) - segTimesMs(1)) .* (EEG.srate/1000))) + 1;
+            ssvepSamples_cue = (floor((ssvepTimesMs_cue(1) - segTimesMs(1)) .* (EEG.srate/1000)) : ceil((ssvepTimesMs_cue(2) - segTimesMs(1)) .* (EEG.srate/1000))) + 1;
+
+
+            %% sliding window baseline - 15 Hz
+            [powmat_bl_15,winmat3d_bl_15,~,~] = freqtag_slidewin(EEG.data, 0, blSamples_bl, ssvepSamples_bl, 15, EEG.srate, EEG.srate, 'whatever.txt');
+
+            %% sliding window post-cue - 15 Hz
+            [powmat_cue_15,winmat3d_cue_15,~,~] = freqtag_slidewin(EEG.data, 0, blSamples_cue, ssvepSamples_cue, 15, EEG.srate, EEG.srate, 'whatever.txt');
+
+            %% create and save vectors for parametric modulation
+            powmat_blcorr_15 = powmat_cue_15 ./ powmat_bl_15;
+
+            parmodvec_15_abs = NaN(length(ureventInd),1);
+            parmodvec_15_blcorr = NaN(length(ureventInd),1);
+
+            parmodvec_15_abs(cleanSegmentsBool) = mean(powmat_cue_15(avgChannels_ind,:), 1);
+            parmodvec_15_blcorr(cleanSegmentsBool) = mean(powmat_blcorr_15(avgChannels_ind,:), 1);
+
+            filename = [currentDirectory, int2str(partID(partI)), '_parMod_', condStrings{markI}, '_15_abs.txt'];
+            writematrix(parmodvec_15_abs,filename);
+            filename = [currentDirectory, int2str(partID(partI)), '_parMod_', condStrings{markI}, '_15_blcorr.txt'];
+            writematrix(parmodvec_15_blcorr,filename);
+
+
+            %% save single-trial amplitudes at driving frequencies
+
+            %powmat_blcorr_857 = powmat_cue_857 ./ powmat_bl_857;
+            %powmat_blcorr_15 = powmat_cue_15 ./ powmat_bl_15;
+
+
+            filename = [currentDirectory, int2str(partID(partI)), '_fftST_', condStrings{markI}, '_15_abs.txt'];
+            writematrix(powmat_cue_15,filename);
+            filename = [currentDirectory, int2str(partID(partI)), '_fftST_', condStrings{markI}, '_15_blcorr.txt'];
+            writematrix(powmat_blcorr_15,filename);
+
+
+            %% compute and save ERPs (from sliding window)
+            erp_bl15 = mean(winmat3d_bl_15,3);
+            erp_cue15 = mean(winmat3d_cue_15,3);
+
+            filename = [currentDirectory, int2str(partID(partI)), '_erp_', condStrings{markI}, '_15_bl.txt'];
+            writematrix(erp_bl15,filename);
+            filename = [currentDirectory, int2str(partID(partI)), '_erp_', condStrings{markI}, '_15_cue.txt'];
+            writematrix(erp_cue15,filename);
+
 
 
             %             %% list the original trial indices from urevents for each trial category
@@ -166,30 +249,30 @@ for partI = 1:length(partID)
 
 
             %% compute and save Hilbert
-%             hilb_857 = freqtag_HILB_chris(double(mean(EEG.data,3)),60/7,8,20,0,EEG.srate);
-%             hilb_15 = freqtag_HILB_chris(double(mean(EEG.data,3)),15,8,20,0,EEG.srate);
-
-            filename = [dataFolder, int2str(partID(partI)), '_hilbert_', condStrings{markI}, '_857.txt'];
-            writematrix(hilb_857,filename);
-            filename = [dataFolder, int2str(partID(partI)), '_hilbert_', condStrings{markI}, '_15.txt'];
-            writematrix(hilb_15,filename);
+            %             hilb_857 = freqtag_HILB_chris(double(mean(EEG.data,3)),60/7,8,20,0,EEG.srate);
+            %             hilb_15 = freqtag_HILB_chris(double(mean(EEG.data,3)),15,8,20,0,EEG.srate);
+            %
+            %             filename = [dataFolder, int2str(partID(partI)), '_hilbert_', condStrings{markI}, '_857.txt'];
+            %             writematrix(hilb_857,filename);
+            %             filename = [dataFolder, int2str(partID(partI)), '_hilbert_', condStrings{markI}, '_15.txt'];
+            %             writematrix(hilb_15,filename);
 
         end
 
 
         %% generate logfile
-        logText = strcat('logfile for ssv4att_MRI: sliding window\n', ...
-            'date_time: ', string(datetime()), '\n', ...
-            'participant: ', int2str(partID(partI)), '\n', ...
-            'new sampling rate: ', int2str(resampleTo), '\n', ...
-            'segment boundaries in ms: ', int2str(segTimesMs), '\n', ...
-            'baseline window for baseline segment (ms): ', int2str(blTimesMs_bl), '\n', ...
-            'ssVEP window for baseline segment (ms): ', int2str(ssvepTimesMs_bl), '\n', ...
-            'baseline window for post-cue segment (ms): ', int2str(blTimesMs_cue), '\n', ...
-            'ssVEP window for post-cue segment (ms): ', int2str(ssvepTimesMs_cue), '\n', ...
-            'channels averaged for parametric modulators: ', sprintf('%s ',string(avgChannels)));
-        fID = fopen([dataFolder '/log04_slidingWindow_' int2str(partID(partI)) '.txt'], 'w');
-        fprintf(fID, logText);
-        fclose(fID);
+        %         logText = strcat('logfile for ssv4att_MRI: sliding window\n', ...
+        %             'date_time: ', string(datetime()), '\n', ...
+        %             'participant: ', int2str(partID(partI)), '\n', ...
+        %             'new sampling rate: ', int2str(resampleTo), '\n', ...
+        %             'segment boundaries in ms: ', int2str(segTimesMs), '\n', ...
+        %             'baseline window for baseline segment (ms): ', int2str(blTimesMs_bl), '\n', ...
+        %             'ssVEP window for baseline segment (ms): ', int2str(ssvepTimesMs_bl), '\n', ...
+        %             'baseline window for post-cue segment (ms): ', int2str(blTimesMs_cue), '\n', ...
+        %             'ssVEP window for post-cue segment (ms): ', int2str(ssvepTimesMs_cue), '\n', ...
+        %             'channels averaged for parametric modulators: ', sprintf('%s ',string(avgChannels)));
+        %         fID = fopen([dataFolder '/log04_slidingWindow_' int2str(partID(partI)) '.txt'], 'w');
+        %         fprintf(fID, logText);
+        %         fclose(fID);
     end
 end
