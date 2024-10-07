@@ -102,6 +102,9 @@ for(directory_index in 1:length(participant_directories)) {
   
   afni_proc_py_script <- gsub(pattern = "\n", replacement = "", x = afni_proc_py_script)
 
+  system2('tcsh', 
+          args = c('-c', 
+                   shQuote('source $HOME/.tcshrc')))
   
   system2('tcsh', 
           args = c('-c', 
