@@ -1,3 +1,5 @@
+
+
 %% This will clear and edit your matlab path
 % possibly necessary if you don't have eeglab set up correctly
 restoredefaultpath
