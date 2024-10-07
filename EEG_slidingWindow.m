@@ -57,7 +57,7 @@ for partI = 1:length(partID)
             avgChannels_ind = find(ismember(squeeze(chanList),avgChannels));
 
             %% resample
-%             EEG = pop_resample(EEG, resampleTo);
+            EEG = pop_resample(EEG, resampleTo);
 
             %% extract epochs and remove baseline (whole epoch)
             EEG = eeg_checkset(EEG);
