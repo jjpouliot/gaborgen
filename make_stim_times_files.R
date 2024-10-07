@@ -1,10 +1,10 @@
 
 # used sapply so that dat files are in the same order as participant directories
-found_dat_log_filepaths <- sapply(participant_directories, function(x){
+found_dat_log_filepaths <- unlist(lapply(participant_directories, function(x){
   list.files(path = paste0(x, '/DAT'),
              pattern = 'logfile.dat$',
              full.names = T)
-})
+}))
 
 
 if(length(found_dat_log_filepaths) != length(participant_directories)){
