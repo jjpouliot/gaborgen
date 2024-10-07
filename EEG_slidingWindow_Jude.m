@@ -1,4 +1,4 @@
-function EEG_slidingWindow(partID, markerStrings, condStrings, ...
+function EEG_slidingWindow_Jude(partID, markerStrings, condStrings, ...
     resampleTo, segTimesMs, blTimesMs_bl, ...
     ssvepTimesMs_bl, blTimesMs_cue, ssvepTimesMs_cue, ...
     avgChannels, parentFolder, day1, day2)
@@ -31,24 +31,25 @@ for partI = 1:length(partID)
             [AllEEG, ~, ~, ~] = eeglab;
 
             %% load dataset
-            currentDirectory =  [dataFolder '/' currentParticipantDirectories{j} '/EEG/'];
+             disp('Step 1/3 - load EEG data');
+        currentDirectory =  [dataFolder '/' currentParticipantDirectories{j} '/EEG'];
 
-            currentFilenames = {dir(currentDirectory).name};
-            EEGIndex = find(endsWith(currentFilenames, '.set'));
-            if length(EEGIndex) == 1
-                EEGpreproFileName = currentFilenames{EEGIndex};
-            elseif EEGcurrentDirectoryIndex > 1
-                error(['More than one 04_preprocessed.set file found in ' currentDirectory]);
-            else
-                error(['No 04_preprocessed.set file found in ' currentDirectory]);
-            end
-            [~, EEGFileName, ~] = fileparts(currentFilenames{EEGIndex});
-
-
-            EEG = pop_loadset('filename', EEGpreproFileName, 'filepath', currentDirectory);
+        currentFilenames = {dir(currentDirectory).name};
+        EEGpreICAIndex = find(endsWith(currentFilenames, '_04_preprocessed_epoch.set'));
+        if ~isempty(EEGpreICAIndex)
+            EEGpreICAFileName = currentFilenames{EEGpreICAIndex};
+        elseif EEGpreICAIndex > 1
+            error(['More than one _04_preprocessed.set file found in ' currentDirectory]);
+        else
+            error(['_04_preprocessed.set file found in ' currentDirectory]);
+        end
+        [~, EEGFileName, ~] = fileparts(currentFilenames{EEGpreICAIndex});
 
 
-            [AllEEG, EEG, ~] = eeg_store(AllEEG, EEG, 0);
+        EEG = pop_loadset('filename', EEGpreICAFileName, 'filepath', currentDirectory);
+        [AllEEG, EEG, ~] = eeg_store(AllEEG, EEG, 0);
+
+        
 
             %% list indices of channels to average across
             chanList = struct2cell(EEG.chanlocs);

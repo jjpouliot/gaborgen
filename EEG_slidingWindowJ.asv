@@ -57,13 +57,14 @@ for partI = 1:length(partID)
             avgChannels_ind = find(ismember(squeeze(chanList),avgChannels));
 
             %% resample
-%             EEG = pop_resample(EEG, resampleTo);
+            EEG = pop_resample(EEG, resampleTo);
 
             %% extract epochs and remove baseline (whole epoch)
             EEG = eeg_checkset(EEG);
             EEG = pop_epoch(EEG, markerStrings{markI}, segTimesMs ./ 1000, 'newname', 'segmented', 'epochinfo', 'yes');
             [~, EEG, ~] = pop_newset(AllEEG, EEG, 1,'gui','off');
 
+            
             %% list the original trial indices from urevents for each trial category
             eventTable = struct2table(EEG.event);
             ureventTable = struct2table(EEG.urevent);
@@ -131,6 +132,9 @@ for partI = 1:length(partID)
             writematrix(erp_bl15,filename);
             filename = [currentDirectory, int2str(partID(partI)), '_erp_', condStrings{markI}, '_15_cue.txt'];
             writematrix(erp_cue15,filename);
+
+         
+
 
 
 
