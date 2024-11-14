@@ -19,7 +19,7 @@ addpath(genpath('/home/andrewf/Repositories/freqTag'), '-end');
 participantIDs = [110,111,112,113,114,115,116,117,118,119,120,121,122,123,125,126,127,128,129,130];
 epochMs = [0 2000];
 sampleRateHz = 500;
-resampledRateHz = 510; % Check if this makes sense
+resampledRateHz = 600; % Check if this makes sense
 epochSamplePoints = 1:(epochMs(2)*(sampleRateHz/1000));
 rawDataPath = '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI';
 startOfStimMarkerRegEx = '^S\s[1234]|^S121';
@@ -95,12 +95,7 @@ for participantIndex = 1:length(participantIDs)
             freqtag_slidewin(EEG.data, 0, epochSamplePoints, epochSamplePoints, ...
             15, resampledRateHz, EEG.srate, 'whatever.txt');
 
-        % FFTs of raw and sliding window corrected data
-        [rawAmp, rawFreqs, rawFFTcomp] = ...
-            freqtag_FFT3D(EEG.data, 500);
 
-        [slidingWindowAmp, slidingWindowFreqs, slidingWindowFFTcomp] = ...
-            freqtag_FFT3D(winmat3d15Hz, resampledRateHz);
 
 
 
@@ -113,6 +108,13 @@ for participantIndex = 1:length(participantIDs)
         for trialIndex = 1:length(cleanTrialNumber)
             participantID = participantIDs(participantIndex);
             currentTrialNumber = cleanTrialNumber(trialIndex);
+
+            % FFTs of raw and sliding window corrected data
+            [rawAmp, rawFreqs, rawFFTcomp] = ...
+                freqtag_FFT3D(EEG.data(:,:,trialIndex), EEG.srate);
+
+            [slidingWindowAmp, slidingWindowFreqs, slidingWindowFFTcomp] = ...
+                freqtag_FFT3D(winmat3d15Hz(:,:,trialIndex), resampledRateHz);
 
             rawTimeseriesName = ...
                 ['rawChanTime_participant' num2str(participantID) '_trial' ...
@@ -162,14 +164,17 @@ for participantIndex = 1:length(participantIDs)
             SlidingWindowFFTName = regexprep(SlidingWindowFFTName, '\s', '');
 
             fullPath = [matSavePath rawFFTName];
-            currentRawFFT = abs(rawFFTcomp(:, :, trialIndex));
+            %This was likely the wrong way to do this, more complex than
+            %just switching the complex components to be absolute values
+            %Now just do fft on single trials and keep the rawAmp
+%             currentRawFFT = abs(rawFFTcomp(:, :, trialIndex));
 
-            save(fullPath, 'currentRawFFT', 'rawAmp', 'rawFreqs');
+            save(fullPath, 'rawAmp', 'rawFreqs');
 
             fullPath = [matSavePath SlidingWindowFFTName];
-            currentSlidingWindowFFT = abs(slidingWindowFFTcomp(:, :, trialIndex));
+%             currentSlidingWindowFFT = abs(slidingWindowFFTcomp(:, :, trialIndex));
 
-            save(fullPath, 'currentSlidingWindowFFT', 'slidingWindowAmp', 'slidingWindowFreqs');
+            save(fullPath, 'slidingWindowAmp', 'slidingWindowFreqs');
         end
     end
 end
