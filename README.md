@@ -26,7 +26,7 @@ REBOOT YOUR COMPUTER NOW
 tcsh OS_notes.macos_12_intel_b_user.tcsh
 
 
-If ARM, open terminal and run:
+If ARM (M1 CPU), open terminal and run:
 cd
 curl -O https://raw.githubusercontent.com/afni/afni/master/src/other_builds/OS_notes.macos_12_ARM_a_admin_pt1.zsh
 curl -O https://raw.githubusercontent.com/afni/afni/master/src/other_builds/OS_notes.macos_12_ARM_a_admin_pt2.zsh
@@ -70,6 +70,6 @@ GABORGEN24_DAY2_123
 
 - DAT
 
-## 001fMRI_prepro.R
+## a001fMRI_prepro.R
 This script does the initial preprocessing per participant. It imposes restrictions to force the user to have the data in the correct format and to prevent incorrect analyses. It also forces the user to put their data and local git directory paths at the top of the script. The script forces the use of the tcsh terminal which is recommended for AFNI analyses. The system2 R function is used to force tcsh terminal calls.
 
