@@ -1,4 +1,3 @@
-@ -1,92 +1,17 @@
 %% This will clear and edit your matlab path
 % possibly necessary if you don't have eeglab set up correctly
 restoredefaultpath
@@ -73,7 +72,7 @@ EEG_runICA([110,111,    112,                                  113,   114,115,  1
 EEG_finishPrepro([110,111,    112,                                  113,   114,115,  116,117,118,119,   120,121,122,123,         125,126,127,128,129,130], ...
                               {[],    [],        [],                                     [],       [],    [],     [],    [],    [],   [],       [],    [],   [],    [],            [],    [],    [],   [],    [],    []}, ...
                               {{},   {'FC1'},{'FC3', 'FC1', 'Cz', 'C3'},    {'C4'}, {},    {'F8'},{},    {},   {},    {'Fz'}, {},    {},    {},   {'T8','T7'},{},    {},    {},   {},    {},    {}}, ...
-    '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI',1,0)
+    '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI',1,1)
 
 % % 101 ICs - Gradients: 1,2,6,9,15; eyes: 3,5; CBA: 4
 % EEG_03_finishPrepro(101,{[1 2 3 4 5 6 9 15]},{{'CP1','FC2'}},'/Volumes/TOSHIBA_4TB/ssV4att_MRI')
@@ -95,7 +94,12 @@ EEG_finishPrepro([110,111,    112,                                  113,   114,1
 
 
 
-@ -99,23 +24,11 @@ EEG_finishPrepro([110,111,    112,                                  113,   114,1
+%% Sliding Window
+
+% function EEG_slidingWindow(partID, 
+%     markerStrings, ... 
+%     condStrings, ...
+%     resampleTo, segTimesMs, blTimesMs_bl, ...
 %     ssvepTimesMs_bl, blTimesMs_cue, ssvepTimesMs_cue, ...
 %     avgChannels, parentFolder, day1, day2)
 
