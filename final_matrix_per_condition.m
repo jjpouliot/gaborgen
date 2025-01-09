@@ -1,5 +1,5 @@
 clear;
-temp99 = eeglab;
+%temp99 = eeglab;
 
 files = dir('gaborgen*');  % List all folders starting with 'gaborgen'
 

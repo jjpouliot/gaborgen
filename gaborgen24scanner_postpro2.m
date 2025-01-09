@@ -21,7 +21,7 @@ disp('Folders in the current working directory:');
 disp(folderNames);
 
 % loop over subjects
-for subindex = 6:size(folderNames,2)
+for subindex = 2:size(folderNames,2)
 
     eval(['cd ' folderNames{subindex} '/EEG'])
 
@@ -29,7 +29,7 @@ for subindex = 6:size(folderNames,2)
 
      conditioncounter = 1; 
 
-    for condition = 21:24
+    for condition = 31:34
 
         datacon = []; 
 

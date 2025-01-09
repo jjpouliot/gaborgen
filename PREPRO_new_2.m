@@ -24,7 +24,7 @@ main_path = '/Users/jcedielescobar/Documents/Prepro/Day1';
 results = {};
 
 % Define the specific folder to search
-vhdr_folder = fullfile(main_path, 'data');
+vhdr_folder = fullfile(main_path, 'raw_data');
 
 % Check if the folder exists
 if isfolder(vhdr_folder)
@@ -32,7 +32,7 @@ if isfolder(vhdr_folder)
     subjects = dir(vhdr_folder);
     subjects = subjects([subjects.isdir] & ~ismember({subjects.name}, {'.', '..'}));
 
-    for i = 1:length(subjects) % Changed to iterate over all subjects
+    for i = 32:length(subjects) % Changed to iterate over all subjects
         subject = subjects(i).name;
         eeg_folder = fullfile(vhdr_folder, subject, 'EEG');
         
@@ -80,7 +80,7 @@ if isfolder(vhdr_folder)
     subjects = dir(vhdr_folder);
     subjects = subjects([subjects.isdir] & ~ismember({subjects.name}, {'.', '..'}));
 
-    for i = 1:length(subjects)
+    for i = 32%:length(subjects)
         subject = subjects(i).name;
         eeg_folder = fullfile(vhdr_folder, subject, 'EEG');
         
@@ -147,7 +147,7 @@ if isfolder(vhdr_folder)
     subjects = dir(vhdr_folder);
     subjects = subjects([subjects.isdir] & ~ismember({subjects.name}, {'.', '..'}));
 
-    for i = 6%length(subjects)
+    for i = 32%length(subjects)
         subject = subjects(i).name;
         eeg_folder = fullfile(vhdr_folder, subject, 'EEG');
         
@@ -201,8 +201,7 @@ if isfolder(vhdr_folder)
     % Get the list of subject folders within the raw_data folder
     subjects = dir(vhdr_folder);
     subjects = subjects([subjects.isdir] & ~ismember({subjects.name}, {'.', '..'}));
-
-    for i = 6%:length(subjects)
+ for i = 32%length(subjects)
         subject = subjects(i).name;
         eeg_folder = fullfile(vhdr_folder, subject, 'EEG');
         
@@ -242,6 +241,9 @@ main_path = '/Users/jcedielescobar/Documents/Prepro/Day1';
 % Initialize a cell to store results
 results = {};
 
+% Initialize an array to store bad channels info
+badChannelsStruct = struct('subjectName', {}, 'numBadChannels', {});
+
 % Define the specific folder to search
 vhdr_folder = fullfile(main_path, 'raw_data');
 
@@ -251,7 +253,7 @@ if isfolder(vhdr_folder)
     subjects = dir(vhdr_folder);
     subjects = subjects([subjects.isdir] & ~ismember({subjects.name}, {'.', '..'}));
 
-    for i = 1:length(subjects)
+    for i = 22%length(subjects)  % You might want to change the loop range
         subject = subjects(i).name;
         eeg_folder = fullfile(vhdr_folder, subject, 'EEG');
         
@@ -269,7 +271,7 @@ if isfolder(vhdr_folder)
                 % Remove bad channels (example: remove channel 32)
                 EEG = pop_select(EEG, 'nochannel', [32]);
                 eeglab redraw
-               
+                
                 % pop_eegplot(EEG, 1, 1, 1);
                 
                 % Mark bad trials
@@ -278,7 +280,12 @@ if isfolder(vhdr_folder)
                 % Save bad channels
                 answer = inputdlg('Enter bad channels', 'Bad channel removal', [1 31]);
                 str = answer{1};
-                EEG.badChan = strsplit(str);
+                badChannels = str2double(strsplit(str));
+                
+                % Save the number of bad channels and subject name in the structure
+                badChannelsStruct(i).subjectName = subject;
+                badChannelsStruct(i).numBadChannels = length(badChannels);
+                
                 close all;
         
                 % Define the output file name and path
@@ -299,13 +306,13 @@ end
 
 %% ICA
 
-ruta_principal = 'C:\Users\jcedi\OneDrive - University of Florida\EEGStudies\Prepro\Day1';
+ruta_principal = '/Users/jcedielescobar/Documents/Prepro/Day1';
 
 % Initialize a cell to store results
 resultados = {};
 
 % Define the specific folder to search
-carpeta_vhdr = fullfile(ruta_principal, 'data');
+carpeta_vhdr = fullfile(ruta_principal, 'raw_data');
 
 % Check if the folder exists
 if isfolder(carpeta_vhdr)
@@ -313,7 +320,7 @@ if isfolder(carpeta_vhdr)
     sujetos = dir(carpeta_vhdr);
     sujetos = sujetos([sujetos.isdir] & ~ismember({sujetos.name}, {'.', '..'}));
 
-    for i = 1:length(sujetos)
+    for i = 7:8%length(sujetos) 
         sujeto = sujetos(i).name;
         eeg_carpeta = fullfile(carpeta_vhdr, sujeto, 'EEG');
         
@@ -348,13 +355,13 @@ else
 end
 
 %% Eye components (this label the components but you should check manually)
-ruta_principal = 'C:\Users\jcedi\OneDrive - University of Florida\EEGStudies\Prepro\Day1';
+ruta_principal = '/Users/jcedielescobar/Documents/Prepro/Day1';
 
 % Initialize a cell to store results
 resultados = {};
 
 % Define the specific folder to search
-carpeta_vhdr = fullfile(ruta_principal, 'data');
+carpeta_vhdr = fullfile(ruta_principal, 'raw_data');
 
 % Check if the folder exists
 if isfolder(carpeta_vhdr)
@@ -362,7 +369,7 @@ if isfolder(carpeta_vhdr)
     sujetos = dir(carpeta_vhdr);
     sujetos = sujetos([sujetos.isdir] & ~ismember({sujetos.name}, {'.', '..'}));
 
-    for i = 1:length(sujetos)
+    for i = 22%length(sujetos)
         sujeto = sujetos(i).name;
         eeg_carpeta = fullfile(carpeta_vhdr, sujeto, 'EEG');
         
@@ -405,24 +412,23 @@ main_path = '/Users/jcedielescobar/Documents/Prepro/Day1';
 % Initialize a cell to store results
 results = {};
 
-% Define the specific folder to search
+% Define the main data folder path
 data_folder = fullfile(main_path, 'raw_data');
 
 % Check if the folder exists
 if isfolder(data_folder)
-    % Get the list of subject folders within the data folder
+    % Get the list of subject folders inside the data folder
     subjects = dir(data_folder);
     subjects = subjects([subjects.isdir] & ~ismember({subjects.name}, {'.', '..'}));
 
-    for i = 1:length(subjects)
+    for i = 1:length(subjects) % Change the starting index as necessary
         subject = subjects(i).name;
         eeg_folder = fullfile(data_folder, subject, 'EEG');
         
         if isfolder(eeg_folder)
-            % Read all the previously generated .set files
+            % Get all the previously generated .set files
             set_files = dir(fullfile(eeg_folder, '*_07_comp.set'));
  
-            
             for j = 1:length(set_files)
                 set_file = set_files(j).name;
                 setFilePath = fullfile(eeg_folder, set_file);
@@ -430,24 +436,37 @@ if isfolder(data_folder)
                 % Load the .set file
                 EEG = pop_loadset('filename', set_file, 'filepath', eeg_folder);
                 
-                % Check for defective channels
-                if ~isempty(EEG.badChan)
-                    % Convert bad channels to a numeric vector
-                    badChannels = str2double(EEG.badChan); 
-                    % Perform interpolation
-                    EEG = pop_interp(EEG, badChannels(~isnan(badChannels)), 'spherical');
+                % Load the badChannelsStruct from badChannelsStruct.mat
+                badChannelsPath = fullfile(main_path, 'badChannelsStruct.mat');
+                
+                if isfile(badChannelsPath)
+                    % Load the structure from badChannelsStruct.mat
+                    load(badChannelsPath, 'badChannelsStruct'); % Load the full struct
+                    
+                    % Find the subject's bad channels using subjectName
+                    subjectIndex = find(strcmp({badChannelsStruct.subjectName}, subject));
+                    
+                    if ~isempty(subjectIndex)
+                        % Get the list of bad channels for the current subject
+                        badChannelsList = badChannelsStruct(subjectIndex).badChannels;
+                        
+                        % Perform the interpolation
+                        EEG = pop_interp(EEG, badChannelsList, 'spherical');
+                    else
+                        disp(['No defective channels found for subject ', subject, ' in badChannelsStruct']);
+                    end
                 else
-                    disp(['No defective channels in: ', set_file]);
+                    disp('The file badChannelsStruct.mat is not found.');
                 end
                 
-                % Define the name and path of the output file
-                outputFileName = strrep(set_file, '_07_comp.', '_08_inter'); % Change the name
+                % Define the output file name and path
+                outputFileName = strrep(set_file, '_07_comp.', '_08_inter'); 
                 outputFilePath = fullfile(eeg_folder, outputFileName);
                 
                 % Save the dataset in .set format
                 EEG = pop_saveset(EEG, 'filename', outputFileName, 'filepath', eeg_folder);
                 
-                % Add the name of the saved file to results
+                % Add the saved file name to results
                 results{end+1} = outputFilePath; %#ok<AGROW>
             end
         end
@@ -472,7 +491,7 @@ if isfolder(data_folder)
     subjects = dir(data_folder);
     subjects = subjects([subjects.isdir] & ~ismember({subjects.name}, {'.', '..'}));
 
-    for i = 1:length(subjects)
+    for i = 32:length(subjects)
         subject = subjects(i).name;
         eeg_folder = fullfile(data_folder, subject, 'EEG');
         
@@ -507,56 +526,56 @@ else
     disp('The data folder does not exist.');
 end
 
-%% Remove Artifacts
-main_path = '/Users/jcedielescobar/Documents/Prepro/Day1';
-
-% Initialize a cell to store results
-results = {};
-
-% Define the specific folder to search
-data_folder = fullfile(main_path, 'raw_data');
-
-% Check if the folder exists
-if isfolder(data_folder)
-    % Get the list of subject folders within the data folder
-    subjects = dir(data_folder);
-    subjects = subjects([subjects.isdir] & ~ismember({subjects.name}, {'.', '..'}));
-
-    for i = 1:length(subjects)
-        subject = subjects(i).name;
-        eeg_folder = fullfile(data_folder, subject, 'EEG');
-        
-        if isfolder(eeg_folder)
-            % Read all the previously generated .set files
-            set_files = dir(fullfile(eeg_folder, '*_09_ref.set'));
-            
-            for j = 1:length(set_files)
-                set_file = set_files(j).name;
-                setFilePath = fullfile(eeg_folder, set_file);
-                
-                % Load the .set file
-                EEG = pop_loadset('filename', set_file, 'filepath', eeg_folder);
-                
-                % Remove artifacts
-                EEG = eeg_checkset(EEG);
-                EEG = pop_clean_rawdata(EEG, 'FlatlineCriterion', 'off', 'ChannelCriterion', 'off', 'LineNoiseCriterion', 'off', 'Highpass', 'off', 'BurstCriterion', 20, 'WindowCriterion', 0.25, 'BurstRejection', 'on', 'Distance', 'Euclidean', 'WindowCriterionTolerances', [-Inf 7]);
-                [~, EEG, ~] = pop_newset(ALLEEG, EEG, 1, 'gui', 'off');
-               
-                % Define the name and path of the output file
-                outputFileName = strrep(set_file, '_09_ref', '_10_remArt'); % Change the name
-                outputFilePath = fullfile(eeg_folder, outputFileName);
-                
-                % Save the dataset in .set format
-                EEG = pop_saveset(EEG, 'filename', outputFileName, 'filepath', eeg_folder);
-                
-                % Add the name of the saved file to results
-                results{end+1} = outputFilePath; %#ok<AGROW>
-            end
-        end
-    end
-else
-    disp('The data folder does not exist.');
-end
+% %% Remove Artifacts
+% main_path = '/Users/jcedielescobar/Documents/Prepro/Day1';
+% 
+% % Initialize a cell to store results
+% results = {};
+% 
+% % Define the specific folder to search
+% data_folder = fullfile(main_path, 'raw_data');
+% 
+% % Check if the folder exists
+% if isfolder(data_folder)
+%     % Get the list of subject folders within the data folder
+%     subjects = dir(data_folder);
+%     subjects = subjects([subjects.isdir] & ~ismember({subjects.name}, {'.', '..'}));
+% 
+%     for i = 1:length(subjects)
+%         subject = subjects(i).name;
+%         eeg_folder = fullfile(data_folder, subject, 'EEG');
+% 
+%         if isfolder(eeg_folder)
+%             % Read all the previously generated .set files
+%             set_files = dir(fullfile(eeg_folder, '*_09_ref.set'));
+% 
+%             for j = 1:length(set_files)
+%                 set_file = set_files(j).name;
+%                 setFilePath = fullfile(eeg_folder, set_file);
+% 
+%                 % Load the .set file
+%                 EEG = pop_loadset('filename', set_file, 'filepath', eeg_folder);
+% 
+%                 % Remove artifacts
+%                 EEG = eeg_checkset(EEG);
+%                 EEG = pop_clean_rawdata(EEG, 'FlatlineCriterion', 'off', 'ChannelCriterion', 'off', 'LineNoiseCriterion', 'off', 'Highpass', 'off', 'BurstCriterion', 20, 'WindowCriterion', 0.25, 'BurstRejection', 'on', 'Distance', 'Euclidean', 'WindowCriterionTolerances', [-Inf 7]);
+%                 [~, EEG, ~] = pop_newset(ALLEEG, EEG, 1, 'gui', 'off');
+% 
+%                 % Define the name and path of the output file
+%                 outputFileName = strrep(set_file, '_09_ref', '_10_remArt'); % Change the name
+%                 outputFilePath = fullfile(eeg_folder, outputFileName);
+% 
+%                 % Save the dataset in .set format
+%                 EEG = pop_saveset(EEG, 'filename', outputFileName, 'filepath', eeg_folder);
+% 
+%                 % Add the name of the saved file to results
+%                 results{end+1} = outputFilePath; %#ok<AGROW>
+%             end
+%         end
+%     end
+% else
+%     disp('The data folder does not exist.');
+% end
 
 
 %% Transformation
@@ -574,13 +593,13 @@ if isfolder(data_folder)
     subjects = dir(data_folder);
     subjects = subjects([subjects.isdir] & ~ismember({subjects.name}, {'.', '..'}));
 
-    for i = 1:length(subject) Adjust the range if needed
+    for i = 31:length(subject) %Adjust the range if needed
         subject = subjects(i).name;
         eeg_folder = fullfile(data_folder, subject, 'EEG');
         
         if isfolder(eeg_folder)
             % Read all the previously generated .set files
-            set_files = dir(fullfile(eeg_folder, '*_10_remArt.set'));
+            set_files = dir(fullfile(eeg_folder, '*_09_ref.set'));
             
             for j = 1:length(set_files)
                 set_file = set_files(j).name;
@@ -596,7 +615,7 @@ if isfolder(data_folder)
                 [~, EEG, ~] = pop_newset(ALLEEG, EEG, 1, 'gui', 'off');
     
                 % Define the name and path of the output file
-                outputFileName = strrep(set_file, '_10_remArt', '_11__CDS'); % Change the name
+                outputFileName = strrep(set_file, '_09_ref', '_11_V2_CDS'); % Change the name
                 outputFilePath = fullfile(eeg_folder, outputFileName);
                 
                 % Save the dataset in .set format

@@ -34,7 +34,7 @@ for partI = 1:length(partID)
             currentDirectory =  [dataFolder '/' currentParticipantDirectories{j} '/EEG/'];
 
             currentFilenames = {dir(currentDirectory).name};
-            EEGIndex = find(endsWith(currentFilenames, '.set'));
+            EEGIndex = find(endsWith(currentFilenames, '_11_CDS_V2.set'));
             if length(EEGIndex) == 1
                 EEGpreproFileName = currentFilenames{EEGIndex};
             elseif EEGcurrentDirectoryIndex > 1
@@ -64,7 +64,9 @@ for partI = 1:length(partID)
             EEG = pop_epoch(EEG, markerStrings{markI}, segTimesMs ./ 1000, 'newname', 'segmented', 'epochinfo', 'yes');
             [~, EEG, ~] = pop_newset(AllEEG, EEG, 1,'gui','off');
 
-            
+            %%
+            conditionFileName = sprintf('%s/%d_%s_EEG.mat', currentDirectory, partID(partI), condStrings{markI})
+            save(conditionFileName, 'EEG')
             %% list the original trial indices from urevents for each trial category
             eventTable = struct2table(EEG.event);
             ureventTable = struct2table(EEG.urevent);

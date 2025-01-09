@@ -1,11 +1,13 @@
 library(tidyverse)
-library(cmdstanr)
 library(R.matlab)
 library(ggbeeswarm)
 
+
 # Load data ####
-parent_folder <- "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI"
-git_repository <- "/home/andrewf/Repositories/gaborgen"
+# parent_folder <- "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI"
+# git_repository <- "/home/andrewf/Repositories/gaborgen"
+parent_folder <- "/Users/jcedielescobar/Documents/Prepro/Day1"
+git_repository <- "/Users/jcedielescobar/Documents/GitHub/gaborgen1"
 
 participants_without_complete_trial_list_in_dat_file <- c("110")
 
@@ -167,9 +169,120 @@ sliding_window_fft_df <- sliding_window_fft_df %>%
 fft_df <- merge(x = raw_fft_df, y = sliding_window_fft_df,
       by = c("participant", "channel", "trial", "phase", "cue", "paired"))
 
+# write.csv(x = fft_df, 
+#           file = '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/jude_csd_fft_single_trial.csv',
+#           quote = F)
 write.csv(x = fft_df, 
-          file = '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/jude_csd_fft_single_trial.csv',
+          file = '/Users/jcedielescobar/Documents/Prepro/Day1/jude_preprocessed_singl_trial.csv',
           quote = F)
+
+fft_df %>% 
+  filter(channel == "Oz")
+
+andrew_fft_df <- read.csv('/Users/jcedielescobar/Downloads/jude_csd_fft_single_trial.csv')
+
+andrew_fft_df <- andrew_fft_df %>% 
+  mutate(phase = factor(phase, levels = c("habituation","acquisition","extinction")),
+          cue = factor(cue, levels = c("CSP", "GS1", "GS2", "GS3")))
+
+
+
+andrew_participants <- andrew_fft_df$participant %>% unique()
+
+# comparison of condition means from Andrew and Judes preprocessing pipelines
+andrew_fft_df %>% 
+  filter(channel=="Oz",
+         participant %in% andrew_participants) %>% 
+  group_by(phase, cue, paired) %>% 
+  summarise(mean_amp = mean(amplitude_15Hz_fft),
+            sd_amp = sd(amplitude_15Hz_fft),
+            se_amp = plotrix::std.error(amplitude_15Hz_fft),
+            number_of_good_trials = n())
+
+
+fft_df %>% 
+  filter(channel=="Oz",
+         participant %in% andrew_participants) %>% 
+  group_by(phase, cue, paired) %>% 
+  summarise(mean_amp = mean(amplitude_15Hz_fft),
+            sd_amp = sd(amplitude_15Hz_fft),
+            se_amp = plotrix::std.error(amplitude_15Hz_fft),
+            number_of_good_trials = n())
+
+
+# comparison of by participant category means
+andrew_fft_df %>% 
+  filter(channel=="Oz",
+         participant %in% andrew_participants) %>% 
+  group_by(participant,phase, cue, paired) %>% 
+  summarise(mean_amp_fft = mean(amplitude_15Hz_fft),
+            mean_amp_slidingwindow_fft = mean(amplitude_15Hz_sliding_window_fft_upsampled_600Hz)) %>% 
+  group_by(phase, cue, paired) %>% 
+  summarise(mean_category_fft = mean(mean_amp_fft),
+            se_category_fft = plotrix::std.error(mean_amp_fft),
+            mean_category_slidingwindow_fft = mean(mean_amp_slidingwindow_fft),
+            se_category_slidingwindow_fft = plotrix::std.error(mean_amp_slidingwindow_fft))
+
+fft_df %>% 
+  filter(channel=="Oz",
+         participant %in% andrew_participants) %>% 
+  group_by(participant,phase, cue, paired) %>% 
+  summarise(mean_amp_fft = mean(amplitude_15Hz_fft),
+            mean_amp_slidingwindow_fft = mean(amplitude_15Hz_sliding_window_fft_upsampled_600Hz)) %>% 
+  group_by(phase, cue, paired) %>% 
+  summarise(mean_category_fft = mean(mean_amp_fft),
+            se_category_fft = plotrix::std.error(mean_amp_fft),
+            mean_category_slidingwindow_fft = mean(mean_amp_slidingwindow_fft),
+            se_category_slidingwindow_fft = plotrix::std.error(mean_amp_slidingwindow_fft))
+
+library(patchwork) # used to glue ggplots together
+
+(andrew_fft_df %>% 
+  filter(channel=="Oz",
+         participant %in% andrew_participants) %>% 
+  group_by(participant,phase, cue, paired) %>% 
+  summarise(mean_amp_fft = mean(amplitude_15Hz_fft),
+            mean_amp_slidingwindow_fft = mean(amplitude_15Hz_sliding_window_fft_upsampled_600Hz)) %>% 
+  group_by(phase, cue, paired) %>% 
+  summarise(mean_category_fft = mean(mean_amp_fft),
+            se_category_fft = plotrix::std.error(mean_amp_fft),
+            mean_category_slidingwindow_fft = mean(mean_amp_slidingwindow_fft),
+            se_category_slidingwindow_fft = plotrix::std.error(mean_amp_slidingwindow_fft)) %>% 
+  ggplot() +
+  geom_pointrange(aes(x = cue, y = mean_category_fft,
+                 ymin = mean_category_fft - se_category_fft,
+                 ymax = mean_category_fft + se_category_fft,
+                 color = paired)) +
+    coord_cartesian(ylim = c(0.06,0.14))+
+    ggtitle("Andrew's category means") +
+  facet_wrap(.~phase) +
+    theme_bw()
+    # theme_classic() 
+  ) +
+(fft_df %>% 
+  filter(channel=="Oz",
+         participant %in% andrew_participants) %>% 
+  group_by(participant,phase, cue, paired) %>% 
+  summarise(mean_amp_fft = mean(amplitude_15Hz_fft),
+            mean_amp_slidingwindow_fft = mean(amplitude_15Hz_sliding_window_fft_upsampled_600Hz)) %>% 
+  group_by(phase, cue, paired) %>% 
+  summarise(mean_category_fft = mean(mean_amp_fft),
+            se_category_fft = plotrix::std.error(mean_amp_fft),
+            mean_category_slidingwindow_fft = mean(mean_amp_slidingwindow_fft),
+            se_category_slidingwindow_fft = plotrix::std.error(mean_amp_slidingwindow_fft)) %>% 
+  ggplot() +
+  geom_pointrange(aes(x = cue, y = mean_category_fft,
+                 ymin = mean_category_fft - se_category_fft,
+                 ymax = mean_category_fft + se_category_fft,
+                 color = paired)) +
+   coord_cartesian(ylim = c(0.06,0.14))+
+  ggtitle("Jude's category means") +
+  facet_wrap(.~phase) +
+   theme_bw())
+
+
+
+
 
 # something else
 

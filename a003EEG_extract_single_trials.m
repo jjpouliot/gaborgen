@@ -1,27 +1,31 @@
 %% This will clear and edit your matlab path
 % possibly necessary if you don't have eeglab set up correctly
 restoredefaultpath
-gaborgenCodeRepository = '/home/andrewf/Repositories/gaborgen';
-eeglabDirectory = '/home/andrewf/Repositories/eeglab2024.0';
+% gaborgenCodeRepository = '/home/andrewf/Repositories/gaborgen';
+% eeglabDirectory = '/home/andrewf/Repositories/eeglab2024.0';
+gaborgenCodeRepository = '/Users/jcedielescobar/Documents/GitHub';
+eeglabDirectory = '/Users/jcedielescobar/Documents/MATLAB/eeglab2024.2';
 cd(eeglabDirectory)
 [AllEEG, ~, ~, ~] = eeglab;
 cd(gaborgenCodeRepository)
 
 % Add EMGS directory and all subdirectories to path
-emegs28path = '/home/andrewf/Repositories/emegs2.8';
-addpath(genpath(emegs28path), '-end');
+% emegs28path = '/home/andrewf/Repositories/emegs2.8';
+% addpath(genpath(emegs28path), '-end');
 
-addpath(genpath('/home/andrewf/Repositories/freqTag'), '-end');
+% addpath(genpath('/home/andrewf/Repositories/freqTag'), '-end');
+addpath(genpath('/Users/jcedielescobar/Documents/GitHub'), '-end');
 
 
 %% Load participant EEG, find good trials, extract 15Hz ssVEP
 
-participantIDs = [110,111,112,113,114,115,116,117,118,119,120,121,122,123,125,126,127,128,129,130];
-epochMs = [0 2000];
+participantIDs = [113];
+epochMs = [500 2000];
 sampleRateHz = 500;
 resampledRateHz = 600; % Check if this makes sense
 epochSamplePoints = 1:(epochMs(2)*(sampleRateHz/1000));
-rawDataPath = '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI';
+% rawDataPath = '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI';
+rawDataPath = '/Users/jcedielescobar/Documents/Prepro/Day1';
 startOfStimMarkerRegEx = '^S\s[1234]|^S121';
 
 
@@ -43,7 +47,8 @@ for participantIndex = 1:length(participantIDs)
         currentDirectory =  [dataFolder '/' currentParticipantDirectories{j} '/EEG/'];
 
         currentFilenames = {dir(currentDirectory).name};
-        EEGIndex = find(endsWith(currentFilenames, '_04_preprocessed.set'));
+        % EEGIndex = find(endsWith(currentFilenames, '_04_preprocessed.set'));
+        EEGIndex = find(endsWith(currentFilenames, '_11_CDS_V2.set'));
         if length(EEGIndex) == 1
             EEGpreproFileName = currentFilenames{EEGIndex};
         elseif EEGcurrentDirectoryIndex > 1
