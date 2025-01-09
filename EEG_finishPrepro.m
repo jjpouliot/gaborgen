@@ -1,4 +1,4 @@
-function EEG_finishPrepro(partID, excludeICs, interpolateChans, parentFolder, day1, day2)
+function EEG_finishPrepro(partID, excludeICs, interpolateChans, parentFolder, day1, day2, CSDtransform)
 
 if nargin < 5
     day1 = 1;
@@ -6,6 +6,10 @@ end
 
 if nargin < 6
     day2 = 1;
+end
+
+if nargin < 7
+    CSDtransform = 1;
 end
 
 for partI = 1:length(partID)
@@ -75,8 +79,9 @@ for partI = 1:length(partID)
         % we have to remove non-EEG channels for the ERPlab plugin to work
         EEG = pop_select(EEG, 'rmchannel',{'ECG'});
         % do the CSD transformation
-        
-        EEG = csdFromErplabAutomated(EEG); % using defaults: m = 4 splines, lambda = 1e-5, 10 cm radius
+        if CSDtransform
+            EEG = csdFromErplabAutomated(EEG); % using defaults: m = 4 splines, lambda = 1e-5, 10 cm radius
+        end
         [~, EEG, ~] = pop_newset(AllEEG, EEG, 1,'gui','off');
 
         %% save data in eeglab format
@@ -86,7 +91,7 @@ for partI = 1:length(partID)
             'filepath',currentDirectory);
 
         %% generate logfile
-        logText = strcat('logfile for gaborgen_mri_eeg: run ICA\n', ...
+        logText = strcat('logfile for gaborgen_mri_eeg: finish PrePro\n', ...
             'date_time: ', string(datetime()), '\n', ...
             'participant: ', int2str(partID(partI)), '\n', ...
             'removed ICs: ', int2str(excludeICs{partI}), '\n', ...

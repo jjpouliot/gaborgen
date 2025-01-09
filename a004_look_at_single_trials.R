@@ -2,6 +2,7 @@ library(tidyverse)
 library(cmdstanr)
 library(R.matlab)
 library(ggbeeswarm)
+library(patchwork)
 
 # Load data ####
 parent_folder <- "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI"
@@ -167,9 +168,88 @@ sliding_window_fft_df <- sliding_window_fft_df %>%
 fft_df <- merge(x = raw_fft_df, y = sliding_window_fft_df,
       by = c("participant", "channel", "trial", "phase", "cue", "paired"))
 
-write.csv(x = fft_df, 
-          file = '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/jude_csd_fft_single_trial.csv',
-          quote = F)
+
+(fft_df %>% 
+  filter(channel %in% c("OZ","O1", "O2")) %>% 
+  filter(participant != 123) %>% # outlier on sensor O1 and O2
+  select(-trial) %>% 
+  group_by(participant,phase,cue,paired) %>% 
+  summarise(mean_amp = mean(amplitude_15Hz_fft)) %>% 
+  group_by(participant) %>% 
+  mutate(mean_amp_diff_par_mean = mean_amp - mean(mean_amp)) %>% 
+  group_by(phase, cue, paired) %>% 
+  summarise(GM_amp = mean(mean_amp_diff_par_mean),
+            GM_se = plotrix::std.error(mean_amp_diff_par_mean)) %>% 
+  ggplot() +
+  geom_pointrange(aes(x = cue, y = GM_amp,
+                      ymin = GM_amp - GM_se,
+                      ymax = GM_amp + GM_se,
+                      color = paired)) +
+  # coord_cartesian(ylim = c(-.02,.02)) +
+  facet_wrap(~ phase) +
+  theme_bw())
+
+(fft_df %>% 
+  filter(channel == "Oz") %>% 
+    filter(participant != 123) %>%
+  select(-trial) %>% 
+  group_by(participant,phase,cue,paired) %>% 
+  summarise(mean_amp = mean(amplitude_15Hz_fft)) %>% 
+  group_by(participant) %>% 
+  mutate(mean_amp_diff_par_mean = mean_amp - mean(mean_amp)) %>% 
+  group_by(phase, cue, paired) %>% 
+  summarise(GM_amp = mean(mean_amp_diff_par_mean),
+            GM_se = plotrix::std.error(mean_amp_diff_par_mean)) %>% 
+  ggplot() +
+  geom_pointrange(aes(x = cue, y = GM_amp,
+                      ymin = GM_amp - GM_se,
+                      ymax = GM_amp + GM_se,
+                      color = paired)) +
+   # coord_cartesian(ylim = c(-.02,.02)) +
+  facet_wrap(~ phase) +
+  theme_bw())
+
+
+fft_df %>% 
+  filter(channel == "Pz") %>% 
+  group_by(participant) %>% 
+  mutate(amp_diff_par_mean = amplitude_15Hz_fft - mean(amplitude_15Hz_fft)) %>% 
+  group_by(trial, cue, phase) %>% 
+  summarise(amp_diff_par_mean_GM_trial = mean(amp_diff_par_mean)) %>% 
+  ungroup() %>% 
+  ggplot() +
+  geom_smooth(aes(x = trial, 
+                  y = amp_diff_par_mean_GM_trial,
+                  color = cue),
+              se = T, level = .5)
+  
+fft_df %>% 
+  filter(participant != 123) %>% # outlier on sensor O1 and O2
+  filter(channel == "Oz") %>% 
+  ggplot() +
+  geom_line(aes(x = trial, y = amplitude_15Hz_fft, color = participant),
+            size = .2) +
+  facet_wrap(~cue)
+
+fft_df %>% 
+  filter(participant != 123) %>% # outlier on sensor O1 and O2
+  filter(channel == "O2") %>% 
+  group_by(participant) %>% 
+  mutate(amp_diff_par_mean = amplitude_15Hz_fft - mean(amplitude_15Hz_fft)) %>%
+  ggplot() +
+  geom_hline(aes(yintercept = 0)) +
+  # geom_line(aes(x = trial, y = amp_diff_par_mean, color = participant),
+  #           size = .2) +
+  geom_smooth(aes(x = trial, y = amp_diff_par_mean)) +
+  # facet_grid(cue~.) +
+  facet_grid(~cue) +
+  theme_bw()
+  
+
+
+# write.csv(x = fft_df, 
+#           file = '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/jude_csd_fft_single_trial.csv',
+#           quote = F)
 
 # something else
 

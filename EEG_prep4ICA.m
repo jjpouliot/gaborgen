@@ -24,6 +24,10 @@ for partI = 1:length(partID)
         currentDirectory =  [dataFolder '/' currentParticipantDirectories{j} '/EEG'];
 
         currentFilenames = {dir(currentDirectory).name};
+       
+        irrelevantFileIndices = find(startsWith(currentFilenames, '.'));
+        currentFilenames = currentFilenames(setdiff(1:end,irrelevantFileIndices));
+
         vhdrIndex = find(endsWith(currentFilenames, '.vhdr'));
         if ~isempty(vhdrIndex)
             vhdrFileName = currentFilenames{vhdrIndex};
