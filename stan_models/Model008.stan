@@ -35,15 +35,15 @@ parameters {
   real fatigue_average; //5
   real fatigue_sd_raw; //6
   real intercept_fatigue_corr_raw; //7
-  real cue_sd_raw; //8
+  // real cue_sd_raw;
   
-  array[n_blocks, n_cues] real bcue; //16
+  // array[n_blocks, n_cues] real bcue;
   // array[n_participants] real sigma_raw;
-  array[n_participants] real<lower = 0> sigma; //40 if n_participant is 24
-  array[n_participants] real intercept; //64
-  array[n_participants] real fatigue; //88
+  array[n_participants] real<lower = 0> sigma; //this won't hug zero so it does not need to be exp(); 31 (if n_participants is 24)
+  array[n_participants] real intercept; //55
+  array[n_participants] real fatigue; //79
 
-  array[n_missing] real amplitude_missing; //aren't used for cross-validation
+  array[n_missing] real amplitude_missing;
 }
 
 transformed parameters {
@@ -54,7 +54,7 @@ transformed parameters {
   real sigma_sd = exp(sigma_sd_raw);
   real intercept_sd = exp(intercept_sd_raw);
   real fatigue_sd = exp(fatigue_sd_raw);
-  real cue_sd = exp(cue_sd_raw);
+  // real cue_sd = exp(cue_sd_raw);
   
   real intercept_fatigue_corr = -inv_logit(intercept_fatigue_corr_raw);
 
@@ -87,19 +87,19 @@ model {
                                                            Sigma_L);
   }
   
-  cue_sd_raw ~ normal(-0.5, 1.5);
+  // cue_sd_raw ~ normal(-0.5, 1.5);
 
-  for (b in 1:n_blocks) {
-    for (q in 1:n_cues) {
-      bcue[b, q] ~ student_t((n_blocks*n_cues)-1, 0, cue_sd);
-    }
-  }
+  // for (b in 1:n_blocks) {
+  //   for (q in 1:n_cues) {
+  //     bcue[b, q] ~ student_t((n_blocks*n_cues)-1, 0, cue_sd);
+  //   }
+  // }
 
   // Likelihood
   for(i in 1:n) {
     real mu = intercept[participant[i]] +
-              (fatigue[participant[i]] * trial[i]) +
-              bcue[block[i], cue[i]];
+              (fatigue[participant[i]] * trial[i]); //+
+              // bcue[block[i], cue[i]];
 
     amplitude_all[i] ~ normal(mu, sigma[participant[i]]);
 
@@ -116,8 +116,8 @@ generated quantities {
   
   for (i in 1:n_observations) {
     mu_pred[i] = intercept[participant[indices_observed[i]]] +
-                 (fatigue[participant[indices_observed[i]]] * trial[indices_observed[i]]) +
-                 bcue[block[indices_observed[i]], cue[indices_observed[i]]];
+                 (fatigue[participant[indices_observed[i]]] * trial[indices_observed[i]]);// +
+                 // bcue[block[indices_observed[i]], cue[indices_observed[i]]];
 
     log_lik[i] = normal_lpdf(amplitude[i] | mu_pred[i], sigma[participant[indices_observed[i]]]);
   }

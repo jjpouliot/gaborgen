@@ -27,31 +27,27 @@ data {
 parameters {
   // raw parameters may be close to zero, hard to sample
   // exp() transform makes them easy to sample
-  // real sigma_average_raw;
-  real<lower = 0> sigma_average; //this won't hug zero so it does not need to be exp() 1
-  real sigma_sd_raw; //2
-  real intercept_average; //3
-  real intercept_sd_raw; //4
-  real fatigue_average; //5
-  real fatigue_sd_raw; //6
-  real intercept_fatigue_corr_raw; //7
-  real cue_sd_raw; //8
+  real sigma_average_raw;
+  real sigma_sd_raw;
+  real intercept_average;
+  real intercept_sd_raw;
+  real fatigue_average;
+  real fatigue_sd_raw;
+  real intercept_fatigue_corr_raw;
+  real cue_sd_raw;
   
-  array[n_blocks, n_cues] real bcue; //16
-  // array[n_participants] real sigma_raw;
-  array[n_participants] real<lower = 0> sigma; //40 if n_participant is 24
-  array[n_participants] real intercept; //64
-  array[n_participants] real fatigue; //88
+  array[n_blocks, n_cues] real bcue;
+  array[n_participants] real sigma_raw;
+  array[n_participants] real intercept;
+  array[n_participants] real fatigue;
 
-  array[n_missing] real amplitude_missing; //aren't used for cross-validation
+  array[n_missing] real amplitude_missing;
 }
 
 transformed parameters {
-  array[n] real amplitude_all;
-  amplitude_all[indices_observed] = amplitude;
-  amplitude_all[indices_missing] = amplitude_missing;
-  
+  real sigma_average = exp(sigma_average_raw);
   real sigma_sd = exp(sigma_sd_raw);
+  array[n_participants] real sigma = exp(sigma_raw);
   real intercept_sd = exp(intercept_sd_raw);
   real fatigue_sd = exp(fatigue_sd_raw);
   real cue_sd = exp(cue_sd_raw);
@@ -65,19 +61,24 @@ transformed parameters {
   Sigma[2,1] = Sigma[1,2];
   
   matrix[2,2] Sigma_L = cholesky_decompose(Sigma);
+  
+  array[n] real amplitude_all;
+  amplitude_all[indices_observed] = amplitude;
+  amplitude_all[indices_missing] = amplitude_missing;
 }
 
 model {
   // Priors
-  sigma_average ~ normal(1, 0.5);
-  sigma_sd_raw ~ normal(-3, 1);
-
-  sigma ~ student_t(n_participants-1, sigma_average, sigma_sd);
+  sigma_average_raw ~ normal(-0.5,1.5);
+  sigma_sd_raw ~ normal(-0.5,1.5);
+  // it is correct that we are now using sigma_sd
+  // can use transformed parameter
+  sigma_raw ~ student_t(n_participants-1, sigma_average_raw, sigma_sd);
 
   intercept_average ~ normal(0, 0.75);
-  intercept_sd_raw ~ normal(-1, 1);
+  intercept_sd_raw ~ normal(-0.5,1.5);
   fatigue_average ~ normal(0, 0.01);
-  fatigue_sd_raw ~ normal(-4.5, 0.75);
+  fatigue_sd_raw ~ normal(-0.5,1.5);
   
   intercept_fatigue_corr_raw ~ normal(0, 1.75); // this creates a roughly uniform distribution, if confused visualize in R with hist(boot::inv.logit(rnorm(5000,0,1.75)))
   
@@ -87,7 +88,7 @@ model {
                                                            Sigma_L);
   }
   
-  cue_sd_raw ~ normal(-0.5, 1.5);
+  cue_sd_raw ~ normal(-0.5,1.5);
 
   for (b in 1:n_blocks) {
     for (q in 1:n_cues) {

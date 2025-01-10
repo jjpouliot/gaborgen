@@ -25,25 +25,28 @@ data {
 }
 
 parameters {
-  // raw parameters may be close to zero, hard to sample
-  // exp() transform makes them easy to sample
-  // real sigma_average_raw;
-  real<lower = 0> sigma_average; //this won't hug zero so it does not need to be exp() 1
+
+  real<lower = 0> sigma_average; //this won't hug zero so it does not need to be exp() /1
   real sigma_sd_raw; //2
   real intercept_average; //3
   real intercept_sd_raw; //4
   real fatigue_average; //5
   real fatigue_sd_raw; //6
   real intercept_fatigue_corr_raw; //7
-  real cue_sd_raw; //8
+  real<lower=0, upper=1> learning_paired_average; //8
+  real<lower=0, upper=1> learning_unpaired_average; //9
+  real learning_paired_sd_raw; //10
+  real learning_unpaired_sd_raw;  //11
+  real scaling_mean;  //12
+  real scaling_sd_raw;  //13
   
-  array[n_blocks, n_cues] real bcue; //16
-  // array[n_participants] real sigma_raw;
-  array[n_participants] real<lower = 0> sigma; //40 if n_participant is 24
-  array[n_participants] real intercept; //64
-  array[n_participants] real fatigue; //88
-
-  array[n_missing] real amplitude_missing; //aren't used for cross-validation
+  array[n_participants] real<lower = 0> sigma; //this won't hug zero so it does not need to be exp() //37 if n_participants is 24
+  array[n_participants] real intercept; //61
+  array[n_participants] real fatigue; //85
+  array[n_participants] real<lower=0, upper=1> learning_paired; //109
+  array[n_participants] real<lower=0, upper=1> learning_unpaired; //133
+  array[n_cues] real scaling; //137
+  array[n_missing] real amplitude_missing;
 }
 
 transformed parameters {
@@ -54,7 +57,6 @@ transformed parameters {
   real sigma_sd = exp(sigma_sd_raw);
   real intercept_sd = exp(intercept_sd_raw);
   real fatigue_sd = exp(fatigue_sd_raw);
-  real cue_sd = exp(cue_sd_raw);
   
   real intercept_fatigue_corr = -inv_logit(intercept_fatigue_corr_raw);
 
@@ -65,6 +67,38 @@ transformed parameters {
   Sigma[2,1] = Sigma[1,2];
   
   matrix[2,2] Sigma_L = cholesky_decompose(Sigma);
+  
+  real learning_paired_sd = exp(learning_paired_sd_raw);
+  real learning_unpaired_sd = exp(learning_unpaired_sd_raw);
+  real scaling_sd = exp(scaling_sd_raw);
+  
+  
+  array[n] real<lower=-0.000001,upper=1> CSP_associative_strength;
+  array[n-1] real<lower=-1, upper=1> CSP_change;
+
+  // Estimate CSP_associative_strength, Rescola Wagner type equation
+  for(i in 1:(n-1)) {
+    if (phase[i] == 1){ // Habituation phase
+      CSP_change[i] = 0;
+      CSP_associative_strength[i] = 0;
+        CSP_associative_strength[i+1] = fmin(fmax(CSP_associative_strength[i+1], 0.0), 1.0);
+    } else if (cue[i] == 1 && phase[i] != 1) {
+        if(paired[i] == 1){
+          CSP_change[i] = learning_paired[participant[i]] * 
+                          (paired[i] - CSP_associative_strength[i]);
+        } else {
+          CSP_change[i] = learning_unpaired[participant[i]] * 
+                          (paired[i] - CSP_associative_strength[i]);
+        }
+        CSP_associative_strength[i+1] = CSP_associative_strength[i] + CSP_change[i];
+
+        // Ensure CSP_associative_strength stays within the bounds
+        CSP_associative_strength[i+1] = fmin(fmax(CSP_associative_strength[i+1], 0.0), 1.0);
+    } else {
+       CSP_change[i] = 0;
+       CSP_associative_strength[i+1] = CSP_associative_strength[i];
+    }
+  }  
 }
 
 model {
@@ -86,23 +120,36 @@ model {
                                                            [intercept_average, fatigue_average]',
                                                            Sigma_L);
   }
-  
-  cue_sd_raw ~ normal(-0.5, 1.5);
 
-  for (b in 1:n_blocks) {
-    for (q in 1:n_cues) {
-      bcue[b, q] ~ student_t((n_blocks*n_cues)-1, 0, cue_sd);
-    }
+  scaling_mean ~ normal(0,1);
+  scaling_sd_raw ~ normal(-0.5,1.5);
+  // scaling_sd_raw ~ normal(-0.5,1);
+  for (q in 1:n_cues) {
+    scaling[q] ~ student_t(n_cues-1, scaling_mean, scaling_sd); 
   }
+
+  learning_paired_average ~ beta(1.1, 1.1);
+  learning_paired_sd_raw ~ normal(-0.5,1.5);
+  // learning_paired_sd_raw ~ normal(-0.5,1);
+  learning_paired ~ student_t(n_participants-1, 
+                                  learning_paired_average, 
+                                  learning_paired_sd); 
+
+  learning_unpaired_average ~ beta(1.1, 1.1);
+  learning_unpaired_sd_raw ~ normal(-0.5,1.5);
+  // learning_unpaired_sd_raw ~ normal(-0.5,1);
+  learning_unpaired ~ student_t(n_participants-1, 
+                                    learning_unpaired_average, 
+                                    learning_unpaired_sd); 
+
 
   // Likelihood
   for(i in 1:n) {
     real mu = intercept[participant[i]] +
               (fatigue[participant[i]] * trial[i]) +
-              bcue[block[i], cue[i]];
+              (scaling[cue[i]] * CSP_associative_strength[i]);
 
     amplitude_all[i] ~ normal(mu, sigma[participant[i]]);
-
   }
 }
 
@@ -117,8 +164,8 @@ generated quantities {
   for (i in 1:n_observations) {
     mu_pred[i] = intercept[participant[indices_observed[i]]] +
                  (fatigue[participant[indices_observed[i]]] * trial[indices_observed[i]]) +
-                 bcue[block[indices_observed[i]], cue[indices_observed[i]]];
-
+                 (scaling[cue[indices_observed[i]]] * CSP_associative_strength[indices_observed[i]]);
+                 
     log_lik[i] = normal_lpdf(amplitude[i] | mu_pred[i], sigma[participant[indices_observed[i]]]);
   }
 }

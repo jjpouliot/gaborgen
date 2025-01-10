@@ -1,0 +1,692 @@
+---
+title: "Gaborgen EEG Bayesian Models"
+format: html
+execute:
+  cache: true
+---
+
+```{r}
+library(tidyverse)
+library(patchwork)
+```
+
+# Shared by all models
+
+## How missing amplitude are treated
+
+$$
+\begin{gather}
+Amplitude[1 : all \ possible \ trials]\tag{1}\\
+Amplitude[indicesObserved]=AmplitudeObserved\tag{2}\\
+Amplitude[indicesMissing]=AmplitudeMissing\tag{3}
+\end{gather}
+$$
+
+## Gaussian error per participant
+
+$$
+\begin{gather}
+Amplitude{[i]} \sim Normal(\mu{[i]},\sigma[participant[i]])\tag{4}\\
+\end{gather}
+$$
+
+## Multilevel error estimation
+
+$$
+\begin{gather}
+\sigma[1:nParticipants] \sim StudentT(df = (nParticipants - 1), \ \sigma Average, \ \tau)\tag{5}\\
+\sigma Average \sim Normal(1,0.5)\tag{6}\\
+\end{gather}
+$$
+
+## Deviations that can be close to zero are exponetiated
+
+$$
+\begin{gather}
+\tau = exp(\tau Raw)\tag{7}\\
+\tau Raw \sim Normal(-3, 1)\tag{8}\\
+\end{gather}
+$$ This is the prior after the exp() transformation
+
+```{r}
+# X ~ exp(Z)
+# Z ~ normal(m,s)
+# median X is exp(m)
+# mean X is exp(m+s^2/2)
+# mode X is exp(m - s^2)
+set.seed(0)
+number_of_samples_plot <- 20000
+rnorm(number_of_samples_plot,-3,1) %>%
+  exp() %>% # transform back to correct scale
+  data.frame(value = .) %>% 
+  ggplot() +
+  coord_cartesian(xlim = c(-.1,.5),expand = 0) +
+  # geom_histogram(aes(x = value), bins = 500) +
+  geom_density(aes(x = value), fill = "gray") +
+  theme_classic()
+```
+
+## Modeling trend over trials
+
+There may be a trend over the course of the study
+
+$$
+\begin{gather}
+\mu[i] = intercept[participant[i]] \ + \ adaptation[participant[i]]\cdot trial[i] \ + \ ... \tag{9}\\
+\end{gather}
+$$
+
+Intercept and fatigue are inherently related through a negative correlation because of z-scoring.
+
+This is modeled with a multivariate student-t distribution
+
+$$
+\begin{gather}
+\begin{bmatrix}
+  intercept[1:nParticipants] \\
+  adaptation[1:nParticipants]
+\end{bmatrix} \sim MVStudentT \left(
+df = (nParticipants - 1),
+\begin{bmatrix}
+  interceptAverage \\
+  adaptationAverage
+\end{bmatrix},
+\begin{array}{c}
+{\huge \Sigma}
+\end{array}
+\right) \tag{9}\\
+\\
+\begin{array}{c}
+{\huge \Sigma}
+\end{array} = 
+\begin{bmatrix}
+\sigma Intercept^2 & \rho \cdot \sigma Intercept \cdot \sigma Adaptation \\
+\rho \cdot \sigma Intercept \cdot \sigma Adaptation & \sigma Adaptation^2
+\end{bmatrix} \tag{10} \\
+\\
+interceptAverage \sim Normal(0,0.75)\tag{11} \\
+adaptationAverage \sim Normal(0,0.01)\tag{12} \\ 
+\\
+\sigma Intercept = exp(\sigma Intercept Raw)\tag{13} \\
+\sigma Adaptation = exp(\sigma Adaptation Raw)\tag{14} \\
+\rho = -invLogit(\rho Raw)\tag{15} \\
+\\
+\sigma Intercept Raw \sim Normal(-1, 1)\tag{16} \\
+\sigma Adaptation Raw \sim Normal(-4.5, 0.75)\tag{17} \\
+\rho Raw \sim Normal(0, 1.75)\tag{18} \\
+\end{gather}
+$$
+
+Prior predictive for average intercept and fatigue slope
+
+```{r}
+model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/priors_visualization_2.stan'
+
+#force_recompile = T is sometimes helpful
+model_priors <- cmdstanr::cmdstan_model(model_path, 
+                                        force_recompile = T)
+
+#Model source code
+# model_priors$print()
+
+model_priors_fit <- model_priors$sample(refresh = 1000,
+                                        seed = 4,
+                                        iter_warmup = 1000, 
+                                        iter_sampling = 1000, 
+                                        save_warmup = F, 
+                                        show_messages = T,
+                                        output_dir = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains",
+                                        chains = 4,
+                                        parallel_chains = 4)
+
+model_priors_fit_summary <- 
+  model_priors_fit$summary()
+
+```
+
+```{r}
+model_priors_fit_df <- model_priors_fit$draws(format = "df")
+
+
+# number_of_samples_to_plot <- 2000
+
+set.seed(0)
+# samples_to_plot <- sample(1:nrow(model_priors_fit_df),
+#                           size = number_of_samples_to_plot,
+#                           replace = F)
+
+# model_priors_fit_df[samples_to_plot,] %>% 
+model_priors_fit_df %>% 
+  # as.data.frame() %>% 
+  ggplot() +
+  
+  geom_abline(aes(intercept = intercept_average - (fatigue_average * (176/2)), 
+                  slope = fatigue_average ),
+              size = .2, 
+              alpha = .2) +
+  scale_y_continuous(limits =c(-4,4), breaks = seq(-4, 4, by = 1),
+                     name = "Z-scored ssVEP") +
+  scale_x_continuous(limits =c(1,176), breaks = seq(0, 176, by = 10),
+                     name = "Trials") +
+  ggtitle("Average Fatigue Prior Predictive regression lines") +
+  theme_classic() +
+  theme(text = element_text(family = "arial", size = 15),
+        axis.ticks.y = element_blank())
+```
+
+
+After transformation these are priors for the covariance matrix
+
+```{r}
+set.seed(0)
+number_of_samples_plot <- 2000
+intercept_sd <- rnorm(number_of_samples_plot,-1,1) %>%
+  exp() %>% # transform back to correct scale
+  data.frame(value = .)
+
+# fatigue_sd <- rnorm(number_of_samples_plot,-3,1) %>%
+#   exp() %>% # transform back to correct scale
+#   data.frame(value = .)
+# 
+# fatigue_sd <- rnorm(number_of_samples_plot,-4,.5) %>%
+#   exp() %>% # transform back to correct scale
+#   data.frame(value = .)
+
+fatigue_sd <- rnorm(number_of_samples_plot,-4.5,.75) %>%
+  exp() %>% # transform back to correct scale
+  data.frame(value = .)
+
+rho <- rnorm(number_of_samples_plot,0,1.75) %>%
+  boot::inv.logit() %>% # transform back to correct scale
+  data.frame(value = -.)
+
+intercept_sd %>% 
+  ggplot() +
+  coord_cartesian(xlim = c(-.1,2.5),
+                  expand = 0) +
+  scale_x_continuous(breaks = seq(0,2, by = .5))+
+  # geom_histogram(aes(x = value), bins = 500) +
+  geom_density(aes(x = value), fill = "gray") +
+  theme_classic() +
+  theme(axis.title = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank()) +
+
+fatigue_sd %>% 
+  ggplot() +
+  coord_cartesian(xlim = c(-.01,.15),expand = 0) +
+  scale_x_continuous(breaks = seq(0,.14, by = .03))+
+  # geom_histogram(aes(x = value), bins = 500) +
+  geom_density(aes(x = value), fill = "gray") +
+  theme_classic() +
+  theme(axis.title = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank()) +
+  
+
+rho %>% 
+  ggplot() +
+  coord_cartesian(xlim = c(-1.1,.1),expand = 0) +
+  # geom_histogram(aes(x = value), bins = 50) +
+  geom_density(aes(x = value), fill = "gray") +
+  theme_classic() +
+    theme(axis.title = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank())
+```
+
+Prior predictive including participant variation
+
+```{r}
+# model_priors_fit_df[samples_to_plot,] %>% 
+model_priors_fit_df %>% 
+  # as.data.frame() %>% 
+  ggplot() +
+  geom_abline(aes(intercept = (intercept - intercept_average) - (fatigue - fatigue_average) * (176/2), 
+                  slope = fatigue - fatigue_average),
+              size = .2, 
+              alpha = .2) +
+  scale_y_continuous(limits =c(-4,4), breaks = seq(-4, 4, by = 1),
+                     name = "Z-scored ssVEP") +
+  scale_x_continuous(limits =c(1,176), breaks = seq(0, 176, by = 10),
+                     name = "Trials") +
+  ggtitle("Prior predictive per participant from mean") +
+  theme_classic() +
+  theme(text = element_text(family = "arial", size = 15),
+        axis.ticks.y = element_blank())
+```
+
+
+# Model 1
+
+$$
+\begin{gather}
+\mu[i] = intercept[participant[i]] \ + \ adaptation[participant[i]]\cdot trial[i] \ + \ \beta Cue[cue[i],block[i]] \tag{19}\\
+\beta Cue \sim StudentT(df = (nCues\cdot nBlocks)-1, \ 0, \ \sigma Cue) \tag{20}\\
+\sigma Cue = exp(\sigma CueRaw) \tag{21}\\
+\sigma CueRaw \sim Normal(-0.5, \ 1.5) \tag{22}\\
+\end{gather}
+$$
+
+```{r}
+set.seed(0)
+number_of_samples_plot <- 2000
+
+cue_sd <- rnorm(number_of_samples_plot,-1,0.75) %>% # now N(-0.5, 1.5) like scaling to head off critques
+  exp() %>% # transform back to correct scale
+  data.frame(value = .)
+
+
+scaling_sd <- rnorm(number_of_samples_plot,-.5,1.5) %>%
+  exp() %>% # transform back to correct scale
+  data.frame(value = .)
+
+
+cue_sd %>% 
+  ggplot() +
+  coord_cartesian(xlim = c(-.1,5),
+                  expand = 0) +
+  scale_x_continuous(breaks = seq(0,10, by = .5))+
+  # geom_histogram(aes(x = value), bins = 500) +
+  geom_density(aes(x = value), fill = "gray") +
+  theme_classic() +
+  theme(axis.title = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank()) +
+
+scaling_sd %>% 
+  ggplot() +
+  coord_cartesian(xlim = c(-.1,5),
+                  expand = 0) +
+  scale_x_continuous(breaks = seq(0,10, by = .5))+
+  # geom_histogram(aes(x = value), bins = 500) +
+  geom_density(aes(x = value), fill = "gray") +
+  theme_classic() +
+  theme(axis.title = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank()) #+
+# 
+# model001_df %>%
+#   ggplot() +
+#   geom_density(aes(x = cue_sd)) +
+#     coord_cartesian(xlim = c(-.1,5),
+#                   expand = 0) +
+#   theme_classic() +
+#   
+# model003_df %>% 
+#   ggplot() +
+#   geom_density(aes(x = scaling_sd)) +
+#   coord_cartesian(xlim = c(-.1,5),
+#                   expand = 0) + 
+#   theme_classic()
+```
+
+
+# Model 2
+
+
+$$
+\begin{gather}
+\Delta CSPStrength[i] = LearningRate \cdot (paired[i] - CSPStrength[i]) \tag{23} \\
+CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{24} \\
+\end{gather}
+$$
+
+
+$$
+\begin{gather}
+\mu{[i]} = intercept{[participant[i]]} + adaptation[participant[i]] \cdot trial[i] + \beta Scaling[cue[i]] \cdot CSPStrength[i] \tag{25} \\
+\\
+\text{if phase[i] is habituation:}\\
+CSPStrength[i] = 0 \tag{26} \\
+\Delta CSPStrength[i] = 0 \tag{27} \\
+CSPStrength[i + 1] = 0 \tag{28} \\
+\\
+\text{else if cue[i] is CS+ and paired[i] is 1 (US):}\\
+\Delta CSPStrength[i] = LearningPaired[participant[i]] \cdot (paired[i] - CSPStrength[i]) \tag{29} \\
+CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{30} \\
+\\
+\text{else if cue[i] is CS+ and paired[i] is 0 (no US):}\\
+\Delta CSPStrength[i] = LearningUnpaired[participant[i]] \cdot (paired[i] - CSPStrength[i]) \tag{31} \\
+CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{32} \\
+\\
+\text{else:}\\
+\Delta CSPStrength[i] = 0 \tag{33} \\
+CSPStrength[i + 1] =  CSPStrength[i] \tag{34} \\
+\\
+\beta Scaling[1:nCues] \sim StudentT(df = nCues - 1, \ \beta Scaling Average, \sigma \beta Scaling) \tag{35} \\
+\beta Scaling Average \sim Normal(0, 1) \tag{36} \\
+\sigma \beta Scaling = exp(\sigma \beta Scaling Raw) \tag{37} \\
+\sigma \beta Scaling Raw \sim Normal(-0.5,1.5) \tag{38} \\
+\\
+LearningPaired[1:nParticipants] = invLogit(LearningPairedRaw[1:nParticipants]) \tag{39} \\
+LearningUnpaired[1:nParticipants] = invLogit(LearningUnpairedRaw[1:nParticipants]) \tag{40} \\
+LearningPairedRaw[1:nParticipants] \sim StudentT(df = nParticipants-1, \ LearningPairedAverageRaw, \ \sigma LearningPaired)  \tag{41} \\
+LearningUnpairedRaw[1:nParticipants] \sim StudentT(df = nParticipants-1, \ LearningUnpairedAverageRaw, \ \sigma LearningUnpaired)  \tag{42} \\
+LearningPairedAverageRaw \sim Normal(0,1.75) \tag{43} \\
+LearningUnpairedAverageRaw \sim Normal(0,1.75) \tag{44} \\
+\sigma LearningPaired = exp(\sigma LearningPairedRaw) \tag{45} \\
+\sigma LearningUnpaired = exp(\sigma LearningUnpairedRaw) \tag{46} \\
+\sigma LearningPairedRaw \sim Normal(-0.5,1.5) \tag{47} \\
+\sigma LearningUnPairedRaw \sim Normal(-0.5,1.5) \tag{48} \\
+\end{gather}
+$$
+
+
+$$
+\begin{gather}
+variance \cdot \sqrt{(N)} \tag{49} \\
+\end{gather}
+$$
+
+$$
+\begin{gather}
+R^2 = 1 - \frac{variance (loo \ residuals)}{variance (data)} \tag{50} \\
+\end{gather}
+$$
+
+old below
+
+$$
+\begin{gather}
+\mu{[i]} = \alpha{[participant[i]]} +(\beta1[participant[i]] \cdot trial[i]) + (\beta Scaling[cue[i] \cdot CSPStrength) \tag{23} \\
+\\
+\text{if Habituation phase:}  \tag{24} \\
+CSPStrength[i] = 0 \tag{25} \\
+\Delta CSPStrength[i] = 0 \tag{26} \\
+CSPStrength[i + 1] = 0 \tag{27} \\
+\\
+\text{else if cue[i] is CS+:}  \tag{28} \\
+\Delta CSPStrength[i] = LearningRate[participant[i]] \cdot (paired[i] - CSPStrength) \tag{29} \\
+CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{30} \\
+\\
+\text{else:}  \tag{31} \\
+\Delta CSPStrength[i] = 0 \tag{32} \\
+CSPStrength[i + 1] =  CSPStrength[i] \tag{33} \\
+\\
+LearningRate = invLogit(LearningRateRaw) \tag{34} \\
+LearningRateRaw \sim StudentT(df = nParticipants-1, \ LearningRateAverageRaw, \ \sigma LearningRate)  \tag{35} \\
+LearningRateAverageRaw \sim Normal(0,1.75) \tag{36} \\
+\sigma LearningRate = exp(\sigma LearningRateRaw) \tag{37} \\
+\sigma LearningRateRaw \sim Normal(0, 2.5) \tag{38} \\
+\end{gather}
+$$
+
+```{r}
+set.seed(0)
+number_of_samples_plot <- 20000
+learn_sd <- rnorm(number_of_samples_plot,0, 2.5) %>%
+  exp() %>% # transform back to correct scale
+  data.frame(value = .)
+
+
+learn_sd %>% 
+  ggplot() +
+  coord_cartesian(xlim = c(-.1,10),
+                  expand = 0) +
+  # scale_x_continuous(breaks = seq(0,2, by = .5))+
+  geom_histogram(aes(x = value), bins = 10000) +
+  # geom_density(aes(x = value), fill = "gray") +
+  theme_classic() +
+  theme(axis.title = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank())
+
+scaling_sd <- rnorm(number_of_samples_plot,-.5,1.5) %>%
+  exp() %>% # transform back to correct scale
+  data.frame(value = .)
+
+
+scaling_sd %>% 
+  ggplot() +
+  coord_cartesian(xlim = c(-.1,5),
+                  expand = 0) +
+  # scale_x_continuous(breaks = seq(0,2, by = .5))+
+  geom_histogram(aes(x = value), bins = 500) +
+  # geom_density(aes(x = value), fill = "gray") +
+  theme_classic() +
+  theme(axis.title = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank())
+
+
+```
+
+<!-- Model 1 found average intercept -->
+
+<!-- ```{r} -->
+<!-- model001_df %>%  -->
+<!--   ggplot() + -->
+<!--   geom_abline(aes(intercept = intercept_average,  -->
+<!--                   slope = fatigue_average), -->
+<!--               size = .2,  -->
+<!--               alpha = .2) + -->
+<!--   scale_y_continuous(limits =c(-4,4), breaks = seq(-4, 4, by = 1), -->
+<!--                      name = "Z-scored ssVEP") + -->
+<!--   scale_x_continuous(limits =c(1,176), breaks = seq(0, 176, by = 10), -->
+<!--                      name = "Trials") + -->
+<!--   ggtitle("Model 001 Average intercept") + -->
+<!--   theme_classic() + -->
+<!--   theme(text = element_text(family = "arial", size = 15), -->
+<!--         axis.ticks.y = element_blank())  -->
+
+<!-- ``` -->
+
+<!-- Model 1 intercept by par -->
+
+<!-- ```{r} -->
+<!-- model001_df %>% -->
+<!--   select(starts_with(c("intercept[", "fatigue["))) %>%  -->
+<!--   pivot_longer( -->
+<!--     cols = starts_with("intercept") | starts_with("fatigue"), # Select columns to pivot -->
+<!--     names_to = c(".value", "id"), # Separate into 'intercept'/'fatigue' and 'id' -->
+<!--     names_pattern = "(.*)\\[(\\d+)\\]" # Regex to extract 'intercept' or 'fatigue' and ID -->
+<!--   ) %>%  -->
+<!--   mutate(id = factor(id, levels = unique(id))) %>%  -->
+<!--   filter(id %in% c(1:10)) %>%  -->
+<!--   ggplot() + -->
+<!--   geom_abline(aes(intercept = intercept,  -->
+<!--                   slope = fatigue), -->
+<!--               size = .2,  -->
+<!--               alpha = .2) + -->
+<!--   scale_y_continuous(limits =c(-3,3), breaks = seq(-4, 4, by = 1), -->
+<!--                      name = "Z-scored ssVEP") + -->
+<!--   scale_x_continuous(limits =c(1,176), breaks = seq(0, 176, by = 10), -->
+<!--                      name = "Trials") + -->
+<!--   ggtitle("Model 001 Average intercept by participant") + -->
+<!--   theme_classic() + -->
+<!--   theme(text = element_text(family = "arial", size = 15), -->
+<!--         axis.ticks.y = element_blank()) + -->
+<!--   facet_wrap(~id, ncol = 5) -->
+<!-- ``` -->
+
+
+
+## Model 1:<br>Multilevel Participant and Stimuli Predictors {style="text-align: center;"}
+
+Where ( $i$ ) indexes all observations, ( $j$ ) indexes all 45 participants, and ( $k$ ) indexes all 90 stimuli.
+
+$Amplitude$ is a vector of observed cortical amplitudes (either LPP or ssVEP).\
+$Par$ is a vector of a participant indices (1 to 45) for each $Amplitude$.\
+$Stim$ is a vector of stimuli indices (1 to 90) for each $Amplitude$.
+
+### Linear Model (Likelihood) {style="text-align: center;"}
+
+$$
+\begin{gather}
+Amplitude_{[i]} \sim Normal(\mu_{[i]},\sigma_{[Par[i]]}) \tag{1}\\
+\mu_{[i]} = \beta_{1[Par[i]]} + \beta_{2[Stim[i]]} \tag{2}
+\end{gather}
+$$
+
+### Adaptive Regularizing Priors {style="text-align: center;"}
+
+$$
+\begin{gather}
+\beta_{1[j]} \sim Normal(\overline{Par}, \sigma Par) \tag{3}\\
+\beta_{2[k]} \sim Normal(0, \sigma Stim) \tag{4}\\
+\sigma_{[j]} \sim Normal(\overline{\sigma}, \tau) \tag{5}
+\end{gather}
+$$
+
+### Uninformative Weak Priors {style="text-align: center;"}
+
+$$
+\begin{gather}
+\overline{Par} \sim Normal(\overline{Amplitude},2 \cdot SD(Amplitude)) \tag{6}\\
+\sigma Par,\sigma Stim,\overline{\sigma},\tau \sim HalfNormal(0,2 \cdot SD(Amplitude)) \tag{7}
+\end{gather}
+$$
+
+## SNR formula
+
+$$
+{\text{Model 1 SNR}} = \frac {\overline{\beta_2 [\text{emotional stimuli}]} - \overline{\beta_2 [\text{neutral stimuli}]}} {\overline{\sigma}} \tag{8}
+$$
+
+## Model 2:<br>Multilevel Amplitude and Arousal Bivariate Distribution {style="text-align: center; white-space: nowrap;"}
+
+Where ( $i$ ) indexes all observations and ( $j$ ) indexes all 45 participants.
+
+$Amplitude$ is a vector of observed cortical amplitudes (either LPP or ssVEP).\
+$Arousal$ is a vector of observed arousal ratings aligned with $Amplitude$.\
+$Par$ is a vector of a participant indices (1 to 45) for each $Amplitude$.
+
+### Bivariate Distribution (Likelihood) {style="text-align: center;"}
+
+$$
+\begin{gather}
+\begin{bmatrix}
+  Amplitude_{[i]} \\
+  Arousal_{[i]}
+\end{bmatrix} \sim MVNormal \left(
+\begin{bmatrix}
+  \mu Amp_{[Par[i]]} \\
+  \mu Aro_{[Par[i]]}
+\end{bmatrix},
+\begin{array}{c}
+{\huge \Sigma}_{[Par[i]]}
+\end{array}
+\right) \tag{9}\\
+\begin{array}{c}
+{\huge \Sigma}_{[Par[i]]}
+\end{array} = 
+\begin{bmatrix}
+\sigma Amp_{[Par[i]]}^2 & \sigma Amp Aro_{[Par[i]]} \\
+\sigma Amp Aro_{[Par[i]]} & \sigma Aro_{[Par[i]]}^2
+\end{bmatrix} \tag{10}
+\end{gather}
+$$
+
+### Adaptive Regularizing Priors {style="text-align: center;"}
+
+$$
+\begin{gather}
+\mu Amp_{[j]} \sim Normal(\overline{\mu Amp},\sigma Par Amp) \tag{11}\\
+\mu Aro_{[j]} \sim Normal(\overline{\mu Aro},\sigma Par Aro) \tag{12}\\
+\sigma Amp_{[j]} \sim Normal(\overline{\sigma Amp}, \tau ParAmp) \tag{13}\\
+\sigma Aro_{[j]} \sim Normal(\overline{\sigma Aro}, \tau ParAro) \tag{14}\\
+\sigma Amp Aro_{[j]} \sim Normal(\overline{\sigma Amp Aro}, \tau AmpAro) \tag{15}
+\end{gather}
+$$
+
+### Uninformative Weak Priors {style="text-align: center;"}
+
+$$
+\begin{gather}
+\overline{\mu Amp} \sim Normal(\overline{Amplitude},2 \cdot SD(Amplitude)) \tag{16}\\
+\sigma Par Amp,\overline{\sigma Amp},\tau ParAmp,\tau AmpAro \sim HalfNormal(0,2 \cdot SD(Amplitude)) \tag{17}\\
+\overline{\mu Aro} \sim (Beta(1.1,1.1) \cdot 8) + 1 \tag{18}\\
+\sigma Par Aro,\overline{\sigma Aro},\tau ParAro \sim HalfNormal(0,4) \tag{19}\\
+\overline{\sigma Amp Aro} \sim Normal(0,2 \cdot SD(Amplitude)) \tag{20}
+\end{gather}
+$$
+
+## Model 2 Amplitude log-likelihood equation {style="text-align: center;"}
+
+$$
+\begin{gather}
+\mu Amp \vert Arousal_{[i]} = \mu Amp_{[Par[i]]} + \frac {\sigma Amp Aro_{[Par[i]]}} {\sigma Aro_{[Par[i]]}^2} (Arousal_{[i]} - \mu Aro_{[Par[i]]}) \tag{21}\\
+\sigma Amp \vert Arousal_{[i]}^2 = \sigma Amp_{[Par[i]]}^2 - \frac {\sigma Amp Aro_{[Par[i]]}} {\sigma Aro_{[Par[i]]}^2} \tag{22}
+\end{gather}
+$$
+
+## R\^2 formula
+
+$$
+R^2 = \frac {\text{variance of predicted observations}} {(\text{variance of predicted observations } + \text{residual variance})} \tag{23}
+$$
+
+## Model 2: Multilevel Participant and Arousal Predictors {style="text-align: center;"}
+
+$$
+\begin{gather}
+Where \ ( i ) \ indexes \ all \ observations \ and \ ( j ) \ indexes \ 46 \ participants. \\
+Where \ ( Amplitude ) \ is \ a \ vector \ of \ observed \ cortical \ amplitudes. \\
+Where \ ( Par ) \ is \ a \ vector \ of \ participant \ indices \ for \ each \ amplitude. \\
+\end{gather} \\
+$$
+
+### Linear Model (Likelihood) {style="text-align: center;"}
+
+$$
+\begin{gather}
+Amplitude_{[i]} \sim Normal(\mu_{[i]},\sigma) \tag{1}\\
+\mu_{[i]} = \beta1_{[Par[i]]} + \beta2_{[Par[i]]} \cdot Arousal_{[i]} \tag{2}
+\end{gather}
+$$
+
+### Adaptive Regularizing Priors {style="text-align: center;"}
+
+$$
+\begin{gather}
+\beta1_{[j]} \sim Normal(\bar{Par}, \sigma Par)  \tag{3}\\
+\beta2_{[j]} \sim Normal(\bar{\beta2}, \sigma Aro)  \tag{4}
+\end{gather}
+$$
+
+### Uninformative Weak Priors {style="text-align: center;"}
+
+$$
+\begin{gather}
+\bar{Par} \sim Normal(\bar{Arousal},2 \cdot SD(Amplitude)) \tag{5}\\
+\bar{\beta2} \sim Normal(0, 2 \cdot SD(Amplitude)) \tag{6}\\
+\sigma,\sigma Par,\sigma Aro \sim HalfNormal(0,2 \cdot SD(Amplitude)) \tag{7}
+\end{gather}
+$$
+
+## Model 4: Multilevel participant and stimuli predictors {style="text-align: center;"}
+
+$$
+\begin{gather}
+Where \ ( i ) \ indexes \ all \ observations, ( j ) \ indexes \ participants,\\ 
+and \ ( k ) \ indexes \ stimuli.
+\end{gather}
+$$
+
+### Linear model {style="text-align: center;"}
+
+$$
+\begin{gather}
+Amplitude_{[i]} \sim Normal(\mu_{[i]},\sigma) \tag{1}\\
+\mu_{[i]} = \beta_{par[i]} + \beta_{stim[i]} \tag{2}
+\end{gather}
+$$
+
+### Adaptive regularizing priors {style="text-align: center;"}
+
+$$
+\begin{gather}
+\beta_{par[j]} \sim Normal(\hat{\bar{par}}, \sigma_{par}) \tag{3}\\
+\beta_{stim[k]} \sim Normal(0, \sigma_{stim}) \tag{4}
+\end{gather}
+$$
+
+### Uninformative weak priors {style="text-align: center;"}
+
+$$
+\begin{gather}
+\hat{\bar{par}} \sim Normal(\bar{par},2 * SD(Amplitude)) \tag{5}\\
+\sigma,\sigma_{par},\sigma_{stim} \sim HalfNormal(0,2 * SD(Amplitude)) \tag{6}
+\end{gather}
+$$
