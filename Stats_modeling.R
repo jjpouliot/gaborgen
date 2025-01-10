@@ -1,7 +1,7 @@
 library(tidyverse)
 library(cmdstanr)
 library(R.matlab)
-
+library(ggbeeswarm)
 
 # Load data ####
 parent_folder <- "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI"
@@ -11,7 +11,7 @@ participants_without_complete_trial_list_in_dat_file <- c("110")
 
 channel_information <- readMat(paste0(git_repository, "/chanlocs_ssv4att_MRI.mat")) 
 
-single_trial_mat_folder <- paste0(parent_folder,"/single_trial_timeseries_FFTs")
+single_trial_mat_folder <- paste0(parent_folder,"/single_trial_timeseries_FFTs") # old is CSD transformed, new is average reference
 
 all_mat_filepaths <- list.files(path = single_trial_mat_folder,full.names = T)
 all_mat_filepaths <- all_mat_filepaths[!grepl(x = all_mat_filepaths,
@@ -23,6 +23,9 @@ raw_fft_paths <- all_mat_filepaths[str_detect(all_mat_filepaths,
 
 sliding_window_fft_paths <- all_mat_filepaths[str_detect(all_mat_filepaths, 
                                                          pattern = "slidingWindow_ChanFrequency")]
+
+sliding_window_fft_paths <- sliding_window_fft_paths[str_detect(sliding_window_fft_paths, 
+                                    pattern = "600Hz.mat")]
 
 
 
@@ -43,7 +46,7 @@ for (path_index in 1:length(raw_fft_paths)) {
   
   ssVEP_frequency_index <- which.min(abs(mat_data$rawFreqs - ssVEP_frequencyHz))
 
-  amplitude <- mat_data$currentRawFFT[,ssVEP_frequency_index]
+  amplitude <- mat_data$rawAmp[,ssVEP_frequency_index]
 
   participant <- stringr::str_extract(raw_fft_paths[path_index], "(?<=participant)[0-9]+")
   
@@ -104,7 +107,7 @@ for (path_index in 1:length(sliding_window_fft_paths)) {
   
   ssVEP_frequency_index <- which.min(abs(mat_data$slidingWindowFreqs - ssVEP_frequencyHz))
 
-  amplitude <- mat_data$currentSlidingWindowFFT[,ssVEP_frequency_index]
+  amplitude <- mat_data$slidingWindowAmp[,ssVEP_frequency_index]
 
   participant <- stringr::str_extract(sliding_window_fft_paths[path_index], "(?<=participant)[0-9]+")
   
@@ -151,6 +154,104 @@ for (path_index in 1:length(sliding_window_fft_paths)) {
   
 }
 
+# make CSV for Jude to compare to her preprocessing pipeline
+
+raw_fft_df <- raw_fft_df %>%
+  rename(amplitude_15Hz_fft = amplitude)
+  
+  
+
+sliding_window_fft_df <- sliding_window_fft_df %>%
+  rename(amplitude_15Hz_sliding_window_fft_upsampled_600Hz = amplitude)
+
+fft_df <- merge(x = raw_fft_df, y = sliding_window_fft_df,
+      by = c("participant", "channel", "trial", "phase", "cue", "paired"))
+
+write.csv(x = fft_df, 
+          file = '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/jude_csd_fft_single_trial.csv',
+          quote = F)
+
+# something else
+
+hold <- raw_fft_df %>%
+  select(trial, phase) %>% 
+  group_by(trial, phase) %>% 
+  summarise_all(mean)
+
+
+raw_fft_df %>% 
+  # filter(channel %in% c("Oz")) %>% 
+  filter(channel %in% c("Oz","O1", "O2")) %>%  
+  group_by(participant, channel) %>% 
+  mutate(amp_diff_par_mean = amplitude - mean(amplitude),
+         z_amp = as.vector(scale(amplitude))) %>% 
+  select(-c("channel","phase", "paired")) %>% 
+  group_by(participant,trial,cue) %>% 
+  summarise_all(mean) %>% 
+  ggplot() +
+  geom_vline(xintercept = 32) +
+  geom_vline(xintercept = 32 + 48) +
+  geom_vline(xintercept = 32 + 48 + 48) +
+  # geom_quasirandom(aes(x = trial, y = z_amp, color = cue)) +
+  geom_smooth(aes(x = trial, y = z_amp, color = cue), level = .5) +
+  theme_classic()
+
+raw_fft_df %>% 
+  # filter(channel %in% c("Oz")) %>% 
+  filter(channel %in% c("Oz","O1", "O2")) %>%  
+  select(-c("channel","phase", "paired")) %>% 
+  group_by(participant,trial,cue) %>% 
+  summarise_all(mean) %>% 
+  group_by(participant) %>% 
+  mutate(amp_diff_par_mean = amplitude - mean(amplitude),
+         z_amp = as.vector(scale(amplitude))) %>% 
+  ggplot() +
+  geom_vline(xintercept = 32) +
+  geom_vline(xintercept = 32 + 48) +
+  geom_vline(xintercept = 32 + 48 + 48) +
+  # geom_quasirandom(aes(x = trial, y = z_amp, color = cue)) +
+  geom_smooth(aes(x = trial, y = z_amp, color = cue), level = .5) +
+  theme_classic()
+
+sliding_window_fft_df %>% 
+  # filter(channel %in% c("Oz")) %>% 
+  filter(channel %in% c("Oz","O1", "O2")) %>%  
+  group_by(participant, channel) %>% 
+  mutate(amp_diff_par_mean = amplitude - mean(amplitude),
+         z_amp = as.vector(scale(amplitude))) %>% 
+  group_by(participant,trial,cue) %>% 
+  select(-c("channel","phase", "paired")) %>% 
+  summarise_all(mean) %>% 
+  ggplot() +
+  geom_vline(xintercept = 32) +
+  geom_vline(xintercept = 32 + 48) +
+  geom_vline(xintercept = 32 + 48 + 48) +
+  # geom_quasirandom(aes(x = trial, y = z_amp, color = cue)) +
+  geom_smooth(aes(x = trial, y = z_amp, color = cue), level = .5) +
+  theme_classic()
+
+sliding_window_fft_df %>% 
+  # filter(channel %in% c("Oz")) %>% 
+  filter(channel %in% c("Oz","O1", "O2")) %>%  
+  group_by(participant, channel) %>% 
+  mutate(amp_diff_par_mean = amplitude - mean(amplitude),
+         z_amp = as.vector(scale(amplitude))) %>% 
+  group_by(trial,cue) %>% 
+  select(-c("channel","phase", "paired")) %>% 
+  summarise_all(mean) %>% 
+  ggplot() +
+  geom_vline(xintercept = 32) +
+  geom_vline(xintercept = 32 + 48) +
+  geom_vline(xintercept = 32 + 48 + 48) +
+  # geom_quasirandom(aes(x = trial, y = z_amp, color = cue)) +
+  geom_smooth(aes(x = trial, y = z_amp, color = cue), level = .5) +
+  theme_classic()
+
+
+
+
+
+# first attempt below
 raw_fft_df %>%
   filter(channel %in% c("Oz")) %>% 
   group_by(participant, phase, cue, paired) %>% 
@@ -235,7 +336,20 @@ raw_fft_df %>%
   theme(text = element_text(size = 22)) 
 
 sliding_window_fft_df %>%
-  filter(channel %in% c("Oz", "O1", "O2", "POz")) %>% 
+  filter(channel %in% c("Oz")) %>% 
+  group_by(participant) %>%
+  mutate(z_scored_amplitude = as.vector(scale(amplitude))) %>% 
+  group_by(cue, phase, paired) %>% 
+  summarise(mean_z_amp = mean(z_scored_amplitude),
+            se_amp = plotrix::std.error(z_scored_amplitude)) %>% 
+  ggplot() +
+  geom_pointrange(aes(color = paired, x = cue, y = mean_z_amp,
+                      ymax = mean_z_amp + se_amp, ymin = mean_z_amp - se_amp)) +
+  facet_grid(. ~ phase) +
+  theme_bw()
+
+sliding_window_fft_df %>%
+  filter(channel %in% c("Oz", "O1", "O2")) %>% 
   group_by(participant) %>%
   mutate(z_scored_amplitude = as.vector(scale(amplitude))) %>% 
   group_by(cue, phase, paired) %>% 
@@ -433,8 +547,8 @@ raw_stan_list$amplitude <- raw_fft_df_Oz$amplitude
 ## Model settings
 number_of_chains <- 4
 number_of_parallel_chains  <- 4
-posterior_samples_per_chain <- 1000
-warmup_samples_per_chain <- 1000
+posterior_samples_per_chain <- 2000
+warmup_samples_per_chain <- 2000
 where_to_save_chains <- paste0(parent_folder,"/stan_chains")
 
 ## cue by phase with fatigue one channel ####
