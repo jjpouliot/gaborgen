@@ -20,7 +20,7 @@ addpath(genpath('/home/andrewf/Repositories/freqTag'), '-end');
 % participantIDs = [131,132,133,134,135,136,139,140,141,142,143];
 participantIDs = [110,111,112,113,114,115,116,117,118,119,120,121,122,123,125,126,...
                             127,128,129,130,131,132,133,134,135,136,139,140,141,142,143];
-epochMs = [500 2000];
+epochMs = [0 2000];
 sampleRateHz = 500;
 resampledRateHz = 600; % Check if this makes sense
 postEpochedSamplePoints = 1:((epochMs(2) - epochMs(1))*(sampleRateHz/1000));
@@ -146,9 +146,9 @@ for participantIndex = 1:length(participantIDs)
 
         % Save the raw and sliding window timeseries and FFT by trial so
         % that I know which trials are missing
-         mkdir([rawDataPath '/single_trial_timeseries_FFTs_CSD_500_2000ms'])
+         mkdir([rawDataPath '/single_trial_timeseries_FFTs_CSD'])
 
-         matSavePath = [rawDataPath '/single_trial_timeseries_FFTs_CSD_500_2000ms/'];
+         matSavePath = [rawDataPath '/single_trial_timeseries_FFTs_CSD/'];
 
         for trialIndex = 1:length(cleanTrialNumber)
             participantID = participantIDs(participantIndex);
