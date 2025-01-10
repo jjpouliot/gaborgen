@@ -1,5 +1,6 @@
 %% This will clear and edit your matlab path
 % possibly necessary if you don't have eeglab set up correctly
+clear
 restoredefaultpath
 gaborgenCodeRepository = '/home/andrewf/Repositories/gaborgen';
 eeglabDirectory = '/home/andrewf/Repositories/eeglab2024.0';
@@ -23,10 +24,8 @@ addpath(genpath('/home/andrewf/Repositories/freqTag'), '-end');
 % EEG_prep4ICA(partID,newSamplingRate,filterCutOff,parentFolder)
 % Data should be dropbox organization: parentFolder/raw_data/...partID/EEG
 %124 bad, may not have T1 triggers, not sure though
-EEG_prep4ICA([124], ...
-    500,[3 40], '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI');
-
-
+EEG_prep4ICA([131,132,133,134,135,136,139,140,141,142,143], ...
+    500,[3 40], '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI',1,0);
 
 %%% manual step: check which channels should not be included in ICA
 
@@ -49,15 +48,14 @@ EEG_prep4ICA([124], ...
 %121 C3 out at 380ish back at 934 and then gone again at 1090 haha, FC6 fading at 1390, may be possible to save channels with ICA
 %123 T7, T8 impossibly large and noisy, maybe P and F are too
 %128 ECG is there but drifts away for some reason
-EEG_runICA([110,111,    112,                                  113,   114,115,  116,117,118,119,   120,121,122,123,         125,126,127,128,129,130], ...
-                     {{},   {'FC1'},{'FC3', 'FC1', 'Cz', 'C3'},    {'C4'}, {},    {'F8'},{},    {},   {},    {'Fz'}, {},    {},    {},   {'T8','T7'},{},    {},    {},   {},    {},    {}}, ...
+% EEG_runICA([110,111,    112,                                  113,   114,115,  116,117,118,119,   120,121,122,123,         125,126,127,128,129,130], ...
+%                      {{},   {'FC1'},{'FC3', 'FC1', 'Cz', 'C3'},    {'C4'}, {},    {'F8'},{},    {},   {},    {'Fz'}, {},    {},    {},   {'T8','T7'},{},    {},    {},   {},    {},    {}}, ...
+%     '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI', 1, 0)
+
+% Alot of 142 is bad
+EEG_runICA([131,132,133,134,135,                                                          136,                                                                            139,      140,141,142,      143], ...
+                     {{},    {},    {},   {},    {'O1', 'O2', 'F7', 'F8', 'T7', 'T8', 'P7', 'P8'}, {'O1', 'O2', 'F7', 'F8', 'T7', 'T8', 'P7', 'P8', 'FC2', 'Cz'}, {'FC1'}, {},    {},    {'CP1'}, {}}, ... #not sure if 139 channel is actually bad
     '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI', 1, 0)
-
-% Not done
-% EEG_runICA([123,124,125,126,127,128,129,130], ...
-%                      {}, ...
-%     '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI', 0, 1)
-
 
 %%% manual step: check which ICs to remove and which channels to interpolate
 % How do you know which ICs to manuall remove? Andrew
@@ -67,12 +65,18 @@ EEG_runICA([110,111,    112,                                  113,   114,115,  1
 % exclude artifact ICs, interpolate bad channels, apply average reference,
 % run artifact rejection, apply CSD
 
-%EEG_finishPrepro(partID, excludeICs, interpolateChans, parentFolder, day1, day2)
+%EEG_finishPrepro(partID, excludeICs, interpolateChans, parentFolder, day1, day2,CSDtransform)
 
 EEG_finishPrepro([110,111,    112,                                  113,   114,115,  116,117,118,119,   120,121,122,123,         125,126,127,128,129,130], ...
                               {[],    [],        [],                                     [],       [],    [],     [],    [],    [],   [],       [],    [],   [],    [],            [],    [],    [],   [],    [],    []}, ...
                               {{},   {'FC1'},{'FC3', 'FC1', 'Cz', 'C3'},    {'C4'}, {},    {'F8'},{},    {},   {},    {'Fz'}, {},    {},    {},   {'T8','T7'},{},    {},    {},   {},    {},    {}}, ...
-    '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI',1,1)
+    '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI',1,0,1)
+
+EEG_finishPrepro([131,132,133,134,135,                                                          136,                                                                            139,      140,141,142,      143], ...
+                              {[],    [],   [],    [],    [],                                                             [],                                                                                [],          [],   [],    [],          []},...
+                              {{},    {},    {},   {},    {'O1', 'O2', 'F7', 'F8', 'T7', 'T8', 'P7', 'P8'}, {'O1', 'O2', 'F7', 'F8', 'T7', 'T8', 'P7', 'P8', 'FC2', 'Cz'}, {'FC1'}, {},    {},    {'CP1'}, {}}, ... #not sure if 139 channel is actually bad
+    '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI', 1, 0,1)
+
 
 % % 101 ICs - Gradients: 1,2,6,9,15; eyes: 3,5; CBA: 4
 % EEG_03_finishPrepro(101,{[1 2 3 4 5 6 9 15]},{{'CP1','FC2'}},'/Volumes/TOSHIBA_4TB/ssV4att_MRI')
@@ -95,6 +99,8 @@ EEG_finishPrepro([110,111,    112,                                  113,   114,1
 
 
 %% Sliding Window
+% This finds category averages, Andrew uses the next script a003 to find
+% single trials
 
 % function EEG_slidingWindow(partID, 
 %     markerStrings, ... 
