@@ -15,7 +15,7 @@ emegs28path = 'C:\Users\jcedi\OneDrive\Documents\GitHub\EMEGShelper';
 addpath(genpath(emegs28path), '-end'); 
 
 addpath(genpath('/Users/jcedielescobar/Documents/GitHub'), '-end');
-%%
+%% Format transformation
 
 % Define the main folder path
 main_path = '/Users/jcedielescobar/Documents/Prepro/Day1';
@@ -64,7 +64,7 @@ else
 end
 
 
-%% Raw sets, renaming T1, removing MRI artifacts, resampling
+%% Chan Location, renaming T1, removing MRI artifacts, resampling
 % Define the main folder path
 main_path = '/Users/jcedielescobar/Documents/Prepro/Day1';
 
@@ -253,7 +253,7 @@ if isfolder(vhdr_folder)
     subjects = dir(vhdr_folder);
     subjects = subjects([subjects.isdir] & ~ismember({subjects.name}, {'.', '..'}));
 
-    for i = 22%length(subjects)  % You might want to change the loop range
+    for i = 1:2%length(subjects)  % You might want to change the loop range
         subject = subjects(i).name;
         eeg_folder = fullfile(vhdr_folder, subject, 'EEG');
         
@@ -384,6 +384,9 @@ if isfolder(data_folder)
                 % Load the .set file
                 EEG = pop_loadset('filename', set_file, 'filepath', eeg_folder);
                 
+                %When the first time you want to label the components
+                % EEG = pop_iclabel(EEG, 'default');
+
                 % Load the eye_components.mat structure
                 eyeComponentsPath = fullfile(main_path, 'eye_components.mat');
                 

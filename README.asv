@@ -95,19 +95,7 @@ Resampling: 500
 
 5. Bad Channels (For the first time)
 This is step opens each file and you need to check manually the bad channels with the scroll and with the spectra maps, you write the numbers and save the files. 
-It will create a structure called badChannelsStruct.mat with the name of the subject and the bad channels numbers for be used in the interpolation step.
+It will create a s
+2. Chan Locations, Renaming T1, removing MRI artifacts, resampling
+2. Chan Locations, Renaming T1, removing MRI artifacts, resampling
 
-6. ICA
-Type: Sobi
-
-7. Eye components.
-
-The first time you need to select the channels with the ICLabel tool but you need to check manually. You will need the eyecomponent.mat structure with the name of 
-the subject and the components that need to be removed. Be sure the struct is in your main path. 
-
-8. Interpolation 
-Be sure you have the badChannelsStruct.mat struct in your main path
-
-9. Reference 
-
-10. CSD Transformation 
