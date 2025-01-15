@@ -50,7 +50,7 @@ for participantIndex = 1:length(participantIDs)
         EEGIndex = find(endsWith(currentFilenames, '_04_preprocessed.set'));
         if length(EEGIndex) == 1
             EEGpreproFileName = currentFilenames{EEGIndex};
-        elseif EEGcurrentDirectoryIndex > 1
+        elseif EEGIndex > 1
             error(['More than one 04_preprocessed.set file found in ' currentDirectory]);
         else
             error(['No 04_preprocessed.set file found in ' currentDirectory]);
