@@ -43,7 +43,8 @@ raw_fft_df <- data.frame("participant" = character(),
                          "phase" = factor(levels = c("habituation","acquisition","extinction")), 
                          "cue" = factor(levels = c("CSP", "GS1", "GS2", "GS3")), 
                          "paired" = factor(levels = c("shock", "no_shock")), 
-                         "amplitude" = numeric())
+                         "amplitude" = numeric(),
+                         "raw_amplitude_surrounding_frequencies" = numeric())
 
 for (path_index in 1:length(raw_fft_paths)) {
   mat_data <- readMat(raw_fft_paths[path_index])
@@ -51,6 +52,9 @@ for (path_index in 1:length(raw_fft_paths)) {
   ssVEP_frequency_index <- which.min(abs(mat_data$rawFreqs - ssVEP_frequencyHz))
   
   amplitude <- mat_data$rawAmp[,ssVEP_frequency_index]
+  
+  raw_amplitude_surrounding_frequencies <- (mat_data$rawAmp[,ssVEP_frequency_index-1] +
+                                            mat_data$rawAmp[,ssVEP_frequency_index+1]) /2
   
   participant <- stringr::str_extract(raw_fft_paths[path_index], "(?<=participant)[0-9]+")
   
@@ -92,7 +96,8 @@ for (path_index in 1:length(raw_fft_paths)) {
                                    "phase" = phase, 
                                    "cue" = cue, 
                                    "paired" = paired, 
-                                   "amplitude" = amplitude)
+                                   "amplitude" = amplitude,
+                                   "raw_amplitude_surrounding_frequencies" = raw_amplitude_surrounding_frequencies)
   
   raw_fft_df <- rbind.data.frame(raw_fft_df, current_raw_fft_df)
   
@@ -104,7 +109,9 @@ sliding_window_fft_df <- data.frame("participant" = character(),
                                     "phase" = factor(levels = c("habituation","acquisition","extinction")), 
                                     "cue" = factor(levels = c("CSP", "GS1", "GS2", "GS3")), 
                                     "paired" = factor(levels = c("shock", "no_shock")), 
-                                    "amplitude" = numeric())
+                                    "amplitude" = numeric(),
+                                    "SNR" = numeric(),
+                                    "SNR_surrounding_frequencies" = numeric())
 
 for (path_index in 1:length(sliding_window_fft_paths)) {
   mat_data <- readMat(sliding_window_fft_paths[path_index])
@@ -112,6 +119,10 @@ for (path_index in 1:length(sliding_window_fft_paths)) {
   ssVEP_frequency_index <- which.min(abs(mat_data$slidingWindowFreqs - ssVEP_frequencyHz))
   
   amplitude <- mat_data$slidingWindowAmp[,ssVEP_frequency_index]
+  
+  SNR <- mat_data$currentTrialSNR[ssVEP_frequency_index]
+  SNR_surrounding_frequencies <- mean(c(mat_data$currentTrialSNR[ssVEP_frequency_index-1],  
+                                      mat_data$currentTrialSNR[ssVEP_frequency_index+1]))
   
   participant <- stringr::str_extract(sliding_window_fft_paths[path_index], "(?<=participant)[0-9]+")
   
@@ -152,7 +163,9 @@ for (path_index in 1:length(sliding_window_fft_paths)) {
                                               "phase" = phase, 
                                               "cue" = cue, 
                                               "paired" = paired, 
-                                              "amplitude" = amplitude)
+                                              "amplitude" = amplitude,
+                                              "SNR" = SNR,
+                                              "SNR_surrounding_frequencies" = SNR_surrounding_frequencies)
   
   sliding_window_fft_df <- rbind.data.frame(sliding_window_fft_df, current_sliding_window_fft_df)
   
@@ -228,67 +241,67 @@ fft_df <- merge(x = fft_df, y = ratings_df,
               all.x = T)
 
 # Extract unique participant IDs
-unique_participants <- unique(fft_df$participant)
-# Ask before showing new page (new plot)
-devAskNewPage(TRUE)
-
-for (p in unique_participants) {
-  # Create the plot
-  # p_plot <-   fft_df %>%
-  #   filter(channel %in% c("Oz"), participant == p) %>%
-  #   ggplot() +
-  #   geom_quasirandom(aes(x = cue, y = amplitude_15Hz_fft, color = cue))+
-  #   facet_wrap(~phase)
-  p_plot <-   fft_df %>%
-    filter(channel %in% c("Oz"), participant == p) %>%
-    group_by(participant, channel, cue, phase) %>%
-    summarise(mean_amp = mean(amplitude_15Hz_fft),
-              se_amp = plotrix::std.error(amplitude_15Hz_fft)) %>%
-    ggplot() +
-    geom_line(aes(x = cue, y = mean_amp, group = channel, color = channel)) +
-    geom_errorbar(aes(x = cue,
-                      ymin = mean_amp - se_amp,
-                      ymax = mean_amp + se_amp,
-                      group = participant, color = channel),width = 0) +
-    facet_wrap(~phase) +
-  ggtitle(paste0(p))
-  # p_plot <-   fft_df %>%
-  #   filter(channel %in% c("Oz"), participant == p) %>%
-  #   # group_by(participant) %>%
-  #   mutate(zamp = scale(amplitude_15Hz_fft) %>% as.vector()) %>%
-  #   ggplot() +
-  #   geom_point(aes(x = trial, y = amplitude_15Hz_fft, color = cue)) +
-  #   scale_x_continuous(limits = c(0,176)) +
-  #   ggtitle(paste0(p))
-  # geom_errorbar(aes(x = cue,
-  #                   ymin = mean_amp - se_amp,
-  #                   ymax = mean_amp + se_amp,
-  #                   group = participant, color = channel),width = 0) +
-  # facet_wrap(~phase)
-
-  # Print the plot
-  print(p_plot)
-
-  fft_df %>%
-    filter(channel %in% c("Oz"), participant == p) %>%
-    group_by(participant,channel, csPerm,phase,cue) %>%
-    summarise(mean_amp = mean(amplitude_15Hz_fft),
-              se_amp = plotrix::std.error(amplitude_15Hz_fft),
-              mean_ar =mean(ar),
-              mean_val =mean(val),
-              mean_exp =mean(exp),
-              n()) %>%
-    print(n = 999)
-
-  user_input <- readline(prompt = "Press [enter] for the next plot or 'q' to quit: ")
-
-  # Check if the user wants to quit early
-  if (tolower(user_input) == "q") {
-    message("Exiting early as requested.")
-    break
-  }
-}
-devAskNewPage(FALSE)
+# unique_participants <- unique(fft_df$participant)
+# # Ask before showing new page (new plot)
+# devAskNewPage(TRUE)
+# 
+# for (p in unique_participants) {
+#   # Create the plot
+#   # p_plot <-   fft_df %>%
+#   #   filter(channel %in% c("Oz"), participant == p) %>%
+#   #   ggplot() +
+#   #   geom_quasirandom(aes(x = cue, y = amplitude_15Hz_fft, color = cue))+
+#   #   facet_wrap(~phase)
+#   p_plot <-   fft_df %>%
+#     filter(channel %in% c("Oz"), participant == p) %>%
+#     group_by(participant, channel, cue, phase) %>%
+#     summarise(mean_amp = mean(amplitude_15Hz_fft),
+#               se_amp = plotrix::std.error(amplitude_15Hz_fft)) %>%
+#     ggplot() +
+#     geom_line(aes(x = cue, y = mean_amp, group = channel, color = channel)) +
+#     geom_errorbar(aes(x = cue,
+#                       ymin = mean_amp - se_amp,
+#                       ymax = mean_amp + se_amp,
+#                       group = participant, color = channel),width = 0) +
+#     facet_wrap(~phase) +
+#   ggtitle(paste0(p))
+#   # p_plot <-   fft_df %>%
+#   #   filter(channel %in% c("Oz"), participant == p) %>%
+#   #   # group_by(participant) %>%
+#   #   mutate(zamp = scale(amplitude_15Hz_fft) %>% as.vector()) %>%
+#   #   ggplot() +
+#   #   geom_point(aes(x = trial, y = amplitude_15Hz_fft, color = cue)) +
+#   #   scale_x_continuous(limits = c(0,176)) +
+#   #   ggtitle(paste0(p))
+#   # geom_errorbar(aes(x = cue,
+#   #                   ymin = mean_amp - se_amp,
+#   #                   ymax = mean_amp + se_amp,
+#   #                   group = participant, color = channel),width = 0) +
+#   # facet_wrap(~phase)
+# 
+#   # Print the plot
+#   print(p_plot)
+# 
+#   fft_df %>%
+#     filter(channel %in% c("Oz"), participant == p) %>%
+#     group_by(participant,channel, csPerm,phase,cue) %>%
+#     summarise(mean_amp = mean(amplitude_15Hz_fft),
+#               se_amp = plotrix::std.error(amplitude_15Hz_fft),
+#               mean_ar =mean(ar),
+#               mean_val =mean(val),
+#               mean_exp =mean(exp),
+#               n()) %>%
+#     print(n = 999)
+# 
+#   user_input <- readline(prompt = "Press [enter] for the next plot or 'q' to quit: ")
+# 
+#   # Check if the user wants to quit early
+#   if (tolower(user_input) == "q") {
+#     message("Exiting early as requested.")
+#     break
+#   }
+# }
+# devAskNewPage(FALSE)
 
 
 ## temp data visualization ####
@@ -443,11 +456,14 @@ devAskNewPage(FALSE)
 #112 horrible quality
 #117 couldn't see
 #123 weird at other sensor, but good at Oz, fmri not recording for first 10 mins according to master sheet?
+#124 no T1 on off for artifact correction, also moving and scratching a lot
 #134 fell asleep
 #136 missing too much
+fft_df$participant %>% unique() %>% length()
+
 Oz_fft_df <- fft_df %>% 
   filter(channel == "Oz") %>% 
-  filter(!participant %in% c("111", "112","117","123","134","136")) 
+  filter(!participant %in% c("111", "112","117","123","124", "134","136")) 
 
 # need to sort df, then find trials missing
 Oz_fft_df <- Oz_fft_df %>% 
@@ -490,6 +506,9 @@ Oz_fft_df <- Oz_fft_df %>%
   mutate(stan_par_id = participant %>% 
            as.factor() %>% 
            as.integer())
+
+Oz_fft_df %>% 
+  filter(learned_at_end == F)
 
 gaborgen_stan_list <- list()
 
@@ -1777,7 +1796,7 @@ sample_demographics %>%
 cue_color <- c("red1","green1", "purple1", "blue1")
 text_font <- "Arial"
 text_size <- 15
-axis_line_thickness <- .75
+axis_line_thickness <- 1
 
 ## Overall means and standard errors
 annotation_text_size <- 9
@@ -1803,6 +1822,11 @@ Oz_fft_df %>%
   reframe(mean_zamp = mean(zamp),
           se_zamp = plotrix::std.error(zamp)) %>% 
   ggplot() +
+  geom_hline(yintercept = -.5, color = "black", linetype = "dotted") +
+  geom_hline(yintercept = -.25, color = "black", linetype = "dotted") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") +
+  geom_hline(yintercept = .25, color = "black", linetype = "dotted") +
+  geom_hline(yintercept = .5, color = "black", linetype = "dotted") +
   geom_pointrange(aes(x = cue, y = mean_zamp,
                       ymin = mean_zamp - se_zamp,
                       ymax = mean_zamp + se_zamp,
@@ -1819,7 +1843,12 @@ Oz_fft_df %>%
   scale_y_continuous(name = "Z-Scored ssVEP",
                      expand = c(0,0),
                      breaks = seq(-.5,.5,by = .25)) +
-  coord_cartesian(ylim = c(-.6,.6)) +
+  coord_cartesian(ylim = c(-.62,.62)) +
+  geom_rect(data = data.frame (xmin = 1.5, xmax = 3.5,
+                               ymin = .1, ymax = .55, block = "4"),
+            aes(xmin = xmin, xmax = xmax,
+                ymin = ymin, ymax = ymax),
+            fill = "white") +
   facet_wrap(~ block, nrow = 1, 
              labeller = labeller(
                block = c("1" = "Habituation",
@@ -1853,9 +1882,12 @@ Oz_fft_df %>%
                             color = "black"),
         strip.background = element_blank(),
         strip.text = element_text(size = 15),
+        panel.spacing = unit(0.15, "lines"),
         legend.position = "none",
-        axis.line = element_line(linewidth = axis_line_thickness,
-                                 lineend = "square"),
+        axis.line = element_blank(),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = axis_line_thickness), # Add a border
+        # axis.line = element_line(linewidth = axis_line_thickness,
+        #                          lineend = "square"),
         axis.ticks = element_blank(),
         axis.title.x = element_blank(),
         axis.text.x = element_blank()
@@ -1869,7 +1901,13 @@ ggsave(filename = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/Figu
 
 
 ## Loo stats ####
+model003_fit_loo <- model003_fit$loo()
+learning_model_pointwise <- model003_fit_loo[["pointwise"]]
 
+bad_k <- learning_model_pointwise[,5] > .7
+
+learning_model_pointwise[,3] %>% sum()
+learning_model_pointwise[-bad_k,3] %>% sum()
 
 loo::loo_compare(model008_fit_loo, #model 1 in paper
                  model001_fit_loo, #model 2
@@ -1932,6 +1970,11 @@ loo_par_dot_size <- .8
 loo_par_range_linewidth <- 1.5
 loo_figure_text <-20
 
+negative_y <- -20
+positive_y <- 5
+arrow_line_width <- 1
+arrow_size <- .5
+
 
 CV_by_cue_by_block_plot <-
   Oz_fft_df %>% 
@@ -1958,6 +2001,28 @@ CV_by_cue_by_block_plot <-
                       color = sum_better_for_mod3),
                   size = loo_par_dot_size,
                   linewidth = loo_par_range_linewidth) +
+  geom_segment(
+    data = data.frame(block = factor("1",levels = c("1","2", "3", "4")), 
+                      x = 0.3, 
+                      xend = 0.3, 
+                      y = 0, yend = positive_y),
+    aes(x = x, xend = xend, y = y, yend = yend),
+    color = "red",
+    linewidth = arrow_line_width,
+    arrow = arrow(length = unit(arrow_size, "cm"), ends = "last", type = "closed"),
+    inherit.aes = FALSE
+  ) +
+  geom_segment(
+    data = data.frame(block = factor("1",levels = c("1","2", "3", "4")), 
+                      x = 0.3, 
+                      xend = 0.3, 
+                      y = 0, yend = negative_y),
+    aes(x = x, xend = xend, y = y, yend = yend),
+    color = "blue",
+    linewidth = arrow_line_width,
+    arrow = arrow(length = unit(arrow_size, "cm"), ends = "last", type = "closed"),
+    inherit.aes = FALSE
+  ) +
   facet_wrap(~block, nrow = 1, 
              labeller = labeller(
                block = c("1" = "Habituation",
@@ -1977,8 +2042,8 @@ CV_by_cue_by_block_plot <-
               family = "Arial",
               size = 7.5) +
   scale_color_manual(values = c("red1","blue1")) +
-  scale_y_continuous(name = "ELPD") +
-  coord_cartesian(ylim = c(-19, 4)) +
+  scale_y_continuous(name = "ELPD Model Difference") +
+  coord_cartesian(ylim = c(-19, 4),clip = "off") +
   scale_x_discrete(name = "Cue",labels = c("CS+", "GS1", "GS2", "GS3")) +
   ggtitle("Cross-Validation Accuracy by Cue and Block") +
   theme_classic() +
@@ -1987,12 +2052,15 @@ CV_by_cue_by_block_plot <-
                             color = "black"),
         axis.line = element_line(linewidth = axis_line_thickness,
                                  lineend = "square"),
+        axis.line.y = element_blank(),
         axis.ticks = element_blank(),
         strip.background = element_blank(),
         strip.text = element_blank(),
         plot.title = element_text(hjust = 0.5),
-        legend.position = "none"
+        legend.position = "none",
+        axis.text.x = element_text(color = cue_color,angle = 15,vjust = .85)
   )
+
 
 CV_by_participant_plot <-
   Oz_fft_df %>% 
@@ -2036,8 +2104,8 @@ CV_by_participant_plot <-
              lineheight = 0.8, # Adjust this value to decrease spacing
              size = 12)+
   scale_color_manual(values = c("red1","blue1")) +
-  scale_y_continuous(name = "ELPD") +
-  coord_cartesian(ylim = c(-19, 4)) +
+  scale_y_continuous(name = "ELPD Model Difference") +
+  coord_cartesian(ylim = c(-19, 4), , clip = "off") +
   scale_x_discrete(name = "Participant") +
   ggtitle("Cross-Validation Accuracy By Participant") +
   theme_classic() +
@@ -2048,7 +2116,27 @@ CV_by_participant_plot <-
                                  lineend = "square"),
         axis.ticks = element_blank(),
         plot.title = element_text(hjust = 0.5),
+        axis.line.y = element_blank(),
         legend.position = "none"
+  ) +
+  # Same “two-piece” arrow for y-axis
+  annotate(
+    "segment",
+    x = 0.3, 
+    xend = 0.3, 
+    y = 0, yend = positive_y,
+    color = "red",
+    linewidth  = arrow_line_width,
+    arrow = arrow(length = unit(arrow_size, "cm"), ends = "last", type = "closed")
+  ) +
+  annotate(
+    "segment",
+    x = 0.3, 
+    xend = 0.3, 
+    y = 0, yend = negative_y,
+    color = "blue",
+    linewidth  = arrow_line_width,
+    arrow = arrow(length = unit(arrow_size, "cm"), ends = "last", type = "closed")
   )
 
 layout_grid <- c('
@@ -2077,11 +2165,23 @@ ggsave(filename = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/Figu
 
 ## Adaptation ####
 # plot specifics
-number_of_samples_to_plot <- 4000
+number_of_samples_to_plot <- 100
+# number_of_samples_to_plot <- 4000
 number_of_chains_prior <- 4
 prior_samples_per_chain <- number_of_samples_to_plot / number_of_chains_prior
-line_width_adapt <- .1
-line_alpha_adapt <- .1
+line_width_adapt <- .25
+line_alpha_adapt <- .25
+# line_width_adapt <- .1
+# line_alpha_adapt <- .1
+text_size <- 15
+median_line_width_adapt <-.7
+trial_breaks <- c(1, seq(20,180, by = 20))
+
+
+set.seed(0)
+samples_to_plot <- sample(1:nrow(model001_df),
+                          size = number_of_samples_to_plot,
+                          replace = F)
 
 ## Median participant adaptation
 
@@ -2158,19 +2258,7 @@ line_alpha_adapt <- .1
 # 
 # model_priors_fit_df <- model_priors_fit$draws(format = "df")
 
-number_of_samples_to_plot <- 4000
 
-set.seed(0)
-samples_to_plot <- sample(1:nrow(model001_df),
-                          size = number_of_samples_to_plot,
-                          replace = F)
-
-## Adapt plot settings####
-line_width_adapt <- .1
-line_alpha_adapt <- .1
-text_size <- 15
-median_line_width_adapt <-.7
-trial_breaks <- c(1, seq(20,180, by = 20))
 
 ### Prior plot####
 # adaptation_prior_plot <-
@@ -2199,11 +2287,11 @@ adaptation_model1_avg_plot <- model008_df[samples_to_plot,] %>%
   geom_hline(yintercept = 0, color = "black", linetype = "dotted") +
   geom_hline(yintercept = .5, color = "black", linetype = "dotted") +
   geom_hline(yintercept = 1, color = "black", linetype = "dotted") +
-  geom_vline(xintercept = 36, 
+  geom_vline(xintercept = 32, 
              color = "black", linetype = "dashed") +
-  geom_vline(xintercept = 36 + 48, 
+  geom_vline(xintercept = 32 + 48, 
              color = "black", linetype = "dashed") +
-  geom_vline(xintercept = 36 + 48 + 48,
+  geom_vline(xintercept = 32 + 48 + 48,
              color = "black", linetype = "dashed") +
   geom_abline(aes(intercept = intercept_average, 
                   slope = fatigue_average),
@@ -2234,11 +2322,11 @@ cue_block_average_adapt_plot <- model001_df[samples_to_plot,] %>%
   geom_hline(yintercept = 0, color = "black", linetype = "dotted") +
   geom_hline(yintercept = .5, color = "black", linetype = "dotted") +
   geom_hline(yintercept = 1, color = "black", linetype = "dotted") +
-  geom_vline(xintercept = 36, 
+  geom_vline(xintercept = 32, 
              color = "black", linetype = "dashed") +
-  geom_vline(xintercept = 36 + 48, 
+  geom_vline(xintercept = 32 + 48, 
              color = "black", linetype = "dashed") +
-  geom_vline(xintercept = 36 + 48 + 48,
+  geom_vline(xintercept = 32 + 48 + 48,
              color = "black", linetype = "dashed") +
   geom_abline(aes(intercept = intercept_average, 
                   slope = fatigue_average),
@@ -2272,11 +2360,11 @@ learning_average_adapt_plot <- model003_df[samples_to_plot,] %>%
                   slope = fatigue_average),
               linewidth = line_width_adapt, 
               alpha = line_alpha_adapt) +
-  geom_vline(xintercept = 36, 
+  geom_vline(xintercept = 32, 
              color = "black", linetype = "dashed") +
-  geom_vline(xintercept = 36 + 48, 
+  geom_vline(xintercept = 32 + 48, 
              color = "black", linetype = "dashed") +
-  geom_vline(xintercept = 36 + 48 + 48,
+  geom_vline(xintercept = 32 + 48 + 48,
              color = "black", linetype = "dashed") +
   geom_abline(aes(intercept = intercept_average, 
                   slope = fatigue_average),
@@ -2360,11 +2448,11 @@ by_cue_adapt_par_median_plot <- median_model001_adaptation_df %>%
   geom_hline(yintercept = 0, color = "black", linetype = "dotted") +
   geom_hline(yintercept = .5, color = "black", linetype = "dotted") +
   geom_hline(yintercept = 1, color = "black", linetype = "dotted") +
-  geom_vline(xintercept = 36, 
+  geom_vline(xintercept = 32, 
              color = "black", linetype = "dashed") +
-  geom_vline(xintercept = 36 + 48, 
+  geom_vline(xintercept = 32 + 48, 
              color = "black", linetype = "dashed") +
-  geom_vline(xintercept = 36 + 48 + 48, 
+  geom_vline(xintercept = 32 + 48 + 48, 
              color = "black", linetype = "dashed") +
   geom_abline(aes(intercept = intercept, 
                   slope = fatigue,
@@ -2404,11 +2492,11 @@ learning_adapt_median_par_plot <- median_model003_adaptation_df %>%
   geom_hline(yintercept = 0, color = "black", linetype = "dotted") +
   geom_hline(yintercept = .5, color = "black", linetype = "dotted") +
   geom_hline(yintercept = 1, color = "black", linetype = "dotted") +
-  geom_vline(xintercept = 36, 
+  geom_vline(xintercept = 32, 
              color = "black", linetype = "dashed") +
-  geom_vline(xintercept = 36 + 48, 
+  geom_vline(xintercept = 32 + 48, 
              color = "black", linetype = "dashed") +
-  geom_vline(xintercept = 36 + 48 + 48, 
+  geom_vline(xintercept = 32 + 48 + 48, 
              color = "black", linetype = "dashed") +
   geom_abline(aes(intercept = intercept, 
                   slope = fatigue,
@@ -2445,11 +2533,11 @@ null_adapt_median_par_plot <- median_model008_adaptation_df %>%
   geom_hline(yintercept = 0, color = "black", linetype = "dotted") +
   geom_hline(yintercept = .5, color = "black", linetype = "dotted") +
   geom_hline(yintercept = 1, color = "black", linetype = "dotted") +
-  geom_vline(xintercept = 36, 
+  geom_vline(xintercept = 32, 
              color = "black", linetype = "dashed") +
-  geom_vline(xintercept = 36 + 48, 
+  geom_vline(xintercept = 32 + 48, 
              color = "black", linetype = "dashed") +
-  geom_vline(xintercept = 36 + 48 + 48, 
+  geom_vline(xintercept = 32 + 48 + 48, 
              color = "black", linetype = "dashed") +
   geom_abline(aes(intercept = intercept, 
                   slope = fatigue,
@@ -2657,8 +2745,8 @@ ggsave(filename = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/Figu
 # Plot settings
 par_axis_line_thickness <- .75
 text_size <- 15
-line_width_csp <- .2
-line_alpha_csp <- .2
+line_width_csp <- .25
+line_alpha_csp <- .25
 line_width_csp_average <- 1.5
 
 learning_paired_plot <-
@@ -2773,7 +2861,8 @@ CSP_parameters <- model003_fit_meta_data$model_params[
 CSP_df <- posterior::as_draws_df(
   model003_fit$draws(variables = CSP_parameters))
 
-number_of_samples_to_plot <- 4000
+number_of_samples_to_plot <- 100
+# number_of_samples_to_plot <- 4000
 
 set.seed(0)
 samples_to_plot <- sample(1:nrow(CSP_df),
@@ -2801,6 +2890,8 @@ CSP_plot <- CSP_plot_df %>%
   filter(#participant %in% c(1,2,3),
     trial >= 30) %>% 
   ggplot() +
+  geom_vline(xintercept = 32 + 48 + 48,
+             color = "black", linetype = "dashed") +
   geom_line(aes(x = trial, 
                 y = value, 
                 group = .draw),
@@ -2827,7 +2918,7 @@ CSP_plot <- CSP_plot_df %>%
         # strip.text.y = element_blank(),
         # panel.spacing = unit(0, "lines"),
         panel.spacing = unit(0.15, "lines"),
-        axis.line.y = element_blank(),
+        axis.line = element_blank(),
         axis.title.y = element_blank(),
         axis.text.y = element_blank(),
         axis.ticks = element_blank(),
@@ -3156,6 +3247,20 @@ ggsave(filename = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/Figu
        height = 4.5, width = 6,
        scale = 2.2)
 
+# Compare SNR
+
+Oz_fft_df %>% 
+  group_by(stan_par_id) %>% 
+  reframe(avg_SNR = mean(SNR),
+          avg_SNR_surrounding_freqs = mean(SNR_surrounding_frequencies),
+          avg_raw_ssVEP_amp = mean(amplitude_15Hz_fft),
+          avg_raw_surrounding_freq_amp = mean(raw_amplitude_surrounding_frequencies)) %>% 
+  mutate(amp_diff = avg_raw_ssVEP_amp - avg_raw_surrounding_freq_amp,
+         amp_snr = avg_raw_ssVEP_amp/avg_raw_surrounding_freq_amp,
+         SNR_diff = avg_SNR - avg_SNR_surrounding_freqs) %>% 
+  print(n = 999)
+
+
 ## Effect of cue ####
 fig_cue_scaling_text <- 22
 
@@ -3258,7 +3363,8 @@ scaling_plot <-  model003_df %>%
         axis.title.y = element_blank(),
         axis.text.y = element_blank(),
         axis.ticks = element_blank(),
-        legend.position = "none")
+        legend.position = "none",
+        plot.title = element_text(hjust = .5, vjust = 0))
 
 ### CS+ scaling####
 trials_to_plot <-1:176
@@ -3267,7 +3373,7 @@ participants_to_plot <- c(1, 5 , 14)
 
 annotation_df <- tibble(
   participant = c(1, 5, 14),
-  x = 17.5,
+  x = 16.5,
   y = 0.5,
   label = c("Participant 1", "Participant 5", "Participant 14")
 )
@@ -3339,6 +3445,12 @@ CSP_cue_trial_plot <- scaling_par_trial_df %>%
   ggplot(aes(x = trial, 
              y = value,
              color = name)) +
+  geom_vline(xintercept = 32,
+             color = "black", linetype = "dashed") +
+  geom_vline(xintercept = 32 + 48,
+             color = "black", linetype = "dashed") +
+  geom_vline(xintercept = 32 + 48 + 48,
+             color = "black", linetype = "dashed") +
   geom_line(aes(
     group = interaction(.draw, name)),
     linewidth = .75,
@@ -3368,7 +3480,7 @@ CSP_cue_trial_plot <- scaling_par_trial_df %>%
   geom_text(data = annotation_df,
             aes(x = x, y = y, label = label),
             inherit.aes = FALSE,
-            size = 7,
+            size = 7.5,
             family = "Arial",
             color = "black") +
   # annotate("text",

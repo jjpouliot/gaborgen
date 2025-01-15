@@ -219,7 +219,9 @@ for participantIndex = 1:length(participantIDs)
             fullPath = [matSavePath SlidingWindowFFTName];
 %             currentSlidingWindowFFT = abs(slidingWindowFFTcomp(:, :, trialIndex));
 
-            save(fullPath, 'slidingWindowAmp', 'slidingWindowFreqs');
+            currentTrialSNR = trialSNR15Hz(:,trialIndex);
+
+            save(fullPath, 'slidingWindowAmp', 'slidingWindowFreqs', 'currentTrialSNR');
         end
     end
 end
