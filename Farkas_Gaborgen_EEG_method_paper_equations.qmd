@@ -48,6 +48,11 @@ $$
 \end{gather}
 $$ This is the prior after the exp() transformation
 
+
+
+
+
+
 ```{r}
 # X ~ exp(Z)
 # Z ~ normal(m,s)
@@ -57,13 +62,27 @@ $$ This is the prior after the exp() transformation
 set.seed(0)
 number_of_samples_plot <- 20000
 rnorm(number_of_samples_plot,-3,1) %>%
+  data.frame(value = .) %>% 
+  ggplot() +
+  # coord_cartesian(xlim = c(-.1,.5),expand = 0) +
+  # geom_histogram(aes(x = value), bins = 500) +
+  geom_density(aes(x = value), fill = "gray") +
+  theme_classic() +
+  theme(text = element_text(size = 20))
+
+
+
+set.seed(0)
+number_of_samples_plot <- 20000
+rnorm(number_of_samples_plot,-3,1) %>%
   exp() %>% # transform back to correct scale
   data.frame(value = .) %>% 
   ggplot() +
   coord_cartesian(xlim = c(-.1,.5),expand = 0) +
   # geom_histogram(aes(x = value), bins = 500) +
   geom_density(aes(x = value), fill = "gray") +
-  theme_classic()
+  theme_classic() +
+  theme(text = element_text(size = 20))
 ```
 
 ## Modeling trend over trials
@@ -196,7 +215,10 @@ fatigue_sd <- rnorm(number_of_samples_plot,-4.5,.75) %>%
   exp() %>% # transform back to correct scale
   data.frame(value = .)
 
-rho <- rnorm(number_of_samples_plot,0,1.75) %>%
+rho <- rnorm(number_of_samples_plot,0,1.75) %>% 
+  data.frame(value = .)
+
+rho_raw <- rnorm(number_of_samples_plot,0,1.75) %>%
   boot::inv.logit() %>% # transform back to correct scale
   data.frame(value = -.)
 
@@ -210,7 +232,7 @@ intercept_sd %>%
   theme_classic() +
   theme(axis.title = element_blank(),
         axis.text.y = element_blank(),
-        axis.ticks = element_blank()) +
+        axis.ticks = element_blank()) 
 
 fatigue_sd %>% 
   ggplot() +
@@ -221,10 +243,21 @@ fatigue_sd %>%
   theme_classic() +
   theme(axis.title = element_blank(),
         axis.text.y = element_blank(),
-        axis.ticks = element_blank()) +
+        axis.ticks = element_blank()) 
   
 
 rho %>% 
+  ggplot() +
+  # coord_cartesian(xlim = c(-1.1,.1),expand = 0) +
+  # geom_histogram(aes(x = value), bins = 50) +
+  geom_density(aes(x = value), fill = "gray") +
+  theme_classic() +
+    theme(axis.title = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank()) +
+  theme(text = element_text(size = 20))
+
+rho_raw %>% 
   ggplot() +
   coord_cartesian(xlim = c(-1.1,.1),expand = 0) +
   # geom_histogram(aes(x = value), bins = 50) +
@@ -232,7 +265,8 @@ rho %>%
   theme_classic() +
     theme(axis.title = element_blank(),
         axis.text.y = element_blank(),
-        axis.ticks = element_blank())
+        axis.ticks = element_blank()) +
+  theme(text = element_text(size = 20))
 ```
 
 Prior predictive including participant variation
