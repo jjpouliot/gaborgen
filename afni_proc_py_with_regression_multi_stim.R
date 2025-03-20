@@ -106,9 +106,20 @@ for(directory_index in 1:length(participant_directories)) {
           args = c('-c', 
                    shQuote('source $HOME/.tcshrc')))
   
-  system2('tcsh', 
-          args = c('-c', 
-                   shQuote(afni_proc_py_script)))
+  tryCatch({
+    system2('tcsh', 
+            args = c('-c', 
+                     shQuote(afni_proc_py_script)))
+  }, error = function(e) {
+    # Display the actual error message
+    message("Error encountered: ", e$message)
+    
+    # Custom stop message
+    stop("If python error, then you likely need to change your terminal configuration files by running this code in the R console: ")
+  })
+  
+  
+
   
 }
 

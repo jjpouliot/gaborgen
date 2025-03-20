@@ -1,0 +1,33 @@
+#!/bin/tcsh
+
+afni_proc.py      \
+        -subj_id gaborgen24_Day2_TEST       \
+       -dsets  FUNC_DEOB+orig.HEAD      \
+       -copy_anat ANAT_DEOB+orig.HEAD      \
+       -blocks tshift align tlrc volreg mask blur scale regress      \
+        -tcat_remove_first_trs 0      \
+        -radial_correlate_blocks  tcat volreg      \
+        -blip_forward_dset BLIP_FOR_DEOB+orig.HEAD      \
+       -blip_reverse_dset BLIP_REV_DEOB+orig.HEAD      \
+        -align_unifize_epi        yes      \
+        -align_opts_aea           -cost lpc+ZZ        \
+                                  -check_flip      \
+        -tlrc_base                MNI152_2009_template.nii.gz      \
+        -tlrc_NL_warp      \
+        -volreg_align_to          MIN_OUTLIER      \
+        -volreg_align_e2a      \
+        -volreg_tlrc_warp      \
+        -volreg_compute_tsnr      yes      \
+        -mask_epi_anat            yes      \
+        -blur_size                4.0       \
+        -regress_stim_times stim_times.1D      \
+        -regress_stim_labels cue  \
+        -regress_basis   'BLOCK(2,1)'                       \
+        -regress_motion_per_run                          \
+        -regress_censor_motion    0.3              \
+        -regress_reml_exec                                   \
+        -regress_compute_fitts                                 \
+        -regress_make_ideal_sum sum_ideal.1D                \
+        -regress_est_blur_epits                               \
+        -regress_est_blur_errts                        \
+        -execute

@@ -1,0 +1,19 @@
+3dresample -master pb05.GABORGEN24_123.r01.scale+tlrc \
+           -inset HCPex_SUIT_atlas.nii.gz \
+           -prefix HCPex_SUIT_func_mask.nii.gz
+
+
+
+3dROIstats -mask HCPex_SUIT_func_mask.nii.gz -nzmean -median -sigma pb05.GABORGEN24_123.r01.scale+tlrc > roi_stats.txt
+
+
+
+
+
+column -t roi_stats.txt > roi_stats_aligned.txt
+
+
+
+cat roi_stats.txt | awk '{print $1","$2}' > roi_stats.csv
+
+read.csv()
