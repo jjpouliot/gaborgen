@@ -80,7 +80,8 @@ for partI = 1:length(partID)
         % remove cardioballistic artifacts
         disp('Step 8/10 - remove cardioballistic artifacts');
         EEG = eeg_checkset(EEG);
-        EEG = pop_fmrib_pas(EEG,'qrs','obs',3);
+%         EEG = pop_fmrib_pas(EEG,'qrs', 'mean'); % subtraction of mean of 30 surrounding events 
+        EEG = pop_fmrib_pas(EEG,'qrs','obs',3); %removes 3 PCAs
 
         % filtering
         disp('Step 9/10 - filter data');
