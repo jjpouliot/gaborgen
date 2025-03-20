@@ -21,7 +21,7 @@ addpath(genpath('/Users/jcedielescobar/Documents/GitHub'), '-end');
 
 % participantIDs = [110,111,112,113,114,115,116,117,118,119,120,121,122,123,125,126,127,128,129,130];
 % participantIDs = [131,132,133,134,135,136,139,140,141,142,143];
-participantIDs = [119];
+participantIDs = [110,111,112,113,114,115,116,117,118,119,120,121,122,125,126,127,128,129,130, 131,132,133,134,135,136,139,140,141,142,143];
 epochMs = [0 2000];
 sampleRateHz = 500;
 resampledRateHz = 600; % Check if this makes sense
@@ -49,10 +49,10 @@ for participantIndex = 1:length(participantIDs)
         currentDirectory =  [dataFolder '/' currentParticipantDirectories{j} '/EEG/'];
 
         currentFilenames = {dir(currentDirectory).name};
-        EEGIndex = find(endsWith(currentFilenames, '_11_V2_CDS.set'));
+        EEGIndex = find(endsWith(currentFilenames, '_11_CDS_V2.set'));
         if length(EEGIndex) == 1
             EEGpreproFileName = currentFilenames{EEGIndex};
-        elseif EEGcurrentDirectoryIndex > 1
+        elseif EEGIndex > 1
             error(['More than one 04_preprocessed.set file found in ' currentDirectory]);
         else
             error(['No 04_preprocessed.set file found in ' currentDirectory]);

@@ -1,18 +1,27 @@
 ---
-title: "Gaborgen EEG Bayesian Models"
+title: "Model supplement: Robust single-trial estimates of electrocortical generalized aversive conditioning: Validation of a Bayesian multilevel learning model"
 format: html
-execute:
-  cache: true
 ---
+
+# Rationale of Document
+
+This document aims to detail all models fit for the associated techinal report (DOI: ) and the rationale for the priors. According to best practices from the Gelman and McElreath textbooks, priors should be selected to represent the multilevel nature of the data or be uninformative where applicable. Multilevel priors distinguish where an estimate is likely to be coming from a higher-level group such as the mean of a participant from a normal distribution of all participants. Uninformative priors should gently guide parameters within a realistic scale for the data based on domain expertise, but be wide enough such that the results are nearly entirely based on the observed data. To ensure this is done correctly, it is standard practice that prior predictive distributions are visualized to confirm they are in believable scales for the data at hand.
 
 ```{r}
 library(tidyverse)
 library(patchwork)
+library(ggridges)
+
+# load necessary data and models
+load(file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/supplemental_data.RData")
+
 ```
 
 # Shared by all models
 
 ## How missing amplitude are treated
+
+Missing amplitudes are listed as parameters and then are placed into the final array of all possible amplitudes. For the present paper, this is mostly a proof of concept that shows how missing trials are estimated and can be used for model fitting.
 
 $$
 \begin{gather}
@@ -24,34 +33,37 @@ $$
 
 ## Gaussian error per participant
 
+For all models, we assume there will be normal/gaussian error $\sigma$ around each prediction $\mu$. The prediction per trial will depend on the model. The error per-trial was made multilevel so that it could be estimated per participant. In physiological recording, noise is expected to differ between participants. In a previous study (Farkas et al., 2025), this led to a better fitting model in terms of ELPD. It is also informative to the researchers to understand how error changes between participants. Each set of observations was Z-scored within-participants, so we know the error starts at 1, and could be judged from that starting position.
+
 $$
 \begin{gather}
 Amplitude{[i]} \sim Normal(\mu{[i]},\sigma[participant[i]])\tag{4}\\
 \end{gather}
 $$
 
-## Multilevel error estimation
+## Multilevel distributions use Student-T, including participant error estimation
+
+All multilevel priors used a Student-T distribution with the degrees of freedom parameter equal to number of parameters drawn minus 1. This was done because of the limited sample size (N=24), cues (4), and blocks (4). The Student-T distribution is a normal distribution with slightly heavier tails based on the degrees of freedom. Hypothetically, the degrees of freedom could have been also made a parameter to be estimated. Ultimately, this was not done because it would have added complexity to the interpretability between models. Of course, all deviation parameters where taken from truncated distributions because they cannot be negative. The uninformative prior for $\sigma Average$ was a truncated normal distribution with a mean of 1, and a standard deviation of .5. This is justifiable because we know that before model fit, the average has to be 1 exactly.
 
 $$
 \begin{gather}
-\sigma[1:nParticipants] \sim StudentT(df = (nParticipants - 1), \ \sigma Average, \ \tau)\tag{5}\\
-\sigma Average \sim Normal(1,0.5)\tag{6}\\
+\sigma[1:nParticipants] \sim StudentT(df = (nParticipants - 1), \ \sigma Average, \ \tau),  \ \sigma \geq 0\tag{5}\\
+\sigma Average \sim Normal(1,0.5), \ \sigma Average \geq 0\tag{6}\\
 \end{gather}
 $$
 
 ## Deviations that can be close to zero are exponetiated
+
+Some decisions of parameterization were made because of how the Stan Hamiltonian algorithm works. Generally, it uses Hamiltonian equations of classical mechanics of momentum for Markov Chain Monte Carlo sampling. So, the shape of the distribution sampled can be considered to make the estimation more efficient and accurate. For example, if error differs very little between participants then the $\tau$ parameter specified above could be very close to zero which would be sharp and thus difficult to sample. So instead, parameters that could be very close to zero (but need to be positive) where first sampled as a "raw" variant and then were exponentiated.
 
 $$
 \begin{gather}
 \tau = exp(\tau Raw)\tag{7}\\
 \tau Raw \sim Normal(-3, 1)\tag{8}\\
 \end{gather}
-$$ This is the prior after the exp() transformation
+$$
 
-
-
-
-
+The chosen raw prior produces this shape, which is justified because we do not expect single trial error to be radically different between models. It ends up being much wider than the found $\tau$ from all models which was close to zero ($\approx 0.03$).
 
 ```{r}
 # X ~ exp(Z)
@@ -59,18 +71,6 @@ $$ This is the prior after the exp() transformation
 # median X is exp(m)
 # mean X is exp(m+s^2/2)
 # mode X is exp(m - s^2)
-set.seed(0)
-number_of_samples_plot <- 20000
-rnorm(number_of_samples_plot,-3,1) %>%
-  data.frame(value = .) %>% 
-  ggplot() +
-  # coord_cartesian(xlim = c(-.1,.5),expand = 0) +
-  # geom_histogram(aes(x = value), bins = 500) +
-  geom_density(aes(x = value), fill = "gray") +
-  theme_classic() +
-  theme(text = element_text(size = 20))
-
-
 
 set.seed(0)
 number_of_samples_plot <- 20000
@@ -85,9 +85,9 @@ rnorm(number_of_samples_plot,-3,1) %>%
   theme(text = element_text(size = 20))
 ```
 
-## Modeling trend over trials
+## Modeling adaptation trend over trials (Model 1)
 
-There may be a trend over the course of the study
+Present in the means per cue by block (Figure 1), there is a downward trend over trials irrespective of block. This is a modeled as a multilevel factor by participant as shown below. Each participant gets their own intercept and slope. For Model 1 in the paper, this is the only prediction made per trial.
 
 $$
 \begin{gather}
@@ -95,9 +95,7 @@ $$
 \end{gather}
 $$
 
-Intercept and fatigue are inherently related through a negative correlation because of z-scoring.
-
-This is modeled with a multivariate student-t distribution
+Because the observations are Z-scored within-participant, where the mean must be 0, it was recognized that the intercept and slope per participant have to be negatively correlated. So by allowing this relationship to be modeled, everything should fit better and this was the case. So for each participant, each intercept and slope was specified as coming from a multivariate Student-T distribution. What is not shown in the formula below is that the covariance matrix was temporarily "whitened" with a Cholesky decomposition and the multi_student_t_cholesky function was used in Stan. This allows for the model to sample from an uncorrelated version of the data which again helps with Hamiltonian samplers. I opt to build the covariance matrix from its subsequent pieces as I do not like LKJ priors because of how they change when more dimensions are added.
 
 $$
 \begin{gather}
@@ -113,7 +111,7 @@ df = (nParticipants - 1),
 \begin{array}{c}
 {\huge \Sigma}
 \end{array}
-\right) \tag{9}\\
+\right) \tag{10}\\
 \\
 \begin{array}{c}
 {\huge \Sigma}
@@ -121,24 +119,27 @@ df = (nParticipants - 1),
 \begin{bmatrix}
 \sigma Intercept^2 & \rho \cdot \sigma Intercept \cdot \sigma Adaptation \\
 \rho \cdot \sigma Intercept \cdot \sigma Adaptation & \sigma Adaptation^2
-\end{bmatrix} \tag{10} \\
+\end{bmatrix} \tag{11} \\
 \\
-interceptAverage \sim Normal(0,0.75)\tag{11} \\
-adaptationAverage \sim Normal(0,0.01)\tag{12} \\ 
+interceptAverage \sim Normal(0,0.75)\tag{12} \\
+adaptationAverage \sim Normal(0,0.01)\tag{13} \\ 
 \\
-\sigma Intercept = exp(\sigma Intercept Raw)\tag{13} \\
-\sigma Adaptation = exp(\sigma Adaptation Raw)\tag{14} \\
-\rho = -invLogit(\rho Raw)\tag{15} \\
+\sigma Intercept = exp(\sigma Intercept Raw)\tag{14} \\
+\sigma Adaptation = exp(\sigma Adaptation Raw)\tag{15} \\
+\rho = -invLogit(\rho Raw)\tag{16} \\
 \\
-\sigma Intercept Raw \sim Normal(-1, 1)\tag{16} \\
-\sigma Adaptation Raw \sim Normal(-4.5, 0.75)\tag{17} \\
-\rho Raw \sim Normal(0, 1.75)\tag{18} \\
+\sigma Intercept Raw \sim Normal(-1, 1)\tag{17} \\
+\sigma Adaptation Raw \sim Normal(-4.5, 0.75)\tag{18} \\
+\rho Raw \sim Normal(0, 1.75)\tag{19} \\
 \end{gather}
 $$
 
-Prior predictive for average intercept and fatigue slope
+Now I show the prior predictive distributions for the average intercept and slope, the by participant adaptations, and the rationale for the $\rho$.
 
-```{r}
+```{r,message=FALSE,results=FALSE}
+#|echo: false
+#|output: false
+#|message: false
 model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/priors_visualization_2.stan'
 
 #force_recompile = T is sometimes helpful
@@ -163,26 +164,28 @@ model_priors_fit_summary <-
 
 ```
 
+A visualization of 100 draws from the priors for the average intercept and adapation slope clearly show it is uninformative and in a reasonable scale fro z-scored data. This is vastly different then the 100 posterior draws shown in Supplemental Figure 1. Note, that I used to call the slope parameter "fatigue" which was not the used term in the manuscript.
+
 ```{r}
 model_priors_fit_df <- model_priors_fit$draws(format = "df")
 
 
-# number_of_samples_to_plot <- 2000
+number_of_samples_to_plot <- 100
 
 set.seed(0)
-# samples_to_plot <- sample(1:nrow(model_priors_fit_df),
-#                           size = number_of_samples_to_plot,
-#                           replace = F)
+samples_to_plot <- sample(1:nrow(model_priors_fit_df),
+                          size = number_of_samples_to_plot,
+                          replace = F)
 
-# model_priors_fit_df[samples_to_plot,] %>% 
-model_priors_fit_df %>% 
+model_priors_fit_df[samples_to_plot,] %>%
+# model_priors_fit_df %>% 
   # as.data.frame() %>% 
   ggplot() +
   
   geom_abline(aes(intercept = intercept_average - (fatigue_average * (176/2)), 
                   slope = fatigue_average ),
-              size = .2, 
-              alpha = .2) +
+              size = .5, 
+              alpha = .5) +
   scale_y_continuous(limits =c(-4,4), breaks = seq(-4, 4, by = 1),
                      name = "Z-scored ssVEP") +
   scale_x_continuous(limits =c(1,176), breaks = seq(0, 176, by = 10),
@@ -193,12 +196,11 @@ model_priors_fit_df %>%
         axis.ticks.y = element_blank())
 ```
 
-
-After transformation these are priors for the covariance matrix
+The following are visualizations of uninformative priors for the deviation for the intercept and slope between participants. Because this could be close to zero, again it uses the exp() transformation. They are much wider than the estimated posteriors.
 
 ```{r}
 set.seed(0)
-number_of_samples_plot <- 2000
+number_of_samples_plot <- 20000
 intercept_sd <- rnorm(number_of_samples_plot,-1,1) %>%
   exp() %>% # transform back to correct scale
   data.frame(value = .)
@@ -214,13 +216,6 @@ intercept_sd <- rnorm(number_of_samples_plot,-1,1) %>%
 fatigue_sd <- rnorm(number_of_samples_plot,-4.5,.75) %>%
   exp() %>% # transform back to correct scale
   data.frame(value = .)
-
-rho <- rnorm(number_of_samples_plot,0,1.75) %>% 
-  data.frame(value = .)
-
-rho_raw <- rnorm(number_of_samples_plot,0,1.75) %>%
-  boot::inv.logit() %>% # transform back to correct scale
-  data.frame(value = -.)
 
 intercept_sd %>% 
   ggplot() +
@@ -244,18 +239,18 @@ fatigue_sd %>%
   theme(axis.title = element_blank(),
         axis.text.y = element_blank(),
         axis.ticks = element_blank()) 
-  
+```
 
-rho %>% 
-  ggplot() +
-  # coord_cartesian(xlim = c(-1.1,.1),expand = 0) +
-  # geom_histogram(aes(x = value), bins = 50) +
-  geom_density(aes(x = value), fill = "gray") +
-  theme_classic() +
-    theme(axis.title = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank()) +
-  theme(text = element_text(size = 20))
+The correlation between intercept and adaptation slope, as was expected, was very negative in all models ($\approx-0.99$). The prior for this correlation was chosen to be close to a uniform distribution between 0 to -1. This was accomplished by specifying it as a normal distribution with a mean of 0 and an SD of 1.75 transformed by an inverse logit function times minus 1. A visualization of the prior can be seen below.
+
+```{r}
+
+rho <- rnorm(number_of_samples_plot,0,1.75) %>% 
+  data.frame(value = .)
+
+rho_raw <- rnorm(number_of_samples_plot,0,1.75) %>%
+  boot::inv.logit() %>% # transform back to correct scale
+  data.frame(value = -.)
 
 rho_raw %>% 
   ggplot() +
@@ -263,55 +258,53 @@ rho_raw %>%
   # geom_histogram(aes(x = value), bins = 50) +
   geom_density(aes(x = value), fill = "gray") +
   theme_classic() +
-    theme(axis.title = element_blank(),
-        axis.text.y = element_blank(),
+    theme(#axis.title = element_blank(),
+        # axis.text.y = element_blank(),
         axis.ticks = element_blank()) +
   theme(text = element_text(size = 20))
 ```
 
-Prior predictive including participant variation
+While it was known there would be a negative correlation between the adaptation intercept and slope, it was unknown how this would differ by participant. Recommended practices (McElreath et al., 2020) would say to visualize the prior predictive to make sure it is uninformative but reasonable. Below is a visualization of what the priors would predict for the difference in adaptation between participants from what ever mean adaptation is found. We can the see the chosen priors are very uninformative to the extentant that they would predict some regression lines that are not reasonable, such as participants with very sharp slopes or drastically different intercepts. However, to make the prior predictive more realistic would have involved biasing the correlation to be even closer to strong negative values and pulling in some of the interecpt and adaptation SD parameters to be even tighter. This would likely look suspicious to reviewers and was not necessary because we have enough high-quality data to overcome these uninformative priors. So ultimately we think these priors are justified for all fit models.
 
 ```{r}
-# model_priors_fit_df[samples_to_plot,] %>% 
-model_priors_fit_df %>% 
-  # as.data.frame() %>% 
+model_priors_fit_df[samples_to_plot,] %>%
+# model_priors_fit_df %>% 
+#   as.data.frame() %>%
   ggplot() +
   geom_abline(aes(intercept = (intercept - intercept_average) - (fatigue - fatigue_average) * (176/2), 
                   slope = fatigue - fatigue_average),
-              size = .2, 
-              alpha = .2) +
+              linewidth = .5, 
+              alpha = .5) +
   scale_y_continuous(limits =c(-4,4), breaks = seq(-4, 4, by = 1),
                      name = "Z-scored ssVEP") +
   scale_x_continuous(limits =c(1,176), breaks = seq(0, 176, by = 10),
                      name = "Trials") +
-  ggtitle("Prior predictive per participant from mean") +
+  ggtitle("Prior predictive adaptation per participant from mean") +
   theme_classic() +
   theme(text = element_text(family = "arial", size = 15),
         axis.ticks.y = element_blank())
 ```
 
+# Model 2: Cue by Block
 
-# Model 1
+Whereas Model 1 only predicts the adaptation per participant, Model 2 adds a prediction per cue by block (2-d array $\beta Cue$). So, it can be thought of as making a prediction of how cue changes the ssVEP when adaptation is controlled for per participant; kind of like a fancier ANOVA. The $\beta Cue$ prediction is regularized by a multilevel prior which is justified because we do expect the effect of cue to be similar in some ways, and the regularizing toward eachother will act as a correction for multiple comparisons when we want to interpret if they are different. Because there are only a total of 16 conditions, the Student-T distribution is used instead of a normal distribution keeping things consistent between other models. The mean of the Student-T distribution is set to 0 by necessity because other wise the model would be degenerate, meaning the model would not fit because there would be many possible combinations of adaptation and $\beta cue$ that could lead to the same result. So $\beta cue$ pivots around the adaptation line. The same exponentation trick is used for the deviation parameter between cue by block effects.
 
 $$
 \begin{gather}
-\mu[i] = intercept[participant[i]] \ + \ adaptation[participant[i]]\cdot trial[i] \ + \ \beta Cue[cue[i],block[i]] \tag{19}\\
-\beta Cue \sim StudentT(df = (nCues\cdot nBlocks)-1, \ 0, \ \sigma Cue) \tag{20}\\
-\sigma Cue = exp(\sigma CueRaw) \tag{21}\\
-\sigma CueRaw \sim Normal(-0.5, \ 1.5) \tag{22}\\
+\mu[i] = intercept[participant[i]] \ + \ adaptation[participant[i]]\cdot trial[i] \ + \ \beta Cue[cue[i],block[i]] \tag{20}\\
+\beta Cue \sim StudentT(df = (nCues\cdot nBlocks)-1, \ 0, \ \sigma Cue) \tag{21}\\
+\sigma Cue = exp(\sigma CueRaw) \tag{22}\\
+\sigma CueRaw \sim Normal(-0.5, \ 1.5) \tag{23}\\
 \end{gather}
 $$
 
+The visualization of the $\sigma Cue$ prior is below. It is clearly uninformative when the inner 90% of the found posterior was between .06 to .19. This verges on unrealistic to think that the difference between cue effects could possibly be this large, but there were no problems with model fitting and there was more than enough data to overcome this prior. But because this is the effect of interest, it should be reassuring to reviewers that we are making sure we are not constraining the effect via the prior.
+
 ```{r}
 set.seed(0)
-number_of_samples_plot <- 2000
+number_of_samples_plot <- 20000
 
-cue_sd <- rnorm(number_of_samples_plot,-1,0.75) %>% # now N(-0.5, 1.5) like scaling to head off critques
-  exp() %>% # transform back to correct scale
-  data.frame(value = .)
-
-
-scaling_sd <- rnorm(number_of_samples_plot,-.5,1.5) %>%
+cue_sd <- rnorm(number_of_samples_plot,-0.5,1.5) %>%
   exp() %>% # transform back to correct scale
   data.frame(value = .)
 
@@ -321,103 +314,882 @@ cue_sd %>%
   coord_cartesian(xlim = c(-.1,5),
                   expand = 0) +
   scale_x_continuous(breaks = seq(0,10, by = .5))+
-  # geom_histogram(aes(x = value), bins = 500) +
-  geom_density(aes(x = value), fill = "gray") +
+  geom_histogram(aes(x = value), bins = 1000) +
+  # geom_density(aes(x = value), fill = "gray") +
   theme_classic() +
   theme(axis.title = element_blank(),
         axis.text.y = element_blank(),
-        axis.ticks = element_blank()) +
+        axis.ticks = element_blank())
 
-scaling_sd %>% 
+```
+
+# Model 3
+
+The final model presented in the technical report is a multilevel learning model inspired by the well-known Rescorla-Wagner model equations (Rescorla & Wagner, 1972). The model posits that as surprise increases between the outcome and the expected outcome, change is associate strength is larger scaled by a learning rate. So where $paired$ is the whether the CS+ cue is paired with a US or not (1 or 0), the change in CS+ strength ($1 \ge \Delta CSPStrength \ge 0$) is based on difference in current CS+ strength $1 \ge CSPStrength[i] \ge 0$ from the current outcome $paired[i]$ times a learning rate.
+
+$$
+\begin{gather}
+\Delta CSPStrength[i] = LearningRate \cdot (paired[i] - CSPStrength[i]) \tag{24} \\
+CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{25} \\
+\end{gather}
+$$
+
+This was augmented to to predict the effect of cue allowing the learning rate to differ between participants to predict the ssVEP strength per cue by scaling CS+ strength by the 4-d array $\beta Scaling$. The following is the best fitting model in terms of Expected Log-likelihood Predictive Density (ELPD) found through the PSIS-LOO method. ELPD is the leave out out cross-validation accuracy, information criteria, and expected log-likelihood of future uncollected data. Cross-validation accuracy is not always the most important feature, as a highly confounded model could have good CV accuracy and maybe some relationships in the data are more important. But according to extremely well-established conjecture from statistics and information theory, the ELPD is a highly sensitive metric of the complete probabilitist distribution of the model and the most credible way of judging a model's performance against the underlying data generation process (McElreath, 2020 Ch 7).
+
+The best fitting models all used two learning rates per participant, one for paired CS+ trials that had the US (LearningPaired) and for unpaired CS+ trials (LearningUnpaired). So the updating of CS+ strength is different depending on if the CS+ trial was paired with a US or not. This has different theoretical implications than the original Rescorla-Wagner equation. It means that the surprise of an unpaired trial may effect learing different than a paired trial. Below is the complete likelihood function excluding the parts already mention that are shared among all models.
+
+$$
+\begin{gather}
+\huge \text{Likelihood Function} \\
+\\
+\mu{[i]} = intercept{[participant[i]]} + adaptation[participant[i]] \cdot trial[i] + \beta Scaling[cue[i]] \cdot CSPStrength[i] \tag{26} \\
+\\
+\Large \text{if phase[i] is habituation:}\\
+CSPStrength[i] = 0 \tag{27} \\
+\Delta CSPStrength[i] = 0 \tag{28} \\
+CSPStrength[i + 1] = 0 \tag{29} \\
+\\
+\Large \text{else if cue[i] is CS+ and paired[i] is 1 (US):}\\
+\Delta CSPStrength[i] = LearningPaired[participant[i]] \cdot (paired[i] - CSPStrength[i]) \tag{30} \\
+CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{31} \\
+\\
+\Large \text{else if cue[i] is CS+ and paired[i] is 0 (no US):}\\
+\Delta CSPStrength[i] = LearningUnpaired[participant[i]] \cdot (paired[i] - CSPStrength[i]) \tag{32} \\
+CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{33} \\
+\\
+\Large \text{else:}\\
+\Delta CSPStrength[i] = 0 \tag{34} \\
+CSPStrength[i + 1] =  CSPStrength[i] \tag{35} \\
+\end{gather}
+$$
+
+It can be shown that CS+ strength is fixed at 0 during the initial habituation phase and that no changes are made to CS+ strength when a different cue than the CS+ is shown.
+
+The final learning model that was chose for the manuscript, and had the best ELPD, used the priors below. The difference is that learning rate parameters are first fit on an unbounded normal or Student-T distribution and then transformed to the correct scale using the Inverse Logit function. The Inverse Logit function is mostly known for its use in logistic regression for transforming Log-Odds onto the probabililty scale (0 to 1). As previous mentioned and shown the normal(0,1.75) prior is roughly uniform when tranformed with the Inverse Logit.
+
+Another possible point of contention is the prior for $\beta Scaling$. Instead of a mean of 0 for the prior like $\beta Cue$ in the second model, there is a parameter for the mean of higher level distribution $\beta Scaling Average$. The rationale was that the effect of scaling would not be applied to the habituation phase, so this should prevent degeneracy allowing the effect of adaptation to still be found as well. It may have also been possible that the amplitude of all cues may increase with CS+ strength. In actuality, the $\beta Scaling Average$ parameter did mostly fit around zero (mean = .02, SD = .3). It was kept in the model because it allows the model to converge easier and ELPD is higher. It also does not change the $\beta Scaling$ posterior distributions at all.
+
+$$
+\begin{gather}
+\huge \text{Priors} \\
+\\
+\beta Scaling[1:nCues] \sim StudentT(df = nCues - 1, \ \beta Scaling Average, \sigma \beta Scaling) \tag{36} \\
+\beta Scaling Average \sim Normal(0, 1) \tag{37} \\
+\sigma \beta Scaling = exp(\sigma \beta Scaling Raw) \tag{38} \\
+\sigma \beta Scaling Raw \sim Normal(-0.5,1.5) \tag{39} \\
+\\
+LearningPaired[1:nParticipants] = invLogit(LearningPairedRaw[1:nParticipants]) \tag{40} \\
+LearningUnpaired[1:nParticipants] = invLogit(LearningUnpairedRaw[1:nParticipants]) \tag{41} \\
+LearningPairedRaw[1:nParticipants] \sim StudentT(df = nParticipants-1, \ LearningPairedAverageRaw, \ \sigma LearningPaired)  \tag{42} \\
+LearningUnpairedRaw[1:nParticipants] \sim StudentT(df = nParticipants-1, \ LearningUnpairedAverageRaw, \ \sigma LearningUnpaired)  \tag{43} \\
+LearningPairedAverageRaw \sim Normal(0,1.75) \tag{44} \\
+LearningUnpairedAverageRaw \sim Normal(0,1.75) \tag{45} \\
+\sigma LearningPaired = exp(\sigma LearningPairedRaw) \tag{46} \\
+\sigma LearningUnpaired = exp(\sigma LearningUnpairedRaw) \tag{47} \\
+\sigma LearningPairedRaw \sim Normal(-0.5,1.5) \tag{48} \\
+\sigma LearningUnPairedRaw \sim Normal(-0.5,1.5) \tag{49} \\
+\end{gather}
+$$
+
+These final equations describe how the standard error for loo was found and what the equation was for $LOO\text{-}R^2$
+
+For a sum, the equation for a standard error is different than for a mean. The reason we are dealing with sums is because models are fit my maximizing log-likelihoods. When dealing with logarithms often what would have been multiplied is done by addition. ELPD is the approximated sum of LOO log-likelihoods as a reminder.
+
+$$
+\begin{gather}
+\sqrt{N\cdot variance(PSIS\text{-}LOO)} \tag{50} \\
+\end{gather}
+$$
+
+Although variance explained ($R^2$) may seem entirely straight-forward, there are different equations that can be used. So here we detail what our definition of $R^2$ is. A consequence, which can also be informative, is that $R^2$ can be negative from this formula. This would mean the models predicts did a worse than making no prediction at all, like drawing a horizontal line through 0 with x-axis being trials. A benefit of a Bayesian $R^2$ is that this metric is also presented as a posterior, so it represent the probability distribution of what the $R^2$ is. Variance explained was found per model, but also per participant. The LOO-residuals are found through a form of Bayesian Bootstrapping using a Dirichlet distribution for resampling. As opposed to normal bootstrapping, or some other forms of Bayesian bootstrapping, instead of resampling data with-replacement, the Dirchelet distribution reweights the data to capture uncertainty in the estimates. By repeating this, a posterior of LOO residuals is found.
+
+$$
+\begin{gather}
+LOO\text{-}R^2 = 1 - \frac{variance (LOO \ residuals)}{variance (data)} \tag{51} \\
+\end{gather}
+$$
+
+# Supplemental model analyses
+
+The suggested practice according to Gelman and McElreath textbooks, is to build and compare a continuous set of models as opposed to just selecting the best one. The rationale is that building from simple to more complex models prevents problems with more sanity checks. Additionally, comparing models can be very informative. In total 8 models were fit the data set in earnest, while we presented three in the main text for clarity within the goals of the manuscript. Yet, as promised, we compare these supplementary models here. Below, each model is described and discussed. Curious readers of course can acquire from github and OSF the posteriors, data, and code for their own questions that I may have not answered here.
+
+## Load relevant posteriors
+
+```{r}
+parent_folder <- "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI"
+git_repository <- "/home/andrewf/Repositories/gaborgen"
+
+# load(file = paste0(parent_folder,"/gaborgen_eeg_manuscript_all_models.RData"))
+```
+
+## Model S1: One learning rate per participant
+
+This Model is more of a true Rescorla-Wagner model in which only a single learning rate is assigned to each participant. This is the only difference from Model 3, in which participants had two learning rates (learningPaired & learningUnpaired). In terms of cross-validation, this is the second best model overall. However, it still does quite a bit worse than Model 3 (ELPD-Difference = -17.6, SE = 3.8). What is also informative is the the effective parameters (p_loo) is higher for Model S1 (52.4, SE = 1.9) than Model 3 (49.2, SE = 1.8), despite Model 3 having double the learning rates per participant. The effective parameters is essential the penalty term for out of sample (testing) accuracy versus in-sample (training) accuracy. In fact, it is literally the ratio of those two metrics.
+
+```{r}
+# model002_fit_loo # Model S1
+# model003_fit_loo # Model 3
+
+loo::loo_compare(model002_fit_loo,
+                 model003_fit_loo)
+```
+
+We can visualize this overall cross-validation accuracy between the two models on a log-likelihood scale.
+
+```{r}
+cue_color <- c("red1","green1", "purple1", "blue1")
+text_font <- "Arial"
+text_size <- 15
+axis_line_thickness <- 1
+
+## Overall means and standard errors
+annotation_text_size <- 9
+fig1_dot_size <- .8
+range_linewidth <- 1.5
+
+Oz_fft_df %>% 
+  mutate(participant = participant %>% as.factor() %>% as.integer() %>% as.factor) %>% 
+  mutate(model002_elpd = model002_fit_loo$pointwise[, "elpd_loo"],
+         model003_elpd = model003_fit_loo$pointwise[, "elpd_loo"]) %>% 
   ggplot() +
-  coord_cartesian(xlim = c(-.1,5),
-                  expand = 0) +
-  scale_x_continuous(breaks = seq(0,10, by = .5))+
-  # geom_histogram(aes(x = value), bins = 500) +
-  geom_density(aes(x = value), fill = "gray") +
+  geom_abline(aes(intercept = 0, slope = 1)) +
+  geom_point(aes(x= model003_elpd, y = model002_elpd, color = cue), 
+             size = .7, alpha = .4) +
+  scale_color_manual(values = cue_color) +
+  xlab("Model 3 ELPD") +
+  ylab("Model S1 ELPD") +
+  # facet_grid(block~.) +
+  theme_bw() +
+  theme()
+```
+
+Reusing code from the manuscript, we can still see that Model 3 does better for most cues past the habituation block.
+
+```{r}
+loo_dot_size <- .75
+loo_dot_alpha <- 1
+loo_par_dot_size <- .8
+loo_par_range_linewidth <- 1.5
+loo_figure_text <-15
+
+negative_y <- -22.75
+positive_y <- 7.5
+arrow_line_width <- 1
+arrow_size <- .5
+
+
+
+Oz_fft_df %>% 
+  mutate(participant = participant %>% as.factor() %>% as.integer() %>% as.factor) %>% 
+  mutate(model002_elpd = model002_fit_loo$pointwise[, "elpd_loo"],
+         model003_elpd = model003_fit_loo$pointwise[, "elpd_loo"]) %>% 
+  mutate(elpd_3_minus_2 = model003_elpd - model002_elpd) %>% 
+  mutate(elpd_2_minus_3 = model002_elpd - model003_elpd) %>% 
+  mutate(lik_3_minus_2 = exp(elpd_3_minus_2)) %>% 
+  mutate(lik_2_minus_3 = exp(elpd_2_minus_3)) %>% 
+  mutate(p_2_minus_3 = boot::inv.logit(elpd_2_minus_3)) %>% 
+  mutate(p_3_minus_2 = boot::inv.logit(elpd_3_minus_2)) %>% 
+  group_by(block, cue) %>% 
+  summarise(mean_elpd_2_minus_3 = mean(elpd_2_minus_3),
+            mean_se = plotrix::std.error(elpd_2_minus_3),
+            sum_elpd_2_minus_3 = sum(elpd_2_minus_3),
+            sum_se = sqrt(var(elpd_2_minus_3) * n())) %>% 
+            # sum_se = sd(elpd_2_minus_3) * sqrt(n())) %>% 
+            # sum_se = var(elpd_2_minus_3) * sqrt(n())) %>% 
+  mutate(sum_better_for_mod3 = sum_elpd_2_minus_3 < 0) %>% 
+  ggplot() +
+  geom_vline(aes(xintercept = cue),
+             color = "lightgray",
+             linetype = "dotted") +
+  geom_hline(aes(yintercept = 0), 
+             linewidth = axis_line_thickness) +
+  geom_pointrange(aes(x = cue,
+                      y = sum_elpd_2_minus_3,
+                      ymin = sum_elpd_2_minus_3 - sum_se,
+                      ymax = sum_elpd_2_minus_3 + sum_se,
+                      color = sum_better_for_mod3),
+                  size = loo_par_dot_size,
+                  linewidth = loo_par_range_linewidth) +
+  geom_segment(
+    data = data.frame(block = factor("1",levels = c("1","2", "3", "4")), 
+                      x = 0.3, 
+                      xend = 0.3, 
+                      y = 0, yend = positive_y),
+    aes(x = x, xend = xend, y = y, yend = yend),
+    color = "red",
+    linewidth = arrow_line_width,
+    arrow = arrow(length = unit(arrow_size, "cm"), ends = "last", type = "closed"),
+    inherit.aes = FALSE
+  ) +
+  geom_segment(
+    data = data.frame(block = factor("1",levels = c("1","2", "3", "4")), 
+                      x = 0.3, 
+                      xend = 0.3, 
+                      y = 0, yend = negative_y),
+    aes(x = x, xend = xend, y = y, yend = yend),
+    color = "blue",
+    linewidth = arrow_line_width,
+    arrow = arrow(length = unit(arrow_size, "cm"), ends = "last", type = "closed"),
+    inherit.aes = FALSE
+  ) +
+  facet_wrap(~block, nrow = 1, 
+             labeller = labeller(
+               block = c("1" = "Habituation",
+                         "2" = "Acquisition #1",
+                         "3" = "Acquisition #2",
+                         "4" = "Extinction"))) +
+    geom_text(data = data.frame(cue = c(2.5),
+                                elpd_value = c(6.75),
+                                block = c(1,2,3,4),
+                                anno_label = c("Habituation","Acquisition #1","Acquisition #2","Extinction")),
+              # aes(x = 2.5, y = .5,
+              #   block = "4", label = "CS+")
+              aes(x = cue,
+                  y = elpd_value,
+                  label = anno_label),
+              color = "black",
+              family = "Arial",
+              size = 7.5 - 3) +
+  scale_color_manual(values = c("red1","blue1")) +
+  scale_y_continuous(name = "ELPD Model Difference") +
+  coord_cartesian(ylim = c(-21.5, 6.5),clip = "off") +
+  scale_x_discrete(name = "Cue",labels = c("CS+", "GS1", "GS2", "GS3")) +
+  ggtitle("Cross-Validation Accuracy by Cue and Block") +
   theme_classic() +
-  theme(axis.title = element_blank(),
+  theme(text = element_text(family = text_font,
+                            size = loo_figure_text -2,
+                            color = "black"),
+        axis.line = element_line(linewidth = axis_line_thickness,
+                                 lineend = "square"),
+        axis.line.y = element_blank(),
+        axis.ticks = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "none",
+        axis.text.x = element_text(color = cue_color,angle = 15,vjust = .85)
+  )
+```
+
+Most participants are also better explained by Model 3.
+
+```{r}
+Oz_fft_df %>% 
+  mutate(participant = participant %>% as.factor() %>% as.integer() %>% as.factor) %>% 
+  mutate(model002_elpd = model002_fit_loo$pointwise[, "elpd_loo"],
+         model003_elpd = model003_fit_loo$pointwise[, "elpd_loo"]) %>% 
+  mutate(elpd_3_minus_2 = model003_elpd - model002_elpd) %>% 
+  mutate(elpd_2_minus_3 = model002_elpd - model003_elpd) %>% 
+  mutate(lik_3_minus_2 = exp(elpd_3_minus_2)) %>% 
+  mutate(lik_2_minus_3 = exp(elpd_2_minus_3)) %>% 
+  mutate(p_2_minus_3 = boot::inv.logit(elpd_2_minus_3)) %>% 
+  mutate(p_3_minus_2 = boot::inv.logit(elpd_3_minus_2)) %>% 
+  group_by(participant) %>% 
+  summarise(mean_elpd_2_minus_3 = mean(elpd_2_minus_3),
+            mean_se = plotrix::std.error(elpd_2_minus_3),
+            sum_elpd_2_minus_3 = sum(elpd_2_minus_3),
+            sum_se = sqrt(var(elpd_2_minus_3) * n())) %>% 
+            # sum_se = sd(elpd_2_minus_3) * sqrt(n())) %>% 
+            # sum_se = var(elpd_2_minus_3) * sqrt(n())) %>% 
+  mutate(sum_better_for_mod3 = sum_elpd_2_minus_3 < 0) %>% 
+  ggplot() +
+  geom_vline(aes(xintercept = participant),
+             color = "lightgray",
+             linetype = "dotted") +
+  geom_hline(aes(yintercept = 0), 
+             linewidth = axis_line_thickness) +
+  geom_pointrange(aes(x = participant,
+                      y = sum_elpd_2_minus_3,
+                      ymin = sum_elpd_2_minus_3 - sum_se,
+                      ymax = sum_elpd_2_minus_3 + sum_se,
+                      color = sum_better_for_mod3),
+                  size = loo_par_dot_size,
+                  linewidth = loo_par_range_linewidth) +
+    annotate(geom = "text", 
+             x = 19, 
+             y = -15.5,
+             label = "Model S1 Better",
+             family = "Arial",
+             color = "red1",
+             lineheight = 0.8, # Adjust this value to decrease spacing
+             size = 12-5)+
+    annotate(geom = "text", 
+             x = 19, 
+             y = -20,
+             label = "Model 3 Better",
+             family = "Arial",
+             color = "blue1",
+             lineheight = 0.8, # Adjust this value to decrease spacing
+             size = 12-5)+
+  scale_color_manual(values = c("red1","blue1")) +
+  scale_y_continuous(name = "ELPD Model Difference") +
+  coord_cartesian(ylim = c(-21.5, 6.5), , clip = "off") +
+  scale_x_discrete(name = "Participant") +
+  ggtitle("Cross-Validation Accuracy by Participant") +
+  theme_classic() +
+  theme(text = element_text(family = text_font,
+                            size = loo_figure_text,
+                            color = "black"),
+        axis.line = element_line(linewidth = axis_line_thickness,
+                                 lineend = "square"),
+        axis.ticks = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        axis.line.y = element_blank(),
+        legend.position = "none"
+  ) +
+  # Same “two-piece” arrow for y-axis
+  annotate(
+    "segment",
+    x = 0.3, 
+    xend = 0.3, 
+    y = 0, yend = positive_y,
+    color = "red",
+    linewidth  = arrow_line_width,
+    arrow = arrow(length = unit(arrow_size, "cm"), ends = "last", type = "closed")
+  ) +
+  annotate(
+    "segment",
+    x = 0.3, 
+    xend = 0.3, 
+    y = 0, yend = negative_y,
+    color = "blue",
+    linewidth  = arrow_line_width,
+    arrow = arrow(length = unit(arrow_size, "cm"), ends = "last", type = "closed")
+  )
+```
+
+<!-- ```{r} -->
+
+<!-- Oz_fft_df %>%  -->
+
+<!--   mutate(participant = participant %>% as.factor() %>% as.integer() %>% as.factor) %>%  -->
+
+<!--   mutate(model002_elpd = model002_fit_loo$pointwise[, "elpd_loo"], -->
+
+<!--          model003_elpd = model003_fit_loo$pointwise[, "elpd_loo"]) %>%  -->
+
+<!--   mutate(elpd_3_minus_2 = model003_elpd - model002_elpd) %>%  -->
+
+<!--   mutate(elpd_2_minus_3 = model002_elpd - model003_elpd) %>%  -->
+
+<!--   mutate(lik_3_minus_2 = exp(elpd_3_minus_2)) %>%  -->
+
+<!--   mutate(lik_2_minus_3 = exp(elpd_2_minus_3)) %>%  -->
+
+<!--   mutate(p_2_minus_3 = boot::inv.logit(elpd_2_minus_3)) %>%  -->
+
+<!--   mutate(p_3_minus_2 = boot::inv.logit(elpd_3_minus_2)) %>%  -->
+
+<!--   arrange(desc(lik_3_minus_2)) %>%  -->
+
+<!--   mutate(block = factor(block, levels = c(1:4))) %>%  -->
+
+<!--   ggplot() + -->
+
+<!--   geom_abline(aes(intercept = 1, slope = 0)) + -->
+
+<!--   geom_point(aes(x= 1:nrow(Oz_fft_df),  -->
+
+<!--                  # y = lik_2_minus_3, -->
+
+<!--                  # y = p_3_minus_2, -->
+
+<!--                  y = elpd_3_minus_2, -->
+
+<!--                  # y = elpd_2_minus_3, -->
+
+<!--                  color = cue),  -->
+
+<!--              size = .7) + -->
+
+<!--   scale_color_manual(values = cue_color) + -->
+
+<!--   # scale_y_continuous(breaks = seq(.6, 2.4, by = .2) ) + -->
+
+<!--   xlab("Observations Sorted by Likelihood") + -->
+
+<!--   ylab("CV-Likelihood Ratio: Model 3 over S1") + -->
+
+<!--   # facet_grid(block~.) + -->
+
+<!--   theme_bw() + -->
+
+<!--   theme() -->
+
+<!-- hold <- seq(.6, 2.4, by = .2) -->
+
+<!-- hold/(hold - 1) -->
+
+<!-- ``` -->
+
+And the model weights suggest the best cross-validation accuracy would entirely rely on predictions from Model 3, not averaging prediction between the two model in anyway. This all suggest that Model 3 is consistently better than Model S1.
+
+```{r}
+loo::loo_model_weights(list(model002_fit_loo,
+                            model003_fit_loo))
+```
+
+If we examine the relevant posteriors closer, we can get some clues why Model S1 does worse than Model 3. We can see that almost all of the learning rates are extremely close to zero.
+
+```{r}
+model002_fit_learning_rate_posteriors %>% 
+  pivot_longer(starts_with("learning")) %>% 
+  mutate(name = factor(name, levels = rev(unique(name)))) %>% 
+  ggplot(aes(x = value, 
+             y = name)) +
+  stat_density_ridges(fill = "black",
+                      color = "black",
+                      scale = 1,
+                      rel_min_height = 0.01,
+                      from = 0,
+                      panel_scaling = FALSE,
+                      to = 1) +
+  theme_bw()
+  
+```
+
+This results in the CS+ strength not getting close to 1 for any of the participants.
+
+```{r}
+number_of_samples_to_plot <- 100
+# number_of_samples_to_plot <- 4000
+
+set.seed(0)
+samples_to_plot <- sample(c(1:80000),
+                          size = number_of_samples_to_plot,
+                          replace = F)
+
+```
+
+```{r}
+
+CSP_plot_df <- CSP_df %>% 
+  pivot_longer(starts_with("CSP_ass")) %>% 
+  mutate(name = factor(name, levels = unique(name))) %>% 
+  mutate(participant = rep(gaborgen_stan_list$participant, 
+                           nrow(CSP_df)),
+         trial = rep(gaborgen_stan_list$trial, 
+                     nrow(CSP_df)),
+         cue = rep(gaborgen_stan_list$cue, 
+                   nrow(CSP_df))) %>% 
+  group_by(participant, trial) %>% 
+  mutate(mean_value = mean(value),
+         median_value = median(value),.before = 1) %>% 
+  ungroup() %>% 
+  filter(.draw %in% samples_to_plot)
+```
+
+```{r}
+
+par_axis_line_thickness <- .75
+text_size <- 15
+line_width_csp <- .25
+line_alpha_csp <- .25
+line_width_csp_average <- 1.5
+
+CSP_plot_df %>%
+  filter(#participant %in% c(1,2,3),
+    trial >= 30) %>% 
+  ggplot() +
+  geom_vline(xintercept = 32 + 48 + 48,
+             color = "black", linetype = "dashed") +
+  geom_line(aes(x = trial, 
+                y = value, 
+                group = .draw),
+            linewidth = line_width_csp,
+            alpha = line_alpha_csp) +
+  geom_line(aes(x = trial, 
+                y = median_value),
+            linewidth = line_width_csp_average,
+            # alpha = line_alpha_csp,
+            color = "red"
+  ) +
+  scale_x_continuous(breaks = seq(40,180, by = 20),
+                     name = "Trial") +
+  coord_cartesian(ylim = c(-0.05,1.05),expand = F) +
+  theme_classic() +
+  facet_grid(participant ~., 
+             # scales = "free_y",
+             space = "free") +
+  ggtitle("Associate Value Posterior Draws and Median") +
+  theme(text = element_text(family = "Arial",
+                            size = text_size),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        # strip.text.y = element_blank(),
+        # panel.spacing = unit(0, "lines"),
+        panel.spacing = unit(0.15, "lines"),
+        axis.line = element_blank(),
+        axis.title.y = element_blank(),
         axis.text.y = element_blank(),
-        axis.ticks = element_blank()) #+
-# 
-# model001_df %>%
-#   ggplot() +
-#   geom_density(aes(x = cue_sd)) +
-#     coord_cartesian(xlim = c(-.1,5),
-#                   expand = 0) +
-#   theme_classic() +
-#   
-# model003_df %>% 
-#   ggplot() +
-#   geom_density(aes(x = scaling_sd)) +
-#   coord_cartesian(xlim = c(-.1,5),
-#                   expand = 0) + 
-#   theme_classic()
+        axis.ticks = element_blank(),
+        plot.title = element_text(hjust = .5,vjust = 0.1))
+```
+
+This has an interesting effect on the scaling parameters per cue, they are much wider than Model 3.
+
+```{r}
+model002_fit_scaling_posteriors %>% 
+  pivot_longer(starts_with("scaling")) %>% 
+  mutate(name = factor(name, levels = (unique(name)))) %>% 
+  ggplot() +
+  geom_density(aes(x = value,
+                   color = name,
+                   fill = name),
+               linewidth = 1,
+               alpha = .2) +
+  scale_x_continuous(breaks = seq(-5,5,by = 1), name = "Δ Z-Scored ssVEP") +
+  scale_color_manual(values = cue_color) +
+  scale_fill_manual(values = cue_color) +
+  coord_cartesian(xlim = c(-5,5)) +
+  theme_bw()
+```
+
+These scaling parameters are much harder to interpret because no participants reach a maximum associate strength of 1. So this would be the change in the ssVEP for a level of learning that no one reaches. This is hard to reconcile with our understanding that it is likely that at least some of the participants should learn the relationship. This model predicts flat responses for most participants, with some having gradual increases in acquisition and gradual decreases in extinction. Maybe this would be plausible that the ssVEP response slowly ramps up at different rates for different participants, but then it should have better CV-accuracy compared to Model 3 in some of the experimental blocks. All the CV-metrics suggest that this model performs worse and overfits. This mixed with the strange scaling posteriors sums up the reasons for why this model was not discussed in the manuscript.
+
+## Model S2: Model 3 with beta priors on learning rates
+
+After seeing the results of Model 3, we wanted to make sure that the inverse logit transformation of learning rates was not distorting our understanding of the data. The inverse logit was used to help with model fitting, we were not aware that it would lead to such stark all or nothing learning rates per participant. So Model S2 uses different beta(1.1,1.1) uninformative priors for the learning_paired_average and learning_unpaired_average hyperparameters. While this model converges, similar to Model S1 it predicts gradual changes with most learning paired rates close to zero. The unpaired learning rate is very wide for most participants.
+
+```{r}
+model004_fit_learning_rate_posteriors %>%
+  select(starts_with("learning_paired[")) %>% 
+  pivot_longer(cols = everything()) %>% 
+  mutate(name = factor(name,
+                       levels = unique(name))) %>% 
+  ggplot(aes(x = value, 
+             y = factor(name, 
+                        levels = rev(levels(name)))
+  )) +
+  geom_hline(yintercept = c(1:24),
+             linewidth = par_axis_line_thickness,
+             linetype = "dashed",
+             color = "gray")+
+  # geom_density_ridges(aes(height = after_stat(scaled)),
+  #                     fill = "black",
+  #                     scale = .9,
+  #                     stat = "density",
+  #                     # rel_min_height = 0.01,
+  #                     # from = 0,
+  #                     # to = 1,
+  #                     panel_scaling = FALSE) +
+  stat_density_ridges(fill = "black",
+                      color = "black",
+                      scale = 1,
+                      rel_min_height = 0.01,
+                      from = 0,
+                      panel_scaling = FALSE,
+                      to = 1) +
+  scale_y_discrete(labels = paste0("Participant ", 
+                                   gaborgen_stan_list$n_participants:1)) +
+  scale_x_continuous(breaks = seq(0,1, by = .5),
+                     labels = c("0", ".5", "1")) +
+  coord_cartesian(#xlim = c(-0.01,1.01), 
+                  expand = 0,
+                  ylim = c(1,25))+
+  ggtitle("Learn Paired") +
+  theme_classic() +
+  theme(text = element_text(family = "Arial",
+                            size = text_size),
+        axis.title = element_blank(),
+        axis.text.y = element_text(vjust = -.5),
+        axis.ticks = element_blank(),
+        plot.title = element_text(hjust = .5,vjust = 0)) |
+  
+  model004_fit_learning_rate_posteriors %>%
+  select(starts_with("learning_unpaired[")) %>% 
+  pivot_longer(cols = everything()) %>% 
+  mutate(name = factor(name,
+                       levels = unique(name))) %>% 
+  ggplot(aes(x = value, y = factor(name, levels = rev(levels(name))))) +
+  geom_hline(yintercept = c(1:24),
+             linewidth = par_axis_line_thickness,
+             linetype = "dashed",
+             color = "gray")+
+  # geom_density_ridges(aes(height = after_stat(scaled)),
+  #                     fill = "black",
+  #                     scale = .9,
+  #                     stat = "density",
+  #                     # rel_min_height = 0.01,
+  #                     # from = 0,
+  #                     # to = 1,
+  #                     panel_scaling = FALSE) +
+  stat_density_ridges(fill = "black",
+                      color = "black",
+                      scale = 1,
+                      rel_min_height = 0.01,
+                      panel_scaling = FALSE,
+                      from = 0,
+                      to = 1) +
+  scale_y_discrete(labels = paste0("Participant ", 
+                                   gaborgen_stan_list$n_participants:1)) +
+  scale_x_continuous(breaks = seq(0,1, by = .5),
+                     labels = c("0", ".5", "1")) +
+  coord_cartesian(#xlim = c(-0.01,1.01), 
+                  expand = 0,
+                  ylim = c(1,25))+
+  ggtitle("Learn Unpaired") +
+  theme_classic() +
+  theme(text = element_text(family = "Arial",
+                              size = text_size),
+        axis.title = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        plot.title = element_text(hjust = .5,vjust = 0))
+```
+
+Scaling posteriors are also still wide like Model S1.
+
+```{r}
+model004_fit_learning_rate_posteriors %>% 
+  pivot_longer(starts_with("scaling")) %>% 
+  mutate(name = factor(name, levels = (unique(name)))) %>% 
+  ggplot() +
+  geom_density(aes(x = value,
+                   color = name,
+                   fill = name),
+               linewidth = 1,
+               alpha = .2) +
+  scale_x_continuous(breaks = seq(-5,5,by = 1), name = "Δ Z-Scored ssVEP") +
+  scale_color_manual(values = cue_color) +
+  scale_fill_manual(values = cue_color) +
+  coord_cartesian(xlim = c(-5,5)) +
+  theme_bw()
+```
+
+So similar to Model S1, S2 just does not fit the data well and is hard to interpret based on what we know about conditioning.
+
+## Model S3: Arousal ratings per cue and block
+
+The experiment collects ratings for each cue at the end of each block. This includes valence and arousal from 0 to 10 (integers), and expectancy of shock (0 to 100%; increments of 10). As the cues get paired with shocks, it is expected the ssVEP amplitude will increase with arousal ratings for the CS+. To test this, the ratings per participant were used as a predictor of ssVEP amplitude in conjunction with the adaption effect. The first model uses the arousal rating at the end of each block as an effect added linearly to each trial. This is done to prevent sharp shifts and to provide an intercept when shifting from one block to the next.The complete Stan model (excluding adaptions priors) code is presented here:
+
+``` Stan
+data {
+  int<lower=0> n;
+  int<lower=0> n_observations;
+  int<lower=0> n_missing;
+  int<lower=0> n_participants;
+  int<lower=0> n_trials; 
+  int<lower=0> n_phases;
+  int<lower=0> n_blocks;
+  int<lower=0> n_cues;
+
+  array[n_observations] real amplitude;
+  array[n] int participant;
+  array[n] int phase;
+  array[n] int cue;
+  array[n] int trial;
+  array[n] int cue_trial_count;
+  array[n] int phase_trial_count;
+  array[n] int block_trial_count;
+  array[n_participants, n_blocks, n_cues] real arousal_pbc_centered;
+  array[n_participants, n_blocks, n_cues] real arousal_pbc;
+  array[n] int block;
+  array[n] int <lower=0, upper=1> paired;
+  array[n_observations] int<lower=1, upper=n_observations + n_missing> indices_observed;
+  array[n_missing] int<lower=1, upper=n_observations + n_missing> indices_missing;
+}
+
+parameters {
+
+  real<lower = 0> sigma_average; //this won't hug zero so it does not need to be exp() /1
+  real sigma_sd_raw; //2
+  real intercept_average; //3
+  real intercept_sd_raw; //4
+  real fatigue_average; //5
+  real fatigue_sd_raw; //6
+  real intercept_fatigue_corr_raw; //7
+  real<lower=0, upper=1> learning_paired_average; //8
+  real<lower=0, upper=1> learning_unpaired_average; //9
+  real learning_paired_sd_raw; //10
+  real learning_unpaired_sd_raw;  //11
+  real scaling_mean;  //12
+  real scaling_sd_raw;  //13
+  
+  array[n_participants] real<lower = 0> sigma; //this won't hug zero so it does not need to be exp() //37 if n_participants is 24
+  array[n_participants] real intercept; //61
+  array[n_participants] real fatigue; //85
+  array[n_participants] real<lower=0, upper=1> learning_paired; //109
+  array[n_participants] real<lower=0, upper=1> learning_unpaired; //133
+  array[n_cues] real scaling; //137
+  array[n_missing] real amplitude_missing;
+}
+
+transformed parameters {
+  array[n] real amplitude_all;
+  amplitude_all[indices_observed] = amplitude;
+  amplitude_all[indices_missing] = amplitude_missing;
+  
+  real sigma_sd = exp(sigma_sd_raw);
+  real intercept_sd = exp(intercept_sd_raw);
+  real fatigue_sd = exp(fatigue_sd_raw);
+  
+  real intercept_fatigue_corr = -inv_logit(intercept_fatigue_corr_raw);
+
+  cov_matrix[2] Sigma;
+  Sigma[1,1] = square(intercept_sd);
+  Sigma[2,2] = square(fatigue_sd);
+  Sigma[1,2] = intercept_fatigue_corr * intercept_sd * fatigue_sd;
+  Sigma[2,1] = Sigma[1,2];
+  
+  matrix[2,2] Sigma_L = cholesky_decompose(Sigma);
+  
+  real learning_paired_sd = exp(learning_paired_sd_raw);
+  real learning_unpaired_sd = exp(learning_unpaired_sd_raw);
+  real scaling_sd = exp(scaling_sd_raw);
+  
+  
+  array[n] real<lower=-0.000001,upper=1> CSP_associative_strength;
+  array[n-1] real<lower=-1, upper=1> CSP_change;
+
+  // Estimate CSP_associative_strength, Rescola Wagner type equation
+  for(i in 1:(n-1)) {
+    if (phase[i] == 1){ // Habituation phase
+      CSP_change[i] = 0;
+      CSP_associative_strength[i] = 0;
+        CSP_associative_strength[i+1] = fmin(fmax(CSP_associative_strength[i+1], 0.0), 1.0);
+    } else if (cue[i] == 1 && phase[i] != 1) {
+        if(paired[i] == 1){
+          CSP_change[i] = learning_paired[participant[i]] * 
+                          (paired[i] - CSP_associative_strength[i]);
+        } else {
+          CSP_change[i] = learning_unpaired[participant[i]] * 
+                          (paired[i] - CSP_associative_strength[i]);
+        }
+        CSP_associative_strength[i+1] = CSP_associative_strength[i] + CSP_change[i];
+
+        // Ensure CSP_associative_strength stays within the bounds
+        CSP_associative_strength[i+1] = fmin(fmax(CSP_associative_strength[i+1], 0.0), 1.0);
+    } else {
+       CSP_change[i] = 0;
+       CSP_associative_strength[i+1] = CSP_associative_strength[i];
+    }
+  }  
+}
+
+model {
+  // Priors
+  sigma_average ~ normal(1, 0.5);
+  sigma_sd_raw ~ normal(-3, 1);
+
+  sigma ~ student_t(n_participants-1, sigma_average, sigma_sd);
+
+  intercept_average ~ normal(0, 0.75);
+  intercept_sd_raw ~ normal(-1, 1);
+  fatigue_average ~ normal(0, 0.01);
+  fatigue_sd_raw ~ normal(-4.5, 0.75);
+  
+  intercept_fatigue_corr_raw ~ normal(0, 1.75); // this creates a roughly uniform distribution, if confused visualize in R with hist(boot::inv.logit(rnorm(5000,0,1.75)))
+  
+  for (p in 1:n_participants) {
+    [intercept[p], fatigue[p]]' ~ multi_student_t_cholesky(n_participants - 1,
+                                                           [intercept_average, fatigue_average]',
+                                                           Sigma_L);
+  }
+
+  scaling_mean ~ normal(0,1);
+  scaling_sd_raw ~ normal(-0.5,1.5);
+  // scaling_sd_raw ~ normal(-0.5,1);
+  for (q in 1:n_cues) {
+    scaling[q] ~ student_t(n_cues-1, scaling_mean, scaling_sd); 
+  }
+
+  learning_paired_average ~ beta(1.1, 1.1);
+  learning_paired_sd_raw ~ normal(-0.5,1.5);
+  // learning_paired_sd_raw ~ normal(-0.5,1);
+  learning_paired ~ student_t(n_participants-1, 
+                                  learning_paired_average, 
+                                  learning_paired_sd); 
+
+  learning_unpaired_average ~ beta(1.1, 1.1);
+  learning_unpaired_sd_raw ~ normal(-0.5,1.5);
+  // learning_unpaired_sd_raw ~ normal(-0.5,1);
+  learning_unpaired ~ student_t(n_participants-1, 
+                                    learning_unpaired_average, 
+                                    learning_unpaired_sd); 
+
+
+  // Likelihood
+  for(i in 1:n) {
+    real mu = intercept[participant[i]] +
+              (fatigue[participant[i]] * trial[i]) +
+              (scaling[cue[i]] * CSP_associative_strength[i]);
+
+    amplitude_all[i] ~ normal(mu, sigma[participant[i]]);
+  }
+}
+
+generated quantities {
+  // These mu_pred and log_lik names cannot change
+  
+  // For model predictions
+  array[n_observations] real mu_pred;
+  // This is necessary for cross-validation
+  array[n_observations] real log_lik;
+  
+  for (i in 1:n_observations) {
+    mu_pred[i] = intercept[participant[indices_observed[i]]] +
+                 (fatigue[participant[indices_observed[i]]] * trial[indices_observed[i]]) +
+                 (scaling[cue[indices_observed[i]]] * CSP_associative_strength[indices_observed[i]]);
+                 
+    log_lik[i] = normal_lpdf(amplitude[i] | mu_pred[i], sigma[participant[indices_observed[i]]]);
+  }
+}
+
+```
+
+This model fits fine and leads to a small effect in the expected direction as the average posterior for the slope of arousal is above zero.
+
+```{r}
+
 ```
 
 
-# Model 2
 
 
-$$
-\begin{gather}
-\Delta CSPStrength[i] = LearningRate \cdot (paired[i] - CSPStrength[i]) \tag{23} \\
-CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{24} \\
-\end{gather}
-$$
+<!-- $$ -->
 
+<!-- \begin{gather} -->
 
-$$
-\begin{gather}
-\mu{[i]} = intercept{[participant[i]]} + adaptation[participant[i]] \cdot trial[i] + \beta Scaling[cue[i]] \cdot CSPStrength[i] \tag{25} \\
-\\
-\text{if phase[i] is habituation:}\\
-CSPStrength[i] = 0 \tag{26} \\
-\Delta CSPStrength[i] = 0 \tag{27} \\
-CSPStrength[i + 1] = 0 \tag{28} \\
-\\
-\text{else if cue[i] is CS+ and paired[i] is 1 (US):}\\
-\Delta CSPStrength[i] = LearningPaired[participant[i]] \cdot (paired[i] - CSPStrength[i]) \tag{29} \\
-CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{30} \\
-\\
-\text{else if cue[i] is CS+ and paired[i] is 0 (no US):}\\
-\Delta CSPStrength[i] = LearningUnpaired[participant[i]] \cdot (paired[i] - CSPStrength[i]) \tag{31} \\
-CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{32} \\
-\\
-\text{else:}\\
-\Delta CSPStrength[i] = 0 \tag{33} \\
-CSPStrength[i + 1] =  CSPStrength[i] \tag{34} \\
-\\
-\beta Scaling[1:nCues] \sim StudentT(df = nCues - 1, \ \beta Scaling Average, \sigma \beta Scaling) \tag{35} \\
-\beta Scaling Average \sim Normal(0, 1) \tag{36} \\
-\sigma \beta Scaling = exp(\sigma \beta Scaling Raw) \tag{37} \\
-\sigma \beta Scaling Raw \sim Normal(-0.5,1.5) \tag{38} \\
-\\
-LearningPaired[1:nParticipants] = invLogit(LearningPairedRaw[1:nParticipants]) \tag{39} \\
-LearningUnpaired[1:nParticipants] = invLogit(LearningUnpairedRaw[1:nParticipants]) \tag{40} \\
-LearningPairedRaw[1:nParticipants] \sim StudentT(df = nParticipants-1, \ LearningPairedAverageRaw, \ \sigma LearningPaired)  \tag{41} \\
-LearningUnpairedRaw[1:nParticipants] \sim StudentT(df = nParticipants-1, \ LearningUnpairedAverageRaw, \ \sigma LearningUnpaired)  \tag{42} \\
-LearningPairedAverageRaw \sim Normal(0,1.75) \tag{43} \\
-LearningUnpairedAverageRaw \sim Normal(0,1.75) \tag{44} \\
-\sigma LearningPaired = exp(\sigma LearningPairedRaw) \tag{45} \\
-\sigma LearningUnpaired = exp(\sigma LearningUnpairedRaw) \tag{46} \\
-\sigma LearningPairedRaw \sim Normal(-0.5,1.5) \tag{47} \\
-\sigma LearningUnPairedRaw \sim Normal(-0.5,1.5) \tag{48} \\
-\end{gather}
-$$
+<!-- \huge \text{Likelihood Function} \\ -->
 
+<!-- \\ -->
 
-$$
-\begin{gather}
-variance \cdot \sqrt{(N)} \tag{49} \\
-\end{gather}
-$$
+<!-- Amplitude[i] \sim Normal(\mu[i], \sigma[participant[i]])\\ -->
 
-$$
-\begin{gather}
-R^2 = 1 - \frac{variance (loo \ residuals)}{variance (data)} \tag{50} \\
-\end{gather}
-$$
+<!-- \\ -->
+
+<!-- \Large \text{if block[i] is  1 (habituation):}\\ -->
+
+<!-- \mu{[i]} = intercept{[participant[i]]} + adaptation[participant[i]] \cdot trial[i] + \beta Arousal[participant[i]] \cdot BlendedArousal[i]\\ -->
+
+<!-- \\ -->
+
+<!-- \Large \text{else if cue[i] is CS+ and paired[i] is 1 (US):}\\ -->
+
+<!-- \Delta CSPStrength[i] = LearningPaired[participant[i]] \cdot (paired[i] - CSPStrength[i]) \tag{30} \\ -->
+
+<!-- CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{31} \\ -->
+
+<!-- \\ -->
+
+<!-- \Large \text{else if cue[i] is CS+ and paired[i] is 0 (no US):}\\ -->
+
+<!-- \Delta CSPStrength[i] = LearningUnpaired[participant[i]] \cdot (paired[i] - CSPStrength[i]) \tag{32} \\ -->
+
+<!-- CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{33} \\ -->
+
+<!-- \\ -->
+
+<!-- \Large \text{else:}\\ -->
+
+<!-- \Delta CSPStrength[i] = 0 \tag{34} \\ -->
+
+<!-- CSPStrength[i + 1] =  CSPStrength[i] \tag{35} \\ -->
+
+<!-- \end{gather} -->
+
+<!-- $$ -->
 
 old below
 
@@ -489,19 +1261,33 @@ scaling_sd %>%
 <!-- Model 1 found average intercept -->
 
 <!-- ```{r} -->
+
 <!-- model001_df %>%  -->
+
 <!--   ggplot() + -->
+
 <!--   geom_abline(aes(intercept = intercept_average,  -->
+
 <!--                   slope = fatigue_average), -->
+
 <!--               size = .2,  -->
+
 <!--               alpha = .2) + -->
+
 <!--   scale_y_continuous(limits =c(-4,4), breaks = seq(-4, 4, by = 1), -->
+
 <!--                      name = "Z-scored ssVEP") + -->
+
 <!--   scale_x_continuous(limits =c(1,176), breaks = seq(0, 176, by = 10), -->
+
 <!--                      name = "Trials") + -->
+
 <!--   ggtitle("Model 001 Average intercept") + -->
+
 <!--   theme_classic() + -->
+
 <!--   theme(text = element_text(family = "arial", size = 15), -->
+
 <!--         axis.ticks.y = element_blank())  -->
 
 <!-- ``` -->
@@ -509,32 +1295,54 @@ scaling_sd %>%
 <!-- Model 1 intercept by par -->
 
 <!-- ```{r} -->
+
 <!-- model001_df %>% -->
+
 <!--   select(starts_with(c("intercept[", "fatigue["))) %>%  -->
+
 <!--   pivot_longer( -->
+
 <!--     cols = starts_with("intercept") | starts_with("fatigue"), # Select columns to pivot -->
+
 <!--     names_to = c(".value", "id"), # Separate into 'intercept'/'fatigue' and 'id' -->
+
 <!--     names_pattern = "(.*)\\[(\\d+)\\]" # Regex to extract 'intercept' or 'fatigue' and ID -->
+
 <!--   ) %>%  -->
+
 <!--   mutate(id = factor(id, levels = unique(id))) %>%  -->
+
 <!--   filter(id %in% c(1:10)) %>%  -->
+
 <!--   ggplot() + -->
+
 <!--   geom_abline(aes(intercept = intercept,  -->
+
 <!--                   slope = fatigue), -->
+
 <!--               size = .2,  -->
+
 <!--               alpha = .2) + -->
+
 <!--   scale_y_continuous(limits =c(-3,3), breaks = seq(-4, 4, by = 1), -->
+
 <!--                      name = "Z-scored ssVEP") + -->
+
 <!--   scale_x_continuous(limits =c(1,176), breaks = seq(0, 176, by = 10), -->
+
 <!--                      name = "Trials") + -->
+
 <!--   ggtitle("Model 001 Average intercept by participant") + -->
+
 <!--   theme_classic() + -->
+
 <!--   theme(text = element_text(family = "arial", size = 15), -->
+
 <!--         axis.ticks.y = element_blank()) + -->
+
 <!--   facet_wrap(~id, ncol = 5) -->
+
 <!-- ``` -->
-
-
 
 ## Model 1:<br>Multilevel Participant and Stimuli Predictors {style="text-align: center;"}
 

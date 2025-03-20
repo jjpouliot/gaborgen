@@ -723,10 +723,16 @@ gaborgen_stan_list$block_trial_count <- block_trial_count %>% as.integer()
 # 
 # gaborgen_stan_list$paired <- ifelse(Oz_fft_df$paired == "shock", 1, 0) %>% as.integer()
 
-gaborgen_stan_list$amplitude <- Oz_fft_df %>% 
-  group_by(participant) %>% 
-  mutate(amplitude = scale(amplitude_15Hz_fft)) %>% 
-  pull(amplitude) %>% 
+# gaborgen_stan_list$amplitude <- Oz_fft_df %>% 
+#   group_by(participant) %>% 
+#   mutate(amplitude = scale(amplitude_15Hz_sliding_window_fft_upsampled_600Hz)) %>% 
+#   pull(amplitude) %>% 
+#   as.vector()
+gaborgen_stan_list$amplitude <- Oz_fft_df %>%
+  group_by(participant) %>%
+  mutate(amplitude = scale(amplitude_15Hz_fft)) %>%
+  # mutate(amplitude = scale(amplitude_15Hz_sliding_window_fft_upsampled_600Hz)) %>%
+  pull(amplitude) %>%
   as.vector()
 
 gaborgen_stan_list$arousal_pbc <- ratings_df %>% 
@@ -771,14 +777,14 @@ gaborgen_stan_list$expect_pbc_centered <- ratings_df %>%
 # Sampling settings ####
 number_of_chains <- 8
 number_of_parallel_chains <- 4
-warmup_samples_per_chain <- 5000
-posterior_samples_per_chain <- 5000
+warmup_samples_per_chain <- 10000
+posterior_samples_per_chain <- 10000
 where_to_save_chains <- paste0(parent_folder,"/stan_chains")
 # used for saved .Rdata
 # number_of_chains <- 8
 # number_of_parallel_chains <- 4
-# warmup_samples_per_chain <- 5000
-# posterior_samples_per_chain <- 5000
+# warmup_samples_per_chain <- 10000
+# posterior_samples_per_chain <- 10000
 # where_to_save_chains <- paste0(parent_folder,"/stan_chains")
 
 # Fit Models ####
@@ -802,7 +808,8 @@ model001$print()
 
 model001_fit <- model001$sample(data = gaborgen_stan_list,
                                 refresh = 500,
-                                seed = 2,
+                                seed = 3,
+                                # seed = 2,
                                 iter_warmup = warmup_samples_per_chain, 
                                 iter_sampling = posterior_samples_per_chain, 
                                 save_warmup = F, 
@@ -1332,9 +1339,8 @@ model004_df %>%
 
 ## Model 005 - Arousal rating model ####
 
-# model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/Model005.stan'
+model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/Model005.stan'
 #arousal centered version
-model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/Model006.stan'
 
 #force_recompile = T is sometimes helpful
 model005 <- cmdstanr::cmdstan_model(model_path,
@@ -1345,10 +1351,10 @@ model005 <- cmdstanr::cmdstan_model(model_path,
 # model005$print()
 
 # Clear previous chains
-# list.files(pattern = "Model005",
-#            path = where_to_save_chains, 
-#            full.names = T) %>% 
-#   file.remove()
+list.files(pattern = "Model005",
+           path = where_to_save_chains,
+           full.names = T) %>%
+  file.remove()
 
 model005_fit <- model005$sample(data = gaborgen_stan_list,
                                 refresh = 50,
@@ -1361,16 +1367,6 @@ model005_fit <- model005$sample(data = gaborgen_stan_list,
                                 chains = number_of_chains,
                                 parallel_chains = number_of_parallel_chains)
 
-# model006_fit <- model006$sample(data = gaborgen_stan_list,
-#                                 refresh = 50,
-#                                 seed = 3,
-#                                 iter_warmup = warmup_samples_per_chain, 
-#                                 iter_sampling = posterior_samples_per_chain, 
-#                                 save_warmup = F, 
-#                                 show_messages = T,
-#                                 output_dir = where_to_save_chains,
-#                                 chains = number_of_chains,
-#                                 parallel_chains = number_of_parallel_chains)
 
 
 model005_fit_meta_data <- model005_fit$metadata()
@@ -1383,6 +1379,38 @@ model005_fit_summary <-
 
 model005_fit_loo <- model005_fit$loo()
 
+## Model 006 - Arousal rating model ####
+
+model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/Model006.stan'
+#arousal centered version
+
+#force_recompile = T is sometimes helpful
+model006 <- cmdstanr::cmdstan_model(model_path,
+                                    force_recompile = T)
+
+
+#Model source code
+# model005$print()
+
+# Clear previous chains
+list.files(pattern = "Model006",
+           path = where_to_save_chains,
+           full.names = T) %>%
+  file.remove()
+
+model006_fit <- model006$sample(data = gaborgen_stan_list,
+                                refresh = 50,
+                                seed = 3,
+                                iter_warmup = warmup_samples_per_chain, 
+                                iter_sampling = posterior_samples_per_chain, 
+                                save_warmup = F, 
+                                show_messages = T,
+                                output_dir = where_to_save_chains,
+                                chains = number_of_chains,
+                                parallel_chains = number_of_parallel_chains)
+
+
+
 model006_fit_meta_data <- model006_fit$metadata()
 
 model006_fit_relevant_parameters <- model006_fit_meta_data$model_params[
@@ -1392,81 +1420,6 @@ model006_fit_summary <-
   model006_fit$summary(variables = model006_fit_relevant_parameters)
 
 model006_fit_loo <- model006_fit$loo()
-
-loo::loo_compare(model005_fit_loo,
-                 model006_fit_loo)
-
-loo::loo_compare(model001_fit_loo, 
-                 model002_fit_loo,
-                 model003_fit_loo,
-                 model004_fit_loo,
-                 model005_fit_loo,
-                 model006_fit_loo)
-
-loo::loo_model_weights(list(model001_fit_loo,
-                            model002_fit_loo,
-                            model003_fit_loo,
-                            model004_fit_loo,
-                            model005_fit_loo))
-
-loo::loo_model_weights(list(model001_fit_loo,
-                            model002_fit_loo))
-
-model005_df <- model005_fit$draws(variables = model005_fit_relevant_parameters,
-                                  format = "df")
-model006_df <- model006_fit$draws(variables = model006_fit_relevant_parameters,
-                                  format = "df")
-
-
-model005_df %>%
-  select(starts_with("sigma[")) %>%
-  pivot_longer(cols = everything()) %>%
-  mutate(name = factor(name,
-                       levels = unique(name))) %>% 
-  ggplot() +
-  geom_density_ridges(aes(x = value, y = name))
-
-model005_df %>%
-  select(starts_with("intercept")) %>%
-  pivot_longer(cols = everything()) %>%
-  mutate(name = factor(name,
-                       levels = unique(name))) %>% 
-  ggplot() +
-  geom_density_ridges(aes(x = value, y = name))
-
-model005_df %>%
-  select(starts_with("fatigue")) %>%
-  pivot_longer(cols = everything()) %>%
-  mutate(name = factor(name,
-                       levels = unique(name))) %>% 
-  ggplot() +
-  geom_density_ridges(aes(x = value, y = name))
-
-model005_df %>%
-  select(starts_with("b_arousal")) %>%
-  pivot_longer(cols = everything()) %>%
-  mutate(name = factor(name,
-                       levels = unique(name))) %>% 
-  ggplot() +
-  geom_density_ridges(aes(x = value, y = name))
-
-(model005_df$b_arousal_average > 0) %>% 
-  sum()/ (number_of_chains*posterior_samples_per_chain)
-
-model006_df %>%
-  select(starts_with("b_arousal")) %>%
-  pivot_longer(cols = everything()) %>%
-  mutate(name = factor(name,
-                       levels = unique(name))) %>% 
-  ggplot() +
-  geom_density_ridges(aes(x = value, y = name))
-
-(model005_df$b_arousal_average > 0) %>% 
-  sum()/ (number_of_chains*posterior_samples_per_chain)
-
-(model006_df$b_arousal_average > 0) %>% 
-  sum()/ (number_of_chains*posterior_samples_per_chain)
-
 
 ## Model 007 - Arousal and expectancy rating model ####
 model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/Model007.stan'
@@ -1479,10 +1432,10 @@ model007 <- cmdstanr::cmdstan_model(model_path,
 # model007$print()
 
 # Clear previous chains
-# list.files(pattern = "Model007",
-#            path = where_to_save_chains, 
-#            full.names = T) %>% 
-#   file.remove()
+list.files(pattern = "Model007",
+           path = where_to_save_chains,
+           full.names = T) %>%
+  file.remove()
 
 model007_fit <- model007$sample(data = gaborgen_stan_list,
                                 refresh = 50,
@@ -1665,10 +1618,40 @@ model008_fit_summary <-
 model008_fit_loo <- model008_fit$loo()
 
 loo::loo_compare(model001_fit_loo,
+                 model003_fit_loo,
                  model008_fit_loo)
 
 
 # Save data and fits ####
+save(fft_df,
+     Oz_fft_df,
+     gaborgen_stan_list,
+     model001_fit,
+     model001_fit_summary,
+     model001_fit_loo,
+     # model002_fit,
+     # model002_fit_summary,
+     # model002_fit_loo,
+     model003_fit,
+     model003_fit_summary,
+     model003_fit_loo,
+     # model004_fit,
+     # model004_fit_summary,
+     # model004_fit_loo,
+     # model005_fit,
+     # model005_fit_summary,
+     # model005_fit_loo,
+     # model006_fit,
+     # model006_fit_summary,
+     # model006_fit_loo,
+     # model007_fit,
+     # model007_fit_summary,
+     # model007_fit_loo,
+     model008_fit,
+     model008_fit_summary,
+     model008_fit_loo,
+     file = paste0(parent_folder,"/gaborgen_eeg_manuscript_data_models.RData"))
+
 save(fft_df,
      Oz_fft_df,
      gaborgen_stan_list,
@@ -1696,7 +1679,7 @@ save(fft_df,
      model008_fit,
      model008_fit_summary,
      model008_fit_loo,
-     file = paste0(parent_folder,"/gaborgen_eeg_manuscript_data_models.RData"))
+     file = paste0(parent_folder,"/gaborgen_eeg_manuscript_all_models.RData"))
 
 # Load to create manuscript stats and figures ####
 library(tidyverse)
@@ -1709,7 +1692,8 @@ library(ggridges)
 parent_folder <- "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI"
 git_repository <- "/home/andrewf/Repositories/gaborgen"
 
-load(file = paste0(parent_folder,"/gaborgen_eeg_manuscript_data_models.RData"))
+load(file = paste0(parent_folder,"/gaborgen_eeg_manuscript_all_models.RData"))
+# load(file = paste0(parent_folder,"/gaborgen_eeg_manuscript_data_models.RData"))
 
 ## Load posterior sample data frames for figures ####
 model001_fit_meta_data <- model001_fit$metadata()
@@ -1817,7 +1801,8 @@ Oz_fft_df %>%
 
 Oz_fft_df %>% 
   group_by(participant) %>% 
-  mutate(zamp = amplitude_15Hz_fft %>% scale() %>% as.vector()) %>% 
+  mutate(zamp = amplitude_15Hz_fft %>% scale() %>% as.vector()) %>%
+  # mutate(zamp = amplitude_15Hz_sliding_window_fft_upsampled_600Hz %>% scale() %>% as.vector()) %>%
   group_by(cue, block) %>%  
   reframe(mean_zamp = mean(zamp),
           se_zamp = plotrix::std.error(zamp)) %>% 
@@ -1901,13 +1886,15 @@ ggsave(filename = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/Figu
 
 
 ## Loo stats ####
+model001_fit_loo <- model001_fit$loo()
 model003_fit_loo <- model003_fit$loo()
-learning_model_pointwise <- model003_fit_loo[["pointwise"]]
-
-bad_k <- learning_model_pointwise[,5] > .7
-
-learning_model_pointwise[,3] %>% sum()
-learning_model_pointwise[-bad_k,3] %>% sum()
+model008_fit_loo <- model008_fit$loo()
+# learning_model_pointwise <- model003_fit_loo[["pointwise"]]
+# 
+# bad_k <- learning_model_pointwise[,5] > .7
+# 
+# learning_model_pointwise[,3] %>% sum()
+# learning_model_pointwise[-bad_k,3] %>% sum()
 
 loo::loo_compare(model008_fit_loo, #model 1 in paper
                  model001_fit_loo, #model 2
@@ -1916,6 +1903,15 @@ loo::loo_compare(model008_fit_loo, #model 1 in paper
 loo::loo_model_weights(list(model008_fit_loo,
                             model001_fit_loo,
                             model003_fit_loo))
+
+bad_k <- model003_fit_loo$diagnostics$pareto_k > .7
+
+model008_fit_loo$pointwise[bad_k,1]
+model001_fit_loo$pointwise[bad_k,1]
+model003_fit_loo$pointwise[bad_k,1]
+model008_fit_loo$pointwise[bad_k,3]
+model001_fit_loo$pointwise[bad_k,3]
+model003_fit_loo$pointwise[bad_k,3]
 
 loo::loo_compare(model008_fit_loo,
                  model001_fit_loo)
@@ -1929,7 +1925,7 @@ loo::loo_compare(model008_fit_loo,
                  model002_fit_loo, # one learning rate
                  model004_fit_loo, # 2 learning rates no invlogit
                  model005_fit_loo, # block arousal slope
-                 # model006_fit_loo, # block centered-arousal slope 
+                 model006_fit_loo, # block centered-arousal slope
                  model007_fit_loo) # block arousal, expectancy, and arousal-expectancy slope
 
 loo::loo_model_weights(list(model008_fit_loo,
@@ -1957,7 +1953,8 @@ Oz_fft_df %>%
   summarise(mean_elpd_1_minus_3 = mean(elpd_1_minus_3),
             mean_se = plotrix::std.error(elpd_1_minus_3),
             sum_elpd_1_minus_3 = sum(elpd_1_minus_3),
-            sum_se = var(elpd_1_minus_3) * sqrt(n())) %>% 
+            sum_se = sqrt(var(elpd_1_minus_3) * n())) %>% 
+            # sum_se = var(elpd_1_minus_3) * sqrt(n())) %>% 
   mutate(exp_mean = exp(-1*mean_elpd_1_minus_3)) %>% 
   print(n = 999)
 
@@ -1970,8 +1967,8 @@ loo_par_dot_size <- .8
 loo_par_range_linewidth <- 1.5
 loo_figure_text <-20
 
-negative_y <- -20
-positive_y <- 5
+negative_y <- -22.75
+positive_y <- 7.5
 arrow_line_width <- 1
 arrow_size <- .5
 
@@ -1986,7 +1983,9 @@ CV_by_cue_by_block_plot <-
   summarise(mean_elpd_1_minus_3 = mean(elpd_1_minus_3),
             mean_se = plotrix::std.error(elpd_1_minus_3),
             sum_elpd_1_minus_3 = sum(elpd_1_minus_3),
-            sum_se = var(elpd_1_minus_3) * sqrt(n())) %>% 
+            sum_se = sqrt(var(elpd_1_minus_3) * n())) %>% 
+            # sum_se = sd(elpd_1_minus_3) * sqrt(n())) %>% 
+            # sum_se = var(elpd_1_minus_3) * sqrt(n())) %>% 
   mutate(sum_better_for_mod3 = sum_elpd_1_minus_3 < 0) %>% 
   ggplot() +
   geom_vline(aes(xintercept = cue),
@@ -2030,7 +2029,7 @@ CV_by_cue_by_block_plot <-
                          "3" = "Acquisition #2",
                          "4" = "Extinction"))) +
     geom_text(data = data.frame(cue = c(2.5),
-                                elpd_value = c(4.5),
+                                elpd_value = c(6.75),
                                 block = c(1,2,3,4),
                                 anno_label = c("Habituation","Acquisition #1","Acquisition #2","Extinction")),
               # aes(x = 2.5, y = .5,
@@ -2043,7 +2042,7 @@ CV_by_cue_by_block_plot <-
               size = 7.5) +
   scale_color_manual(values = c("red1","blue1")) +
   scale_y_continuous(name = "ELPD Model Difference") +
-  coord_cartesian(ylim = c(-19, 4),clip = "off") +
+  coord_cartesian(ylim = c(-21.5, 6.5),clip = "off") +
   scale_x_discrete(name = "Cue",labels = c("CS+", "GS1", "GS2", "GS3")) +
   ggtitle("Cross-Validation Accuracy by Cue and Block") +
   theme_classic() +
@@ -2072,7 +2071,8 @@ CV_by_participant_plot <-
   summarise(mean_elpd_1_minus_3 = mean(elpd_1_minus_3),
             mean_se = plotrix::std.error(elpd_1_minus_3),
             sum_elpd_1_minus_3 = sum(elpd_1_minus_3),
-            sum_se = var(elpd_1_minus_3) * sqrt(n())) %>% 
+            sum_se = sd(elpd_1_minus_3) * sqrt(n())) %>% 
+            # sum_se = var(elpd_1_minus_3) * sqrt(n())) %>% incorrect
   mutate(sum_better_for_mod3 = sum_elpd_1_minus_3 < 0) %>% 
   ggplot() +
   geom_vline(aes(xintercept = participant),
@@ -2089,7 +2089,7 @@ CV_by_participant_plot <-
                   linewidth = loo_par_range_linewidth) +
     annotate(geom = "text", 
              x = 19, 
-             y = -13,
+             y = -15.5,
              label = "Cue by Block\nModel Better",
              family = "Arial",
              color = "red1",
@@ -2097,7 +2097,7 @@ CV_by_participant_plot <-
              size = 12)+
     annotate(geom = "text", 
              x = 19, 
-             y = -17,
+             y = -20,
              label = "Learning\nModel Better",
              family = "Arial",
              color = "blue1",
@@ -2105,9 +2105,9 @@ CV_by_participant_plot <-
              size = 12)+
   scale_color_manual(values = c("red1","blue1")) +
   scale_y_continuous(name = "ELPD Model Difference") +
-  coord_cartesian(ylim = c(-19, 4), , clip = "off") +
+  coord_cartesian(ylim = c(-21.5, 6.5), , clip = "off") +
   scale_x_discrete(name = "Participant") +
-  ggtitle("Cross-Validation Accuracy By Participant") +
+  ggtitle("Cross-Validation Accuracy by Participant") +
   theme_classic() +
   theme(text = element_text(family = text_font,
                             size = loo_figure_text,
@@ -3018,7 +3018,7 @@ loo_R2_cmdstanr <- function(
   # (You need `rdirichlet` or `rudirichlet` from the 'MCMCpack' or 'extraDistr' packages.)
   
   # Number of resamples:
-  nsim <- 4000
+  nsim <- 8000
   
   # Sample Dirichlet weights for N items
   # e.g. from library("extraDistr") => `rdiri(n, alpha)`
@@ -3060,10 +3060,65 @@ model001_log_lik_array <- model001_fit$draws("log_lik", format = "draws_matrix")
 model003_log_lik_array <- model003_fit$draws("log_lik", format = "draws_matrix") 
 model008_log_lik_array <- model008_fit$draws("log_lik", format = "draws_matrix") 
 
+# model001_fit_waic <- loo::waic(model001_log_lik_array)
+# model003_fit_waic <- loo::waic(model003_log_lik_array)
+# model008_fit_waic <- loo::waic(model008_log_lik_array)
+
 model001_predicted_means <- model001_fit$draws("mu_pred", format = "draws_matrix")
 model003_predicted_means <- model003_fit$draws("mu_pred", format = "draws_matrix")
 model008_predicted_means <- model008_fit$draws("mu_pred", format = "draws_matrix")
 
+# Average loo-R2
+model001_loo_r2 <- loo_R2_cmdstanr(
+  observed_data   = gaborgen_stan_list$amplitude,
+  predicted_means = model001_predicted_means,
+  log_lik_matrix  = model001_log_lik_array
+)
+
+model003_loo_r2 <- loo_R2_cmdstanr(
+  observed_data   = gaborgen_stan_list$amplitude,
+  predicted_means = model003_predicted_means,
+  log_lik_matrix  = model003_log_lik_array
+)
+
+model008_loo_r2 <- loo_R2_cmdstanr(
+  observed_data   = gaborgen_stan_list$amplitude,
+  predicted_means = model008_predicted_means,
+  log_lik_matrix  = model008_log_lik_array
+)
+
+avg_loo_r2_per_model <- data.frame(adaptation_loo_r2 = model008_loo_r2,
+                                   cue_by_block_loo_r2 = model001_loo_r2,
+                                   learning_loo_r2 = model003_loo_r2) %>% 
+  mutate(learning_minus_adapt = learning_loo_r2 - adaptation_loo_r2,
+         learning_minus_cue_by_block = learning_loo_r2 - cue_by_block_loo_r2) %>% 
+  pivot_longer(everything()) 
+  
+avg_loo_r2_per_model %>% 
+  filter(grepl("loo_r2",x = name)) %>% 
+  ggplot() +
+  geom_density(aes(color = name, x = value)) +
+  theme_classic()
+
+avg_loo_r2_per_model %>% 
+  filter(grepl("minus",x = name)) %>% 
+  ggplot() +
+  geom_density(aes(color = name, x = value)) +
+  theme_classic()
+  
+avg_loo_r2_per_model %>% 
+  group_by(name) %>% 
+  reframe(median_val = median(value),
+          lower_2.5 = quantile(value, probs = .025),
+          upper_97.5 = quantile(value, probs = .975))
+
+avg_loo_r2_per_model %>% 
+  group_by(name) %>% 
+  reframe(percent_above_zero = sum(value > 0) / n() )
+
+
+
+# by participant
 loo_r2_df <- data.frame("participant" = integer(),
                         "model" = character(),
                         "loo_r2" = numeric())
@@ -3351,7 +3406,7 @@ scaling_plot <-  model003_df %>%
            family = "Arial",
            color = cue_color[4],
            size = 13) +
-  coord_cartesian(ylim = c(0, 5.1),
+  coord_cartesian(ylim = c(0, 5.15),
                   xlim = c(-.575, 1.25),
                   expand = F) +
   scale_color_manual(values = cue_color) +
@@ -3583,6 +3638,7 @@ box_ymin <- 7
 Oz_fft_df <- Oz_fft_df %>% 
   group_by(participant) %>% 
   mutate(zamp = scale(amplitude_15Hz_fft) %>% as.vector()) %>% 
+  # mutate(zamp = scale(amplitude_15Hz_sliding_window_fft_upsampled_600Hz) %>% as.vector()) %>% 
   ungroup()
 
 GM_cue_trial_df <- Oz_fft_df %>% 
@@ -5828,7 +5884,7 @@ Oz_fft_df %>%
   ggplot() +
   geom_abline(aes(intercept = 0, slope = 1))+
   geom_point(aes(x = model001_elpd,
-                 y = model005_elpd,
+                 y = model003_elpd,
                  color = cue)) +
   scale_color_manual(values = cue_color) +
   theme_classic()
