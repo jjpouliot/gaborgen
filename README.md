@@ -73,8 +73,26 @@ GABORGEN24_DAY2_123
 ## a001fMRI_prepro.R
 This script does the initial preprocessing per participant. It imposes restrictions to force the user to have the data in the correct format and to prevent incorrect analyses. It also forces the user to put their data and local git directory paths at the top of the script. The script forces the use of the tcsh terminal which is recommended for AFNI analyses. The system2 R function is used to force tcsh terminal calls.
 
+### Steps for fMRI preprocessing
+
+- Make sure the raw data are in two locations: 1) connected passport hard-drive (/Volumes/MY_PASSPORT/gaborgen24_eeg_fmri_raw) and dropbox (/Users/andrewfarkas/UFL Dropbox/Andrew Farkas/TwoDayFearConditioning/Data). If not, get the data from the share drive by opening a finder window and click : go > connect to server > smb://ICT-BA1-FS01.AD.UFL.EDU/AMRIS-AMRIS3TS$ > connect > KEil. There you will find the raw fMRI data. EEG and DAT files need to be taken from the EEG presentation and data recording computers.
+
+- After double-checking that the participant is backed up in two locations, you can move that participant folder to the local raw_data folder for processing (/Users/andrewfarkas/research_data/gaborgen/raw_data). The folder structure needs to be how it is described above.
+
+- Open the a001fMRI_prepro.R in RStudio, adjust the top lines as needed to process specific participants or Day1/Day2. The script should run with no problems, so if it fails, double check the structure of folders, paths, necessary tools (dcm2niix, afni, tcsh).
+
+  - The script will save the results to the folder you specify. Each subject will take a few hours and many gigabytes of space. Only a subset of the participants will completely fill your hard drive and you'll run out of space.  
+
+- The quickest way to check the the quality of the data after preprocessing is to open the html file located at GABORGEN24_XXX.results/QC_GABORGEN24_122/index.html. Double-click it to see if everything is lined up correctly, how much movement there was, and if there was a basic visual effect from the cues. Update the excel Mastersheet in the fMRI_preprocessing tab based on if the participant looks like they have useable data or not.
+
+- Now back up the results. Take the massive preprocessed results folder, and the logs (the files that start with output.proc and proc) and put those in the AFNI_results folder (/Users/andrewfarkas/UFL Dropbox/Andrew Farkas/TwoDayFearConditioning/AFNI_results_andrewf). The folder is so large that we cannot back it up locally, but this is okay. The most important thing is that there are multiple backups of the raw data because the preprocessed results can always be regenerated. So that is why it is so important to have the raw data backed up on the dropbox and local hard drive. Andrew also has a copy of the raw data. 
+
+- Lastly, move the nifti, json, BRIK, and HEAD files into the raw data folder for each participant. This will help with data reporting later, because since the software update, we no longer get individual folder for each scan.
+
+
+
 ## PREPRO_gaborgen_FinalVersion
-This script does the initial preprocessing per participant. 
+This script does the initial preprocessing per participant.
 It imposes restrictions to force the user to have the data in the correct format and to prevent incorrect analyses.
 This script save one output for each step in the participant's folder
 

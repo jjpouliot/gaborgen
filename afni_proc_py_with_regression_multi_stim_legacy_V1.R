@@ -2,6 +2,43 @@ setwd(where_results_should_be_saved)
 
 for(directory_index in 1:length(participant_directories)) {
   
+  # current_participant_found_structural_directories <- list.files(
+  #   paste0(participant_directories[directory_index],'/fMRI'),
+  #   pattern = 'T1_MPRAGE_SAG_P2_ISO', full.names = T)
+  # 
+  # current_structural_directory <- 
+  #   current_participant_found_structural_directories[
+  #     which.max(as.numeric(
+  #       sub(".*?(\\d+)$", "\\1", 
+  #           current_participant_found_structural_directories)))]
+  # 
+  # current_participant_found_functional_directories <- list.files(
+  #   paste0(participant_directories[directory_index],'/fMRI'),
+  #   pattern = 'BOLD-EPI-CMRR-2S', full.names = T)
+  # 
+  # current_functional_directory <- current_participant_found_functional_directories[
+  #   which.max(as.numeric(
+  #     sub(".*?(\\d+)$", "\\1", 
+  #         current_participant_found_functional_directories)))]
+  # 
+  # current_participant_found_blip_forward <- list.files(
+  #   paste0(participant_directories[directory_index],'/fMRI'),
+  #   pattern = 'CMMR-DISTMAP_AP', full.names = T)
+  # 
+  # current_blip_forward_directory <- current_participant_found_blip_forward[
+  #   which.max(as.numeric(
+  #     sub(".*?(\\d+)$", "\\1", 
+  #         current_participant_found_blip_forward)))]
+  # 
+  # current_participant_found_blip_reverse <- list.files(
+  #   paste0(participant_directories[directory_index],'/fMRI'),
+  #   pattern = 'CMMR-DISTMAP_PA', full.names = T)
+  # 
+  # current_blip_reverse_directory <- current_participant_found_blip_reverse[
+  #   which.max(as.numeric(
+  #     sub(".*?(\\d+)$", "\\1", 
+  #         current_participant_found_blip_reverse)))]
+  
   current_structural_path <- list.files(paste0(participant_directories[directory_index], "/fMRI"), 
                                         pattern = '^ANAT_DEOB.*HEAD$',
                                         full.names = T)

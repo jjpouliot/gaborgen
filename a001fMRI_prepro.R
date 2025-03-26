@@ -22,7 +22,13 @@ if(!file.exists(where_results_should_be_saved)){
 }
 
 ## Put the participant ID numbers that you would like to preprocess (eg c(118,119))
-participants_to_preprocess <- c(118)
+# participants_to_preprocess <- c(101:103,106:130, 135:136)
+participants_to_preprocess <- c(145)
+
+## Which days should be processed
+# days_to_preprocess <- c(1)
+# days_to_preprocess <- c(2)
+days_to_preprocess <- c(1,2)
 
 # End of user input ####
 
@@ -72,7 +78,7 @@ if (number_of_found_locations > 1) {
 participant_directories <- c()
 for (participant_index in 1:length(participants_to_preprocess)) {
   
-  if (participants_to_preprocess[participant_index] < 123) {
+  if (participants_to_preprocess[participant_index] < 123 & 1 %in% days_to_preprocess) {
     
     participant_directories <- c(participant_directories,
                                  paste0(data_directory,
@@ -82,11 +88,13 @@ for (participant_index in 1:length(participants_to_preprocess)) {
     
   } else if (participants_to_preprocess[participant_index] >= 123) {
     
+    
+    
     participant_directories <- c(participant_directories,
                                  paste0(data_directory,
-                                        c('/GABORGEN24_DAY1_',
-                                          '/GABORGEN24_DAY2_'
-                                          ), 
+                                        '/GABORGEN24_DAY',
+                                        days_to_preprocess,
+                                        '_',
                                         participants_to_preprocess[
                                           participant_index]))
     
