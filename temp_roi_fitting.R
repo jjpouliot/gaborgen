@@ -2,14 +2,21 @@ library(tidyverse)
 library(cmdstanr)
 library(signal)
 
+# we recommend running this in a fresh R session or restarting your current session
+# install.packages("cmdstanr", repos = c('https://stan-dev.r-universe.dev', getOption("repos")))
 
+
+# 145
 roi_df <- read_delim(
-  '/home/andrewf/Downloads/stan_data/roi_stats.txt',
+  '/home/andrew/Downloads/stan_data/145_first_attempt/roi_stats.txt',
   trim_ws = T
 )
-roi_key <- read_delim('/home/andrewf/Downloads/stan_data/HCPex_SUIT_labels.txt')
+roi_key <- read_delim('/home/andrew/Downloads/stan_data/145_first_attempt/HCPex_SUIT_labels.txt')
+
+colnames(roi_key) <- c("roi_id", "roi")
+
 design_matrix <- read_delim(
-  '/home/andrewf/Downloads/stan_data/X.nocensor.xmat.1D',
+  '/home/andrew/Downloads/stan_data/145_first_attempt/X.nocensor.xmat.1D',
   skip = 64,
   col_names = F
 )
@@ -21,7 +28,7 @@ design_matrix <- design_matrix[
 design_matrix$X2 <- as.numeric(design_matrix$X2)
 
 censor_info <- read_delim(
-  '/home/andrewf/Downloads/stan_data/censor_GABORGEN24_DAY1_145_combined_2.1D',
+  '/home/andrew/Downloads/stan_data/145_first_attempt/censor_GABORGEN24_DAY1_145_combined_2.1D',
   col_names = F
 )[[2]]
 
@@ -45,6 +52,104 @@ fmri_stan_list$n_censor <- 1070 - length(fmri_stan_list$censor)
 fmri_stan_list$design_matrix <- design_matrix
 
 fmri_stan_list$n_DM_cols <- ncol(fmri_stan_list$design_matrix)
+
+
+# add more to list
+
+participant_dir <- c("/home/andrew/Downloads/stan_data/")
+
+participant_ids <- c("145", "149")
+
+bold_per_roi_df <- data.frame("par" = numeric(),
+                              "roi" = character(),
+                              "roi_id" = numeric(),
+                              "seconds" = numeric(),
+                              "censor" = numeric(),
+                              "bold" = numeric())
+
+
+for(i in 1:length(participant_ids)) {
+
+  
+  
+  participant_files <- list.files(
+    path = participant_dir, 
+    pattern = participant_ids[i],
+    recursive = T,
+    full.names = T,
+    include.dirs = F)
+  
+  bold_text_file <- participant_files[grepl(x = participant_files,pattern = "roi" )]
+  
+  all_bold <- read_delim(
+    bold_text_file,
+    trim_ws = T
+  )
+  
+  censor_info <- 
+  
+  # why are there extra areas that are not in the key?
+  long_mean_bold <- all_bold %>%
+    mutate(time = seq(0, 1069*2, by = 2)) %>% 
+    pivot_longer(cols = contains("NZMEAN_")) %>%
+    select(name,time, value) %>% 
+    mutate(roi_id = sub(pattern = "NZMean_", replacement = "", x = name),
+           par = participant_ids[i]) %>% 
+    rename("raw_bold" = value) %>% 
+    merge(x  = ., y = roi_key,
+          by.x = "roi_id", by.y = "roi_id")
+  
+  current_bold_per_roi_df <- data.frame("par" = long_mean_bold$par,
+                                        "roi" = long_mean_bold$roi,
+                                        "roi_id" = long_mean_bold$roi_id,
+                                        "time_sec" = long_mean_bold$time,
+                                        "censor" = long,
+                                        "bold" = numeric())
+  current_bold_per_roi_df$par <- long_mean_bold$par
+  current_bold_per_roi_df$roi <-  long_mean_bold$roi
+  current_bold_per_roi_df$roi_id <-  long_mean_bold$roi_id
+  
+ bold_per_roi_df$
+  
+  roi_df <- read_delim(
+    '/home/andrew/Downloads/stan_data/145_first_attempt/roi_stats.txt',
+    trim_ws = T
+  )
+
+  design_matrix <- design_matrix[
+    1:(nrow(design_matrix) - 1),
+    2:ncol(design_matrix)
+  ]
+  
+  design_matrix$X2 <- as.numeric(design_matrix$X2)
+  
+  censor_info <- read_delim(
+    '/home/andrew/Downloads/stan_data/145_first_attempt/censor_GABORGEN24_DAY1_145_combined_2.1D',
+    col_names = F
+  )[[2]]
+  
+  fmri_stan_list <- list()
+  
+  fmri_stan_list$n_participants <- 1
+  fmri_stan_list$n_ROIs <- 1
+  
+  # 69 = Anterior_Ventral_Insular_Area_L
+  fmri_stan_list$amplitude_no_censor <- roi_df %>%
+    select(paste0("Mean_", 69)) %>%
+    pull()
+  
+  fmri_stan_list$censor <- c(1:1070)[censor_info == 1]
+  
+  fmri_stan_list$n_amplitude <- fmri_stan_list$amplitude_no_censor %>%
+    length()
+  
+  fmri_stan_list$n_censor <- 1070 - length(fmri_stan_list$censor)
+  
+  fmri_stan_list$design_matrix <- design_matrix
+  
+  fmri_stan_list$n_DM_cols <- ncol(fmri_stan_list$design_matrix)
+  
+}
 
 
 # Stan settings
