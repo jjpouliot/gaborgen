@@ -6,6 +6,9 @@ library(signal)
 # install.packages("cmdstanr", repos = c('https://stan-dev.r-universe.dev', getOption("repos")))
 
 
+highpass <- butter(n = 5, W = 0.026, type = "high")
+
+
 # 145
 roi_df <- read_delim(
   '/home/andrew/Downloads/stan_data/145_first_attempt/roi_stats.txt',
@@ -49,7 +52,10 @@ fmri_stan_list$n_amplitude <- fmri_stan_list$amplitude_no_censor %>%
 
 fmri_stan_list$n_censor <- 1070 - length(fmri_stan_list$censor)
 
-fmri_stan_list$design_matrix <- design_matrix
+# fmri_stan_list$design_matrix <- design_matrix
+
+#no polort high-pass
+fmri_stan_list$design_matrix <- design_matrix[, 17:ncol(design_matrix)]
 
 fmri_stan_list$n_DM_cols <- ncol(fmri_stan_list$design_matrix)
 
@@ -145,18 +151,22 @@ for(i in 1:length(participant_ids)) {
   
   fmri_stan_list$n_censor <- 1070 - length(fmri_stan_list$censor)
   
-  fmri_stan_list$design_matrix <- design_matrix
+  #no polort high-pass
+  fmri_stan_list$design_matrix <- design_matrix[, 17:ncol(design_matrix)]
+  # fmri_stan_list$design_matrix <- design_matrix
   
   fmri_stan_list$n_DM_cols <- ncol(fmri_stan_list$design_matrix)
   
 }
 
 
-# Stan settings
-number_of_chains <- 4
-warmup_samples_per_chain <- 1000
-posterior_samples_per_chain <- 1000
-where_to_save_chains <- '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains'
+# Stan settings ####
+number_of_chains <- 16
+warmup_samples_per_chain <- 200
+posterior_samples_per_chain <- 200
+where_to_save_chains <- '/home/andrew/Documents/stan_chains_ssd/'
+# where_to_save_chains <- '/run/media/andrew/Barracuda_8tb/stan_chains/'
+# where_to_save_chains <- '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains'
 
 model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model001.stan'
 
@@ -165,7 +175,7 @@ model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model001.sta
 model001 <- cmdstanr::cmdstan_model(
   stan_file = model_path,
   force_recompile = T,
-  cpp_options = list(stan_threads = TRUE)
+  cpp_options = list(stan_threads = TRUE, stan_opencl = TRUE)
 )
 
 model001_fit <- model001$sample(
@@ -234,7 +244,7 @@ data.frame(
   ) +
   theme_classic()
 
-
+## most current list ####
 fmri_stan_list <- list()
 
 fmri_stan_list$n_participants <- 1
@@ -311,30 +321,32 @@ model002_fit_relevant_parameters <- model002_fit_meta_data$model_params[
 model002_fit_summary <-
   model002_fit$summary(variables = model002_fit_relevant_parameters)
 
-
-model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model003.stan'
+# Model 3 ####
+model_path <- '~/Documents/GitHub/gaborgen/stan_models/fMRI/Model003.stan'
+# model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model003.stan'
 
 
 # Fit models
 model003 <- cmdstanr::cmdstan_model(
   stan_file = model_path,
   force_recompile = T,
-  cpp_options = list(stan_threads = TRUE)
+  cpp_options = list(stan_threads = TRUE,stan_opencl = TRUE)
 )
 
-# model003_fit <- model003$sample(
-#   data = fmri_stan_list,
-#   refresh = 50,
-#   seed = 3,
-#   threads_per_chain = 2,
-#   iter_warmup = warmup_samples_per_chain,
-#   iter_sampling = posterior_samples_per_chain,
-#   save_warmup = T,
-#   show_messages = T,
-#   output_dir = where_to_save_chains,
-#   chains = number_of_chains,
-#   parallel_chains = number_of_chains
-# )
+model003_fit <- model003$sample(
+  data = fmri_stan_list,
+  refresh = 50,
+  seed = 3,
+  threads_per_chain = 1,
+  iter_warmup = warmup_samples_per_chain,
+  iter_sampling = posterior_samples_per_chain,
+  save_warmup = T,
+  show_messages = T,
+  opencl_ids = c(0, 0),
+  output_dir = where_to_save_chains,
+  chains = number_of_chains,
+  parallel_chains = number_of_chains
+)
 
 # model003_fit <- model003$optimize(
 #   data = fmri_stan_list,
@@ -362,6 +374,30 @@ model003_fit_relevant_parameters <- model003_fit_meta_data$model_params[
 
 model003_fit_summary <-
   model003_fit$summary(variables = model003_fit_relevant_parameters)
+
+
+model003_draws_array <- model003_fit$draws()
+
+# even though it converges anyway, now can get convergence with 15 samples
+posterior::rhat_nested(posterior::extract_variable_matrix(
+  model003_fit,variable = c("lp__"))[1:15,], 
+                       superchain_ids = c(1, 
+                                          1, 
+                                          1, 
+                                          1, 
+                                          2, 
+                                          2, 
+                                          2, 
+                                          2,
+                                          3, 
+                                          3, 
+                                          3, 
+                                          3,
+                                          4, 
+                                          4, 
+                                          4, 
+                                          4))
+
 
 model003_draws <- model003_fit$draws(format = "df")
 
@@ -464,6 +500,128 @@ model003_plot_betas_df %>%
   geom_density(aes(color = cue, x = value)) +
   facet_wrap(~phase, ncol = 1) +
   theme_classic()
+
+
+
+# Model 6:3 but faster ####
+model_path <- '~/Documents/GitHub/gaborgen/stan_models/fMRI/Model006.stan'
+# model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model003.stan'
+
+
+# Fit models
+model006 <- cmdstanr::cmdstan_model(
+  stan_file = model_path,
+  force_recompile = T,
+  cpp_options = list(stan_threads = TRUE,stan_opencl = TRUE)
+)
+
+model006_fit <- model006$sample(
+  data = fmri_stan_list,
+  refresh = 50,
+  seed = 3,
+  threads_per_chain = 1,
+  iter_warmup = warmup_samples_per_chain,
+  iter_sampling = posterior_samples_per_chain,
+  save_warmup = T,
+  show_messages = T,
+  opencl_ids = c(0, 0),
+  output_dir = where_to_save_chains,
+  chains = 4,
+  parallel_chains = 4
+)
+
+# Model 7:3 but faster ####
+model_path <- '~/Documents/GitHub/gaborgen/stan_models/fMRI/Model007.stan'
+# model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model003.stan'
+
+
+# Fit models
+model007 <- cmdstanr::cmdstan_model(
+  stan_file = model_path,
+  force_recompile = T,
+  cpp_options = list(stan_threads = TRUE,stan_opencl = TRUE)
+)
+
+model007_fit <- model007$sample(
+  data = fmri_stan_list,
+  refresh = 50,
+  seed = 3,
+  threads_per_chain = 1,
+  iter_warmup = warmup_samples_per_chain,
+  iter_sampling = posterior_samples_per_chain,
+  save_warmup = T,
+  show_messages = T,
+  opencl_ids = c(0, 0),
+  output_dir = where_to_save_chains,
+  chains = 4,
+  parallel_chains = 4
+)
+
+
+model007_fit_meta_data <- model007_fit$metadata()
+
+model007_fit_relevant_parameters <- model007_fit_meta_data$model_params[
+  !str_detect(model007_fit_meta_data$model_params, "log_lik|amp|Cov|Cor|D|Mu")
+]
+
+model007_fit_summary <-
+  model007_fit$summary(variables = model007_fit_relevant_parameters)
+
+# Model 8:3 but f-aster ####
+model_path <- '~/Documents/GitHub/gaborgen/stan_models/fMRI/Model008.stan'
+# model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model003.stan'
+
+
+# Fit models
+model008 <- cmdstanr::cmdstan_model(
+  stan_file = model_path,
+  force_recompile = T,
+  cpp_options = list(stan_threads = TRUE,stan_opencl = TRUE)
+)
+
+model008_fit <- model008$sample(
+  data = fmri_stan_list,
+  refresh = 50,
+  seed = 3,
+  threads_per_chain = 1,
+  iter_warmup = warmup_samples_per_chain,
+  iter_sampling = posterior_samples_per_chain,
+  save_warmup = T,
+  show_messages = T,
+  opencl_ids = c(0, 0),
+  output_dir = where_to_save_chains,
+  chains = 4,
+  parallel_chains = 4
+)
+
+# model003_fit <- model003$optimize(
+#   data = fmri_stan_list,
+#   refresh = 50,
+#   seed = 3,
+#   thread = 8,
+#   jacobian = T,
+#   iter = 10000
+#   # iter_warmup = warmup_samples_per_chain,
+#   # iter_sampling = posterior_samples_per_chain,
+#   # save_warmup = F,
+#   # show_messages = T,
+#   # output_dir = where_to_save_chains,
+#   # chains = number_of_chains,
+#   # parallel_chains = number_of_chains
+# )
+
+# save(model003_fit, file = '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/model003_fmri_fit.RData')
+
+model003_fit_meta_data <- model003_fit$metadata()
+
+model003_fit_relevant_parameters <- model003_fit_meta_data$model_params[
+  !str_detect(model003_fit_meta_data$model_params, "log_lik|amp|Cov|Cor|D")
+]
+
+model003_fit_summary <-
+  model003_fit$summary(variables = model003_fit_relevant_parameters)
+
+
 
 
 # Try faster latent correlation

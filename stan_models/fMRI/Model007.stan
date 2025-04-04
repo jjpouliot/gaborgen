@@ -40,7 +40,7 @@ parameters {
   real delta_raw;
   real rho_raw;
   vector[n_DM_cols] Betas; //intercept 
-  vector[1070-n_censor] alpha;
+  // vector[1070-n_censor] alpha;
 }
 
 transformed parameters {
@@ -52,18 +52,16 @@ transformed parameters {
   real delta = inv_logit(delta_raw * 1.75);
   real rho = inv_logit(rho_raw * 1.75);
 
-  matrix[1070,1070] Cor;
+  matrix[1070,1070] Cov;
   
-  Cor = add_diag((delta .* zero_diag_matrix),1) .* (rho .^ rho_power_matrix);
+  Cov = pow(sigma, 2) .* add_diag((delta .* zero_diag_matrix),1) .* (rho .^ rho_power_matrix);
   
-  matrix[1070 - n_censor, 1070 - n_censor] Cor_censor = Cor[censor, censor];
+  matrix[1070 - n_censor, 1070 - n_censor] Cov_censor = Cov[censor, censor];
   
-  matrix[1070 - n_censor, 1070 - n_censor] L_Cor_censor = cholesky_decompose(Cor_censor);
-  
+  matrix[1070 - n_censor, 1070 - n_censor] L_Cov_censor = cholesky_decompose(Cov_censor);
   
 
-  vector[rows(DM_censored)] Mu = (DM_censored * Betas) + // matrix[n,p] times vector[p] = vector [p]
-                           rep_vector(sigma, 1070 - n_censor) .* (L_Cor_censor * alpha); 
+  vector[rows(DM_censored)] Mu = (DM_censored * Betas); 
 
 }
 
@@ -81,9 +79,12 @@ model {
   delta_raw ~ std_normal();
   rho_raw ~ std_normal();
   Betas ~ std_normal();
-  alpha ~ std_normal();
+  // alpha ~ std_normal();
   
-  amplitude ~ normal(Mu, 1);
+  
+  amplitude ~ multi_normal_cholesky(Mu, L_Cov_censor);
+  
+  // amplitude ~ normal(Mu, 1);
 
   // sigma ~ normal(0,.5);
   // delta_raw ~ normal(0,1.75);
