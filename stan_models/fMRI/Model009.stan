@@ -1,17 +1,19 @@
 data {
-  int<lower=0> n_amplitude;
+  int<lower=0> n_bold;
   int<lower=0> n_censor;
+  int<lower=0> n_par;
+  int<lower=0> n_roi;
   int<lower=0> n_DM_cols; 
 
   matrix[1070, n_DM_cols] design_matrix;
-  vector[n_amplitude] amplitude_no_censor;
-  array[n_amplitude - n_censor] int censor;
+  array[n_par, n_roi] vector[n_bold] bold;
+  array[n_par, n_roi, n_bold] int censor;
 }
 
 transformed data {
   matrix[1070 - n_censor, n_DM_cols] DM_censored = design_matrix[censor,];
 
-  vector[n_amplitude - n_censor] amplitude = amplitude_no_censor[censor];
+  vector[n_bold - n_censor] amplitude = amplitude_no_censor[censor];
   
   matrix[1070,1070] rho_power_matrix;
 
@@ -102,7 +104,7 @@ transformed parameters {
   // map_rect here?
   array[n_par, n_roi] vector[rows(DM_censored)] Mu; 
   array [n_par, n_roi] matrix[1070, 1070] Cov_time;
-  array [n_par, n_roi] [1070, 1070] L_time; // have to pass in censor at some point
+  array [n_par, n_roi] matrix [1070, 1070] L_time; // have to pass in censor at some point
   
   for (p in 1:n_par) {
     for (r in 1:n_roi) {
@@ -127,7 +129,6 @@ model {
   
   
   // multilevel priors
-  tau
   for(p in 1:n_participants) {
     // capturing correlations between rois per participant
     // should I be taking raw variants here?
