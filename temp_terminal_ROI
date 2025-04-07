@@ -1,10 +1,15 @@
-3dresample -master pb05.GABORGEN24_123.r01.scale+tlrc \
+3dresample -master pb05.GABORGEN24_DAY1_145.r01.scale+tlrc \
            -inset HCPex_SUIT_atlas.nii.gz \
            -prefix HCPex_SUIT_func_mask.nii.gz
 
 
 
-3dROIstats -mask HCPex_SUIT_func_mask.nii.gz -nzmean -median -sigma pb05.GABORGEN24_123.r01.scale+tlrc > roi_stats.txt
+3dROIstats -mask HCPex_SUIT_func_mask.nii.gz -nzmean -median pb05.GABORGEN24_DAY1_145.r01.scale+tlrc > roi_stats.txt
+
+
+3dROIstats -mask HCPex_SUIT_func_mask.nii.gz -nzmean -median pb05.GABORGEN24_DAY1_149.r01.scale+tlrc > 149_roi_stats.txt
+3dROIstats -mask HCPex_SUIT_func_mask.nii.gz -nzmean -median pb05.GABORGEN24_DAY1_152.r01.scale+tlrc > 152_roi_stats.txt
+3dROIstats -mask HCPex_SUIT_func_mask.nii.gz -nzmean -median pb05.GABORGEN24_DAY1_154.r01.scale+tlrc > 154_roi_stats.txt
 
 
 

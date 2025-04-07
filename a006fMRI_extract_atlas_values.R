@@ -1,3 +1,19 @@
+data_location <- '/Users/andrewfarkas/UFL Dropbox/Andrew Farkas/TwoDayFearConditioning/AFNI_results_andrewf/results'
+where_to_copy <- '/Users/andrewfarkas/research_data/gaborgen/temp_analyses/ROI_folder'
+
+# copy design matrices
+full_design_matrix_paths <- list.files(path = data_location, pattern = 'X.nocensor.xmat.1D$', recursive = T)
+
+full_design_matrix_new_names <- sub(replacement = "_", pattern = "/", x = full_design_matrix_paths)
+
+file.copy(from = full_design_matrix_paths,to = paste0(where_to_copy, "/", full_design_matrix_new_names))
+
+# copy censor info
+censor_info_paths <- list.files(path = data_location, pattern = 'combined_2.1D$', recursive = T)
+
+file.copy(from = censor_info_paths, to = paste0(where_to_copy, "/", censor_info_paths))
+
+
 ## Add where your local git repository is ####
 known_gaborgen_local_gits <- c('~/Documents/GitHub/gaborgen',
                                '/blue/akeil/andrew.farkas/gaborgen24_eeg_fmri/code_repository/gaborgen')
