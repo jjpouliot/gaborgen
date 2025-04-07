@@ -1164,504 +1164,448 @@ Warning: Dropping 'draws_df' class as required metadata was removed.</code></pre
 <section id="model-s3-arousal-ratings-per-cue-and-block" class="level2">
 <h2 class="anchored" data-anchor-id="model-s3-arousal-ratings-per-cue-and-block">Model S3: Arousal ratings per cue and block</h2>
 <p>The experiment collects ratings for each cue at the end of each block. This includes valence and arousal from 0 to 10 (integers), and expectancy of shock (0 to 100%; increments of 10). As the cues get paired with shocks, it is expected the ssVEP amplitude will increase with arousal ratings for the CS+. To test this, the ratings per participant were used as a predictor of ssVEP amplitude in conjunction with the adaption effect. The first model uses the arousal rating at the end of each block as an effect added linearly to each trial. This is done to prevent sharp shifts and to provide an intercept when shifting from one block to the next.The complete Stan model (excluding adaptions priors) code is presented here:</p>
-<div class="sourceCode" id="cb40"><pre class="sourceCode stan code-with-copy"><code class="sourceCode stan"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> {</span>
-<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span>&lt;<span class="kw">lower</span>=<span class="dv">0</span>&gt; n;</span>
-<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span>&lt;<span class="kw">lower</span>=<span class="dv">0</span>&gt; n_observations;</span>
-<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span>&lt;<span class="kw">lower</span>=<span class="dv">0</span>&gt; n_missing;</span>
-<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span>&lt;<span class="kw">lower</span>=<span class="dv">0</span>&gt; n_participants;</span>
-<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span>&lt;<span class="kw">lower</span>=<span class="dv">0</span>&gt; n_trials; </span>
-<span id="cb40-7"><a href="#cb40-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span>&lt;<span class="kw">lower</span>=<span class="dv">0</span>&gt; n_phases;</span>
-<span id="cb40-8"><a href="#cb40-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span>&lt;<span class="kw">lower</span>=<span class="dv">0</span>&gt; n_blocks;</span>
-<span id="cb40-9"><a href="#cb40-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span>&lt;<span class="kw">lower</span>=<span class="dv">0</span>&gt; n_cues;</span>
-<span id="cb40-10"><a href="#cb40-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-11"><a href="#cb40-11" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n_observations] <span class="dt">real</span> amplitude;</span>
-<span id="cb40-12"><a href="#cb40-12" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n] <span class="dt">int</span> participant;</span>
-<span id="cb40-13"><a href="#cb40-13" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n] <span class="dt">int</span> phase;</span>
-<span id="cb40-14"><a href="#cb40-14" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n] <span class="dt">int</span> cue;</span>
-<span id="cb40-15"><a href="#cb40-15" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n] <span class="dt">int</span> trial;</span>
-<span id="cb40-16"><a href="#cb40-16" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n] <span class="dt">int</span> cue_trial_count;</span>
-<span id="cb40-17"><a href="#cb40-17" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n] <span class="dt">int</span> phase_trial_count;</span>
-<span id="cb40-18"><a href="#cb40-18" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n] <span class="dt">int</span> block_trial_count;</span>
-<span id="cb40-19"><a href="#cb40-19" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n_participants, n_blocks, n_cues] <span class="dt">real</span> arousal_pbc_centered;</span>
-<span id="cb40-20"><a href="#cb40-20" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n_participants, n_blocks, n_cues] <span class="dt">real</span> arousal_pbc;</span>
-<span id="cb40-21"><a href="#cb40-21" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n] <span class="dt">int</span> block;</span>
-<span id="cb40-22"><a href="#cb40-22" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n] <span class="dt">int</span> &lt;<span class="kw">lower</span>=<span class="dv">0</span>, <span class="kw">upper</span>=<span class="dv">1</span>&gt; paired;</span>
-<span id="cb40-23"><a href="#cb40-23" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n_observations] <span class="dt">int</span>&lt;<span class="kw">lower</span>=<span class="dv">1</span>, <span class="kw">upper</span>=n_observations + n_missing&gt; indices_observed;</span>
-<span id="cb40-24"><a href="#cb40-24" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n_missing] <span class="dt">int</span>&lt;<span class="kw">lower</span>=<span class="dv">1</span>, <span class="kw">upper</span>=n_observations + n_missing&gt; indices_missing;</span>
-<span id="cb40-25"><a href="#cb40-25" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb40-26"><a href="#cb40-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-27"><a href="#cb40-27" aria-hidden="true" tabindex="-1"></a><span class="kw">parameters</span> {</span>
-<span id="cb40-28"><a href="#cb40-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-29"><a href="#cb40-29" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span>&lt;<span class="kw">lower</span> = <span class="dv">0</span>&gt; sigma_average; <span class="co">//this won't hug zero so it does not need to be exp() /1</span></span>
-<span id="cb40-30"><a href="#cb40-30" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> sigma_sd_raw; <span class="co">//2</span></span>
-<span id="cb40-31"><a href="#cb40-31" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> intercept_average; <span class="co">//3</span></span>
-<span id="cb40-32"><a href="#cb40-32" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> intercept_sd_raw; <span class="co">//4</span></span>
-<span id="cb40-33"><a href="#cb40-33" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> fatigue_average; <span class="co">//5</span></span>
-<span id="cb40-34"><a href="#cb40-34" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> fatigue_sd_raw; <span class="co">//6</span></span>
-<span id="cb40-35"><a href="#cb40-35" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> intercept_fatigue_corr_raw; <span class="co">//7</span></span>
-<span id="cb40-36"><a href="#cb40-36" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span>&lt;<span class="kw">lower</span>=<span class="dv">0</span>, <span class="kw">upper</span>=<span class="dv">1</span>&gt; learning_paired_average; <span class="co">//8</span></span>
-<span id="cb40-37"><a href="#cb40-37" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span>&lt;<span class="kw">lower</span>=<span class="dv">0</span>, <span class="kw">upper</span>=<span class="dv">1</span>&gt; learning_unpaired_average; <span class="co">//9</span></span>
-<span id="cb40-38"><a href="#cb40-38" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> learning_paired_sd_raw; <span class="co">//10</span></span>
-<span id="cb40-39"><a href="#cb40-39" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> learning_unpaired_sd_raw;  <span class="co">//11</span></span>
-<span id="cb40-40"><a href="#cb40-40" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> scaling_mean;  <span class="co">//12</span></span>
-<span id="cb40-41"><a href="#cb40-41" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> scaling_sd_raw;  <span class="co">//13</span></span>
-<span id="cb40-42"><a href="#cb40-42" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb40-43"><a href="#cb40-43" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n_participants] <span class="dt">real</span>&lt;<span class="kw">lower</span> = <span class="dv">0</span>&gt; sigma; <span class="co">//this won't hug zero so it does not need to be exp() //37 if n_participants is 24</span></span>
-<span id="cb40-44"><a href="#cb40-44" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n_participants] <span class="dt">real</span> intercept; <span class="co">//61</span></span>
-<span id="cb40-45"><a href="#cb40-45" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n_participants] <span class="dt">real</span> fatigue; <span class="co">//85</span></span>
-<span id="cb40-46"><a href="#cb40-46" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n_participants] <span class="dt">real</span>&lt;<span class="kw">lower</span>=<span class="dv">0</span>, <span class="kw">upper</span>=<span class="dv">1</span>&gt; learning_paired; <span class="co">//109</span></span>
-<span id="cb40-47"><a href="#cb40-47" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n_participants] <span class="dt">real</span>&lt;<span class="kw">lower</span>=<span class="dv">0</span>, <span class="kw">upper</span>=<span class="dv">1</span>&gt; learning_unpaired; <span class="co">//133</span></span>
-<span id="cb40-48"><a href="#cb40-48" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n_cues] <span class="dt">real</span> scaling; <span class="co">//137</span></span>
-<span id="cb40-49"><a href="#cb40-49" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n_missing] <span class="dt">real</span> amplitude_missing;</span>
-<span id="cb40-50"><a href="#cb40-50" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb40-51"><a href="#cb40-51" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-52"><a href="#cb40-52" aria-hidden="true" tabindex="-1"></a><span class="kw">transformed parameters</span> {</span>
-<span id="cb40-53"><a href="#cb40-53" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n] <span class="dt">real</span> amplitude_all;</span>
-<span id="cb40-54"><a href="#cb40-54" aria-hidden="true" tabindex="-1"></a>  amplitude_all[indices_observed] = amplitude;</span>
-<span id="cb40-55"><a href="#cb40-55" aria-hidden="true" tabindex="-1"></a>  amplitude_all[indices_missing] = amplitude_missing;</span>
-<span id="cb40-56"><a href="#cb40-56" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb40-57"><a href="#cb40-57" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> sigma_sd = exp(sigma_sd_raw);</span>
-<span id="cb40-58"><a href="#cb40-58" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> intercept_sd = exp(intercept_sd_raw);</span>
-<span id="cb40-59"><a href="#cb40-59" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> fatigue_sd = exp(fatigue_sd_raw);</span>
-<span id="cb40-60"><a href="#cb40-60" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb40-61"><a href="#cb40-61" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> intercept_fatigue_corr = -inv_logit(intercept_fatigue_corr_raw);</span>
-<span id="cb40-62"><a href="#cb40-62" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-63"><a href="#cb40-63" aria-hidden="true" tabindex="-1"></a>  <span class="dt">cov_matrix</span>[<span class="dv">2</span>] Sigma;</span>
-<span id="cb40-64"><a href="#cb40-64" aria-hidden="true" tabindex="-1"></a>  Sigma[<span class="dv">1</span>,<span class="dv">1</span>] = square(intercept_sd);</span>
-<span id="cb40-65"><a href="#cb40-65" aria-hidden="true" tabindex="-1"></a>  Sigma[<span class="dv">2</span>,<span class="dv">2</span>] = square(fatigue_sd);</span>
-<span id="cb40-66"><a href="#cb40-66" aria-hidden="true" tabindex="-1"></a>  Sigma[<span class="dv">1</span>,<span class="dv">2</span>] = intercept_fatigue_corr * intercept_sd * fatigue_sd;</span>
-<span id="cb40-67"><a href="#cb40-67" aria-hidden="true" tabindex="-1"></a>  Sigma[<span class="dv">2</span>,<span class="dv">1</span>] = Sigma[<span class="dv">1</span>,<span class="dv">2</span>];</span>
-<span id="cb40-68"><a href="#cb40-68" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb40-69"><a href="#cb40-69" aria-hidden="true" tabindex="-1"></a>  <span class="dt">matrix</span>[<span class="dv">2</span>,<span class="dv">2</span>] Sigma_L = cholesky_decompose(Sigma);</span>
-<span id="cb40-70"><a href="#cb40-70" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb40-71"><a href="#cb40-71" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> learning_paired_sd = exp(learning_paired_sd_raw);</span>
-<span id="cb40-72"><a href="#cb40-72" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> learning_unpaired_sd = exp(learning_unpaired_sd_raw);</span>
-<span id="cb40-73"><a href="#cb40-73" aria-hidden="true" tabindex="-1"></a>  <span class="dt">real</span> scaling_sd = exp(scaling_sd_raw);</span>
-<span id="cb40-74"><a href="#cb40-74" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb40-75"><a href="#cb40-75" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb40-76"><a href="#cb40-76" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n] <span class="dt">real</span>&lt;<span class="kw">lower</span>=-<span class="fl">0.000001</span>,<span class="kw">upper</span>=<span class="dv">1</span>&gt; CSP_associative_strength;</span>
-<span id="cb40-77"><a href="#cb40-77" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n<span class="dv">-1</span>] <span class="dt">real</span>&lt;<span class="kw">lower</span>=-<span class="dv">1</span>, <span class="kw">upper</span>=<span class="dv">1</span>&gt; CSP_change;</span>
-<span id="cb40-78"><a href="#cb40-78" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-79"><a href="#cb40-79" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Estimate CSP_associative_strength, Rescola Wagner type equation</span></span>
-<span id="cb40-80"><a href="#cb40-80" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span>:(n<span class="dv">-1</span>)) {</span>
-<span id="cb40-81"><a href="#cb40-81" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (phase[i] == <span class="dv">1</span>){ <span class="co">// Habituation phase</span></span>
-<span id="cb40-82"><a href="#cb40-82" aria-hidden="true" tabindex="-1"></a>      CSP_change[i] = <span class="dv">0</span>;</span>
-<span id="cb40-83"><a href="#cb40-83" aria-hidden="true" tabindex="-1"></a>      CSP_associative_strength[i] = <span class="dv">0</span>;</span>
-<span id="cb40-84"><a href="#cb40-84" aria-hidden="true" tabindex="-1"></a>        CSP_associative_strength[i+<span class="dv">1</span>] = fmin(fmax(CSP_associative_strength[i+<span class="dv">1</span>], <span class="fl">0.0</span>), <span class="fl">1.0</span>);</span>
-<span id="cb40-85"><a href="#cb40-85" aria-hidden="true" tabindex="-1"></a>    } <span class="cf">else</span> <span class="cf">if</span> (cue[i] == <span class="dv">1</span> &amp;&amp; phase[i] != <span class="dv">1</span>) {</span>
-<span id="cb40-86"><a href="#cb40-86" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span>(paired[i] == <span class="dv">1</span>){</span>
-<span id="cb40-87"><a href="#cb40-87" aria-hidden="true" tabindex="-1"></a>          CSP_change[i] = learning_paired[participant[i]] * </span>
-<span id="cb40-88"><a href="#cb40-88" aria-hidden="true" tabindex="-1"></a>                          (paired[i] - CSP_associative_strength[i]);</span>
-<span id="cb40-89"><a href="#cb40-89" aria-hidden="true" tabindex="-1"></a>        } <span class="cf">else</span> {</span>
-<span id="cb40-90"><a href="#cb40-90" aria-hidden="true" tabindex="-1"></a>          CSP_change[i] = learning_unpaired[participant[i]] * </span>
-<span id="cb40-91"><a href="#cb40-91" aria-hidden="true" tabindex="-1"></a>                          (paired[i] - CSP_associative_strength[i]);</span>
-<span id="cb40-92"><a href="#cb40-92" aria-hidden="true" tabindex="-1"></a>        }</span>
-<span id="cb40-93"><a href="#cb40-93" aria-hidden="true" tabindex="-1"></a>        CSP_associative_strength[i+<span class="dv">1</span>] = CSP_associative_strength[i] + CSP_change[i];</span>
-<span id="cb40-94"><a href="#cb40-94" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-95"><a href="#cb40-95" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Ensure CSP_associative_strength stays within the bounds</span></span>
-<span id="cb40-96"><a href="#cb40-96" aria-hidden="true" tabindex="-1"></a>        CSP_associative_strength[i+<span class="dv">1</span>] = fmin(fmax(CSP_associative_strength[i+<span class="dv">1</span>], <span class="fl">0.0</span>), <span class="fl">1.0</span>);</span>
-<span id="cb40-97"><a href="#cb40-97" aria-hidden="true" tabindex="-1"></a>    } <span class="cf">else</span> {</span>
-<span id="cb40-98"><a href="#cb40-98" aria-hidden="true" tabindex="-1"></a>       CSP_change[i] = <span class="dv">0</span>;</span>
-<span id="cb40-99"><a href="#cb40-99" aria-hidden="true" tabindex="-1"></a>       CSP_associative_strength[i+<span class="dv">1</span>] = CSP_associative_strength[i];</span>
-<span id="cb40-100"><a href="#cb40-100" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb40-101"><a href="#cb40-101" aria-hidden="true" tabindex="-1"></a>  }  </span>
-<span id="cb40-102"><a href="#cb40-102" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb40-103"><a href="#cb40-103" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-104"><a href="#cb40-104" aria-hidden="true" tabindex="-1"></a><span class="kw">model</span> {</span>
-<span id="cb40-105"><a href="#cb40-105" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Priors</span></span>
-<span id="cb40-106"><a href="#cb40-106" aria-hidden="true" tabindex="-1"></a>  sigma_average ~ normal(<span class="dv">1</span>, <span class="fl">0.5</span>);</span>
-<span id="cb40-107"><a href="#cb40-107" aria-hidden="true" tabindex="-1"></a>  sigma_sd_raw ~ normal(-<span class="dv">3</span>, <span class="dv">1</span>);</span>
-<span id="cb40-108"><a href="#cb40-108" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-109"><a href="#cb40-109" aria-hidden="true" tabindex="-1"></a>  sigma ~ student_t(n_participants<span class="dv">-1</span>, sigma_average, sigma_sd);</span>
-<span id="cb40-110"><a href="#cb40-110" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-111"><a href="#cb40-111" aria-hidden="true" tabindex="-1"></a>  intercept_average ~ normal(<span class="dv">0</span>, <span class="fl">0.75</span>);</span>
-<span id="cb40-112"><a href="#cb40-112" aria-hidden="true" tabindex="-1"></a>  intercept_sd_raw ~ normal(-<span class="dv">1</span>, <span class="dv">1</span>);</span>
-<span id="cb40-113"><a href="#cb40-113" aria-hidden="true" tabindex="-1"></a>  fatigue_average ~ normal(<span class="dv">0</span>, <span class="fl">0.01</span>);</span>
-<span id="cb40-114"><a href="#cb40-114" aria-hidden="true" tabindex="-1"></a>  fatigue_sd_raw ~ normal(-<span class="fl">4.5</span>, <span class="fl">0.75</span>);</span>
-<span id="cb40-115"><a href="#cb40-115" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb40-116"><a href="#cb40-116" aria-hidden="true" tabindex="-1"></a>  intercept_fatigue_corr_raw ~ normal(<span class="dv">0</span>, <span class="fl">1.75</span>); <span class="co">// this creates a roughly uniform distribution, if confused visualize in R with hist(boot::inv.logit(rnorm(5000,0,1.75)))</span></span>
-<span id="cb40-117"><a href="#cb40-117" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb40-118"><a href="#cb40-118" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (p <span class="cf">in</span> <span class="dv">1</span>:n_participants) {</span>
-<span id="cb40-119"><a href="#cb40-119" aria-hidden="true" tabindex="-1"></a>    [intercept[p], fatigue[p]]' ~ multi_student_t_cholesky(n_participants - <span class="dv">1</span>,</span>
-<span id="cb40-120"><a href="#cb40-120" aria-hidden="true" tabindex="-1"></a>                                                           [intercept_average, fatigue_average]',</span>
-<span id="cb40-121"><a href="#cb40-121" aria-hidden="true" tabindex="-1"></a>                                                           Sigma_L);</span>
-<span id="cb40-122"><a href="#cb40-122" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb40-123"><a href="#cb40-123" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-124"><a href="#cb40-124" aria-hidden="true" tabindex="-1"></a>  scaling_mean ~ normal(<span class="dv">0</span>,<span class="dv">1</span>);</span>
-<span id="cb40-125"><a href="#cb40-125" aria-hidden="true" tabindex="-1"></a>  scaling_sd_raw ~ normal(-<span class="fl">0.5</span>,<span class="fl">1.5</span>);</span>
-<span id="cb40-126"><a href="#cb40-126" aria-hidden="true" tabindex="-1"></a>  <span class="co">// scaling_sd_raw ~ normal(-0.5,1);</span></span>
-<span id="cb40-127"><a href="#cb40-127" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (q <span class="cf">in</span> <span class="dv">1</span>:n_cues) {</span>
-<span id="cb40-128"><a href="#cb40-128" aria-hidden="true" tabindex="-1"></a>    scaling[q] ~ student_t(n_cues<span class="dv">-1</span>, scaling_mean, scaling_sd); </span>
-<span id="cb40-129"><a href="#cb40-129" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb40-130"><a href="#cb40-130" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-131"><a href="#cb40-131" aria-hidden="true" tabindex="-1"></a>  learning_paired_average ~ beta(<span class="fl">1.1</span>, <span class="fl">1.1</span>);</span>
-<span id="cb40-132"><a href="#cb40-132" aria-hidden="true" tabindex="-1"></a>  learning_paired_sd_raw ~ normal(-<span class="fl">0.5</span>,<span class="fl">1.5</span>);</span>
-<span id="cb40-133"><a href="#cb40-133" aria-hidden="true" tabindex="-1"></a>  <span class="co">// learning_paired_sd_raw ~ normal(-0.5,1);</span></span>
-<span id="cb40-134"><a href="#cb40-134" aria-hidden="true" tabindex="-1"></a>  learning_paired ~ student_t(n_participants<span class="dv">-1</span>, </span>
-<span id="cb40-135"><a href="#cb40-135" aria-hidden="true" tabindex="-1"></a>                                  learning_paired_average, </span>
-<span id="cb40-136"><a href="#cb40-136" aria-hidden="true" tabindex="-1"></a>                                  learning_paired_sd); </span>
-<span id="cb40-137"><a href="#cb40-137" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-138"><a href="#cb40-138" aria-hidden="true" tabindex="-1"></a>  learning_unpaired_average ~ beta(<span class="fl">1.1</span>, <span class="fl">1.1</span>);</span>
-<span id="cb40-139"><a href="#cb40-139" aria-hidden="true" tabindex="-1"></a>  learning_unpaired_sd_raw ~ normal(-<span class="fl">0.5</span>,<span class="fl">1.5</span>);</span>
-<span id="cb40-140"><a href="#cb40-140" aria-hidden="true" tabindex="-1"></a>  <span class="co">// learning_unpaired_sd_raw ~ normal(-0.5,1);</span></span>
-<span id="cb40-141"><a href="#cb40-141" aria-hidden="true" tabindex="-1"></a>  learning_unpaired ~ student_t(n_participants<span class="dv">-1</span>, </span>
-<span id="cb40-142"><a href="#cb40-142" aria-hidden="true" tabindex="-1"></a>                                    learning_unpaired_average, </span>
-<span id="cb40-143"><a href="#cb40-143" aria-hidden="true" tabindex="-1"></a>                                    learning_unpaired_sd); </span>
-<span id="cb40-144"><a href="#cb40-144" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-145"><a href="#cb40-145" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-146"><a href="#cb40-146" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Likelihood</span></span>
-<span id="cb40-147"><a href="#cb40-147" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span>:n) {</span>
-<span id="cb40-148"><a href="#cb40-148" aria-hidden="true" tabindex="-1"></a>    <span class="dt">real</span> mu = intercept[participant[i]] +</span>
-<span id="cb40-149"><a href="#cb40-149" aria-hidden="true" tabindex="-1"></a>              (fatigue[participant[i]] * trial[i]) +</span>
-<span id="cb40-150"><a href="#cb40-150" aria-hidden="true" tabindex="-1"></a>              (scaling[cue[i]] * CSP_associative_strength[i]);</span>
-<span id="cb40-151"><a href="#cb40-151" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-152"><a href="#cb40-152" aria-hidden="true" tabindex="-1"></a>    amplitude_all[i] ~ normal(mu, sigma[participant[i]]);</span>
-<span id="cb40-153"><a href="#cb40-153" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb40-154"><a href="#cb40-154" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb40-155"><a href="#cb40-155" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-156"><a href="#cb40-156" aria-hidden="true" tabindex="-1"></a><span class="kw">generated quantities</span> {</span>
-<span id="cb40-157"><a href="#cb40-157" aria-hidden="true" tabindex="-1"></a>  <span class="co">// These mu_pred and log_lik names cannot change</span></span>
-<span id="cb40-158"><a href="#cb40-158" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb40-159"><a href="#cb40-159" aria-hidden="true" tabindex="-1"></a>  <span class="co">// For model predictions</span></span>
-<span id="cb40-160"><a href="#cb40-160" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n_observations] <span class="dt">real</span> mu_pred;</span>
-<span id="cb40-161"><a href="#cb40-161" aria-hidden="true" tabindex="-1"></a>  <span class="co">// This is necessary for cross-validation</span></span>
-<span id="cb40-162"><a href="#cb40-162" aria-hidden="true" tabindex="-1"></a>  <span class="dt">array</span>[n_observations] <span class="dt">real</span> log_lik;</span>
-<span id="cb40-163"><a href="#cb40-163" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb40-164"><a href="#cb40-164" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span>:n_observations) {</span>
-<span id="cb40-165"><a href="#cb40-165" aria-hidden="true" tabindex="-1"></a>    mu_pred[i] = intercept[participant[indices_observed[i]]] +</span>
-<span id="cb40-166"><a href="#cb40-166" aria-hidden="true" tabindex="-1"></a>                 (fatigue[participant[indices_observed[i]]] * trial[indices_observed[i]]) +</span>
-<span id="cb40-167"><a href="#cb40-167" aria-hidden="true" tabindex="-1"></a>                 (scaling[cue[indices_observed[i]]] * CSP_associative_strength[indices_observed[i]]);</span>
-<span id="cb40-168"><a href="#cb40-168" aria-hidden="true" tabindex="-1"></a>                 </span>
-<span id="cb40-169"><a href="#cb40-169" aria-hidden="true" tabindex="-1"></a>    log_lik[i] = normal_lpdf(amplitude[i] | mu_pred[i], sigma[participant[indices_observed[i]]]);</span>
-<span id="cb40-170"><a href="#cb40-170" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb40-171"><a href="#cb40-171" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<!-- $$ -->
-<!-- \begin{gather} -->
-<!-- \huge \text{Likelihood Function} \\ -->
-<!-- \\ -->
-<!-- Amplitude[i] \sim Normal(\mu[i], \sigma[participant[i]])\\ -->
-<!-- \\ -->
-<!-- \Large \text{if block[i] is  1 (habituation):}\\ -->
-<!-- \mu{[i]} = intercept{[participant[i]]} + adaptation[participant[i]] \cdot trial[i] + \beta Arousal[participant[i]] \cdot BlendedArousal[i]\\ -->
-<!-- \\ -->
-<!-- \Large \text{else if cue[i] is CS+ and paired[i] is 1 (US):}\\ -->
-<!-- \Delta CSPStrength[i] = LearningPaired[participant[i]] \cdot (paired[i] - CSPStrength[i]) \tag{30} \\ -->
-<!-- CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{31} \\ -->
-<!-- \\ -->
-<!-- \Large \text{else if cue[i] is CS+ and paired[i] is 0 (no US):}\\ -->
-<!-- \Delta CSPStrength[i] = LearningUnpaired[participant[i]] \cdot (paired[i] - CSPStrength[i]) \tag{32} \\ -->
-<!-- CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{33} \\ -->
-<!-- \\ -->
-<!-- \Large \text{else:}\\ -->
-<!-- \Delta CSPStrength[i] = 0 \tag{34} \\ -->
-<!-- CSPStrength[i + 1] =  CSPStrength[i] \tag{35} \\ -->
-<!-- \end{gather} -->
-<!-- $$ -->
-<p>old below</p>
-<p><span class="math display">\[
-\begin{gather}
-\mu{[i]} = \alpha{[participant[i]]} +(\beta1[participant[i]] \cdot trial[i]) + (\beta Scaling[cue[i] \cdot CSPStrength) \tag{23} \\
-\\
-\text{if Habituation phase:}  \tag{24} \\
-CSPStrength[i] = 0 \tag{25} \\
-\Delta CSPStrength[i] = 0 \tag{26} \\
-CSPStrength[i + 1] = 0 \tag{27} \\
-\\
-\text{else if cue[i] is CS+:}  \tag{28} \\
-\Delta CSPStrength[i] = LearningRate[participant[i]] \cdot (paired[i] - CSPStrength) \tag{29} \\
-CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{30} \\
-\\
-\text{else:}  \tag{31} \\
-\Delta CSPStrength[i] = 0 \tag{32} \\
-CSPStrength[i + 1] =  CSPStrength[i] \tag{33} \\
-\\
-LearningRate = invLogit(LearningRateRaw) \tag{34} \\
-LearningRateRaw \sim StudentT(df = nParticipants-1, \ LearningRateAverageRaw, \ \sigma LearningRate)  \tag{35} \\
-LearningRateAverageRaw \sim Normal(0,1.75) \tag{36} \\
-\sigma LearningRate = exp(\sigma LearningRateRaw) \tag{37} \\
-\sigma LearningRateRaw \sim Normal(0, 2.5) \tag{38} \\
-\end{gather}
-\]</span></p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">0</span>)</span>
-<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>number_of_samples_plot <span class="ot">&lt;-</span> <span class="dv">20000</span></span>
-<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>learn_sd <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(number_of_samples_plot,<span class="dv">0</span>, <span class="fl">2.5</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">exp</span>() <span class="sc">%&gt;%</span> <span class="co"># transform back to correct scale</span></span>
-<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">value =</span> .)</span>
-<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a>learn_sd <span class="sc">%&gt;%</span> </span>
-<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span></span>
-<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_cartesian</span>(<span class="at">xlim =</span> <span class="fu">c</span>(<span class="sc">-</span>.<span class="dv">1</span>,<span class="dv">10</span>),</span>
-<span id="cb41-11"><a href="#cb41-11" aria-hidden="true" tabindex="-1"></a>                  <span class="at">expand =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
-<span id="cb41-12"><a href="#cb41-12" aria-hidden="true" tabindex="-1"></a>  <span class="co"># scale_x_continuous(breaks = seq(0,2, by = .5))+</span></span>
-<span id="cb41-13"><a href="#cb41-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="fu">aes</span>(<span class="at">x =</span> value), <span class="at">bins =</span> <span class="dv">10000</span>) <span class="sc">+</span></span>
-<span id="cb41-14"><a href="#cb41-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># geom_density(aes(x = value), fill = "gray") +</span></span>
-<span id="cb41-15"><a href="#cb41-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_classic</span>() <span class="sc">+</span></span>
-<span id="cb41-16"><a href="#cb41-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.title =</span> <span class="fu">element_blank</span>(),</span>
-<span id="cb41-17"><a href="#cb41-17" aria-hidden="true" tabindex="-1"></a>        <span class="at">axis.text.y =</span> <span class="fu">element_blank</span>(),</span>
-<span id="cb41-18"><a href="#cb41-18" aria-hidden="true" tabindex="-1"></a>        <span class="at">axis.ticks =</span> <span class="fu">element_blank</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>model005_fit<span class="sc">$</span><span class="fu">code</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>  [1] "data {"                                                                                                                                                                   
+  [2] "  int&lt;lower=0&gt; n;"                                                                                                                                                        
+  [3] "  int&lt;lower=0&gt; n_observations;"                                                                                                                                           
+  [4] "  int&lt;lower=0&gt; n_missing;"                                                                                                                                                
+  [5] "  int&lt;lower=0&gt; n_participants;"                                                                                                                                           
+  [6] "  int&lt;lower=0&gt; n_trials; "                                                                                                                                                
+  [7] "  int&lt;lower=0&gt; n_phases;"                                                                                                                                                 
+  [8] "  int&lt;lower=0&gt; n_blocks;"                                                                                                                                                 
+  [9] "  int&lt;lower=0&gt; n_cues;"                                                                                                                                                   
+ [10] ""                                                                                                                                                                         
+ [11] "  array[n_observations] real amplitude;"                                                                                                                                  
+ [12] "  array[n] int participant;"                                                                                                                                              
+ [13] "  array[n] int phase;"                                                                                                                                                    
+ [14] "  array[n] int cue;"                                                                                                                                                      
+ [15] "  array[n] int trial;"                                                                                                                                                    
+ [16] "  array[n] int cue_trial_count;"                                                                                                                                          
+ [17] "  array[n] int phase_trial_count;"                                                                                                                                        
+ [18] "  array[n] int block_trial_count;"                                                                                                                                        
+ [19] "  array[n_participants, n_blocks, n_cues] real arousal_pbc_centered;"                                                                                                     
+ [20] "  array[n_participants, n_blocks, n_cues] real arousal_pbc;"                                                                                                              
+ [21] "  array[n] int block;"                                                                                                                                                    
+ [22] "  array[n] int &lt;lower=0, upper=1&gt; paired;"                                                                                                                                
+ [23] "  array[n_observations] int&lt;lower=1, upper=n_observations + n_missing&gt; indices_observed;"                                                                                 
+ [24] "  array[n_missing] int&lt;lower=1, upper=n_observations + n_missing&gt; indices_missing;"                                                                                       
+ [25] "}"                                                                                                                                                                        
+ [26] ""                                                                                                                                                                         
+ [27] "parameters {"                                                                                                                                                             
+ [28] ""                                                                                                                                                                         
+ [29] "  real&lt;lower = 0&gt; sigma_average; //this won't hug zero so it does not need to be exp() //1"                                                                               
+ [30] "  real sigma_sd_raw; //2"                                                                                                                                                 
+ [31] "  real intercept_average; //3"                                                                                                                                            
+ [32] "  real intercept_sd_raw; //4"                                                                                                                                             
+ [33] "  real fatigue_average; //5"                                                                                                                                              
+ [34] "  real fatigue_sd_raw; //6"                                                                                                                                               
+ [35] "  real intercept_fatigue_corr_raw; //7"                                                                                                                                   
+ [36] "  "                                                                                                                                                                       
+ [37] "  real b_arousal_average; //8"                                                                                                                                            
+ [38] "  real b_arousal_sd_raw; //9  "                                                                                                                                           
+ [39] "  "                                                                                                                                                                       
+ [40] "  array[n_participants] real&lt;lower = 0&gt; sigma; //this won't hug zero so it does not need to be exp() //33 if n_participants is 24"                                        
+ [41] "  array[n_participants] real intercept; //57"                                                                                                                             
+ [42] "  array[n_participants] real fatigue; //81"                                                                                                                               
+ [43] "  "                                                                                                                                                                       
+ [44] "  array[n_participants] real b_arousal; //105    "                                                                                                                        
+ [45] ""                                                                                                                                                                         
+ [46] "  array[n_missing] real amplitude_missing;"                                                                                                                               
+ [47] "}"                                                                                                                                                                        
+ [48] ""                                                                                                                                                                         
+ [49] "transformed parameters {"                                                                                                                                                 
+ [50] "  array[n] real amplitude_all;"                                                                                                                                           
+ [51] "  amplitude_all[indices_observed] = amplitude;"                                                                                                                           
+ [52] "  amplitude_all[indices_missing] = amplitude_missing;"                                                                                                                    
+ [53] "  "                                                                                                                                                                       
+ [54] "  real sigma_sd = exp(sigma_sd_raw);"                                                                                                                                     
+ [55] "  real intercept_sd = exp(intercept_sd_raw);"                                                                                                                             
+ [56] "  real fatigue_sd = exp(fatigue_sd_raw);"                                                                                                                                 
+ [57] "  "                                                                                                                                                                       
+ [58] "  real intercept_fatigue_corr = -inv_logit(intercept_fatigue_corr_raw);"                                                                                                  
+ [59] ""                                                                                                                                                                         
+ [60] "  cov_matrix[2] Sigma;"                                                                                                                                                   
+ [61] "  Sigma[1,1] = square(intercept_sd);"                                                                                                                                     
+ [62] "  Sigma[2,2] = square(fatigue_sd);"                                                                                                                                       
+ [63] "  Sigma[1,2] = intercept_fatigue_corr * intercept_sd * fatigue_sd;"                                                                                                       
+ [64] "  Sigma[2,1] = Sigma[1,2];"                                                                                                                                               
+ [65] "  "                                                                                                                                                                       
+ [66] "  matrix[2,2] Sigma_L = cholesky_decompose(Sigma);"                                                                                                                       
+ [67] "  "                                                                                                                                                                       
+ [68] "  real b_arousal_sd = exp(b_arousal_sd_raw);       "                                                                                                                      
+ [69] "  "                                                                                                                                                                       
+ [70] "  array[n] real mu;"                                                                                                                                                      
+ [71] "  "                                                                                                                                                                       
+ [72] "  // Hard-coded number of trials per block (for the transition)."                                                                                                         
+ [73] "  // Adjust this if your block size differs."                                                                                                                             
+ [74] "  // 48 trials per block except for block 1."                                                                                                                             
+ [75] "  real trials_per_block = 48.0;"                                                                                                                                          
+ [76] ""                                                                                                                                                                         
+ [77] "  for (i in 1:n) {"                                                                                                                                                       
+ [78] "    // Fatigue contribution grows with block_trial_count[i]"                                                                                                              
+ [79] "    real fatigue_contrib = fatigue[participant[i]] * trial[i];"                                                                                                           
+ [80] ""                                                                                                                                                                         
+ [81] "    // Compute arousal effect"                                                                                                                                            
+ [82] "    if (block[i] == 1) {"                                                                                                                                                 
+ [83] "      // For the first block, use the block's arousal rating directly"                                                                                                    
+ [84] "      mu[i] = intercept[participant[i]] "                                                                                                                                 
+ [85] "              + fatigue_contrib"                                                                                                                                          
+ [86] "              + b_arousal[participant[i]] * arousal_pbc[participant[i], block[i], cue[i]];"                                                                               
+ [87] "              // + b_arousal[participant[i]] * arousal_pbc_centered[participant[i], block[i], cue[i]];"                                                                   
+ [88] "    } else {"                                                                                                                                                             
+ [89] "      // For subsequent blocks, smoothly transition from the previous block's rating"                                                                                     
+ [90] "      real previous_arousal = arousal_pbc[participant[i], block[i]-1, cue[i]];"                                                                                           
+ [91] "      real current_arousal  = arousal_pbc[participant[i], block[i], cue[i]];"                                                                                             
+ [92] "      // real previous_arousal = arousal_pbc_centered[participant[i], block[i]-1, cue[i]];"                                                                               
+ [93] "      // real current_arousal  = arousal_pbc_centered[participant[i], block[i], cue[i]];"                                                                                 
+ [94] ""                                                                                                                                                                         
+ [95] "      // Weight previous block's arousal more at the start of the new block,"                                                                                             
+ [96] "      // and gradually shift to the current block's arousal by the block's end."                                                                                          
+ [97] "      real weight_previous = (trials_per_block - block_trial_count[i]) / trials_per_block;"                                                                               
+ [98] "      real weight_current = block_trial_count[i] / trials_per_block;"                                                                                                     
+ [99] ""                                                                                                                                                                         
+[100] "      real blended_arousal = previous_arousal * weight_previous + current_arousal * weight_current;"                                                                      
+[101] ""                                                                                                                                                                         
+[102] "      mu[i] = intercept[participant[i]]"                                                                                                                                  
+[103] "              + fatigue_contrib"                                                                                                                                          
+[104] "              + b_arousal[participant[i]] * blended_arousal;"                                                                                                             
+[105] "    }"                                                                                                                                                                    
+[106] "  }"                                                                                                                                                                      
+[107] "}"                                                                                                                                                                        
+[108] ""                                                                                                                                                                         
+[109] "model {"                                                                                                                                                                  
+[110] "  // Priors"                                                                                                                                                              
+[111] "  sigma_average ~ normal(1, 0.5);"                                                                                                                                        
+[112] "  sigma_sd_raw ~ normal(-3, 1);"                                                                                                                                          
+[113] ""                                                                                                                                                                         
+[114] "  sigma ~ student_t(n_participants-1, sigma_average, sigma_sd);"                                                                                                          
+[115] ""                                                                                                                                                                         
+[116] "  intercept_average ~ normal(0, 0.75);"                                                                                                                                   
+[117] "  intercept_sd_raw ~ normal(-1, 1);"                                                                                                                                      
+[118] "  fatigue_average ~ normal(0, 0.01);"                                                                                                                                     
+[119] "  fatigue_sd_raw ~ normal(-4.5, 0.75);"                                                                                                                                   
+[120] "  "                                                                                                                                                                       
+[121] "  intercept_fatigue_corr_raw ~ normal(0, 1.75); // this creates a roughly uniform distribution, if confused visualize in R with hist(boot::inv.logit(rnorm(5000,0,1.75)))"
+[122] "  "                                                                                                                                                                       
+[123] "  for (p in 1:n_participants) {"                                                                                                                                          
+[124] "    [intercept[p], fatigue[p]]' ~ multi_student_t_cholesky(n_participants - 1,"                                                                                           
+[125] "                                                           [intercept_average, fatigue_average]',"                                                                        
+[126] "                                                           Sigma_L);"                                                                                                     
+[127] "  }"                                                                                                                                                                      
+[128] "  "                                                                                                                                                                       
+[129] ""                                                                                                                                                                         
+[130] ""                                                                                                                                                                         
+[131] "  b_arousal_average ~ normal(0, 0.01);"                                                                                                                                   
+[132] "  b_arousal_sd_raw ~ normal(-4.5, 0.75);"                                                                                                                                 
+[133] "  // b_arousal_sd_raw ~ normal(-0.5,1.5);"                                                                                                                                
+[134] "  b_arousal ~ student_t(n_participants-1, b_arousal_average, b_arousal_sd);"                                                                                              
+[135] ""                                                                                                                                                                         
+[136] "  // Likelihood"                                                                                                                                                          
+[137] "  for(i in 1:n)"                                                                                                                                                          
+[138] "    amplitude_all[i] ~ normal(mu[i], sigma[participant[i]]);"                                                                                                             
+[139] "}"                                                                                                                                                                        
+[140] ""                                                                                                                                                                         
+[141] "generated quantities {"                                                                                                                                                   
+[142] "  array[n_observations] real mu_pred = mu[indices_observed];"                                                                                                             
+[143] "  array[n_observations] real log_lik;"                                                                                                                                    
+[144] "  "                                                                                                                                                                       
+[145] "  for (i in 1:n_observations) {"                                                                                                                                          
+[146] "    log_lik[i] = normal_lpdf(amplitude[i] | mu_pred[i], sigma[participant[i]]);"                                                                                          
+[147] "  }"                                                                                                                                                                      
+[148] "}"                                                                                                                                                                        </code></pre>
+</div>
+</div>
+<p>This model fits fine and leads to a small effect in the expected direction. The 97% of the posterior for the average effect of arousal across trials is above zero. The median being .012 means for each change in unit change in the arousal ratings, we could expect a .012 change in z-scored ssVEP per trial.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>model005_b_arousal_average <span class="ot">&lt;-</span> model005_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="at">variables =</span> <span class="st">"b_arousal_average"</span>, <span class="at">format =</span> <span class="st">"df"</span>)</span>
+<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a>model005_b_arousal_average <span class="sc">%&gt;%</span> </span>
+<span id="cb42-4"><a href="#cb42-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb42-5"><a href="#cb42-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="fu">aes</span>(<span class="at">xintercept =</span> <span class="dv">0</span>)) <span class="sc">+</span></span>
+<span id="cb42-6"><a href="#cb42-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_density</span>(<span class="fu">aes</span>(<span class="at">x =</span> b_arousal_average)) <span class="sc">+</span> </span>
+<span id="cb42-7"><a href="#cb42-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_classic</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="Farkas_Gaborgen_EEG_method_paper_equations_files/figure-html/unnamed-chunk-22-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="Farkas_Gaborgen_EEG_method_paper_equations_files/figure-html/unnamed-chunk-23-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>scaling_sd <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(number_of_samples_plot,<span class="sc">-</span>.<span class="dv">5</span>,<span class="fl">1.5</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">exp</span>() <span class="sc">%&gt;%</span> <span class="co"># transform back to correct scale</span></span>
-<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">value =</span> .)</span>
-<span id="cb42-4"><a href="#cb42-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-5"><a href="#cb42-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-6"><a href="#cb42-6" aria-hidden="true" tabindex="-1"></a>scaling_sd <span class="sc">%&gt;%</span> </span>
-<span id="cb42-7"><a href="#cb42-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span></span>
-<span id="cb42-8"><a href="#cb42-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_cartesian</span>(<span class="at">xlim =</span> <span class="fu">c</span>(<span class="sc">-</span>.<span class="dv">1</span>,<span class="dv">5</span>),</span>
-<span id="cb42-9"><a href="#cb42-9" aria-hidden="true" tabindex="-1"></a>                  <span class="at">expand =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
-<span id="cb42-10"><a href="#cb42-10" aria-hidden="true" tabindex="-1"></a>  <span class="co"># scale_x_continuous(breaks = seq(0,2, by = .5))+</span></span>
-<span id="cb42-11"><a href="#cb42-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="fu">aes</span>(<span class="at">x =</span> value), <span class="at">bins =</span> <span class="dv">500</span>) <span class="sc">+</span></span>
-<span id="cb42-12"><a href="#cb42-12" aria-hidden="true" tabindex="-1"></a>  <span class="co"># geom_density(aes(x = value), fill = "gray") +</span></span>
-<span id="cb42-13"><a href="#cb42-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_classic</span>() <span class="sc">+</span></span>
-<span id="cb42-14"><a href="#cb42-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.title =</span> <span class="fu">element_blank</span>(),</span>
-<span id="cb42-15"><a href="#cb42-15" aria-hidden="true" tabindex="-1"></a>        <span class="at">axis.text.y =</span> <span class="fu">element_blank</span>(),</span>
-<span id="cb42-16"><a href="#cb42-16" aria-hidden="true" tabindex="-1"></a>        <span class="at">axis.ticks =</span> <span class="fu">element_blank</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(model005_b_arousal_average<span class="sc">$</span>b_arousal_average <span class="sc">&gt;</span> <span class="dv">0</span> ) <span class="sc">/</span> <span class="fu">nrow</span>(model005_b_arousal_average)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.9696375</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="fu">quantile</span>(model005_b_arousal_average<span class="sc">$</span>b_arousal_average, <span class="at">probs =</span> <span class="fu">c</span>(.<span class="dv">025</span>, .<span class="dv">5</span>, .<span class="dv">975</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>         2.5%           50%         97.5% 
+-0.0004992959  0.0116113000  0.0237132300 </code></pre>
+</div>
+</div>
+<p>There is not much evidence that the slope differs between participants.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a>model005_b_arousal <span class="ot">&lt;-</span> model005_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="at">variables =</span> <span class="st">"b_arousal"</span>, <span class="at">format =</span> <span class="st">"df"</span>)</span>
+<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a>model005_b_arousal <span class="sc">%&gt;%</span> </span>
+<span id="cb47-4"><a href="#cb47-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="fu">starts_with</span>(<span class="st">"b_arousal"</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb47-5"><a href="#cb47-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">name =</span> <span class="fu">factor</span>(name, <span class="at">levels =</span> <span class="fu">rev</span>(<span class="fu">unique</span>(name)))) <span class="sc">%&gt;%</span> </span>
+<span id="cb47-6"><a href="#cb47-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb47-7"><a href="#cb47-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="fu">aes</span>(<span class="at">xintercept =</span> <span class="dv">0</span>)) <span class="sc">+</span></span>
+<span id="cb47-8"><a href="#cb47-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_density_ridges</span>(<span class="fu">aes</span>(<span class="at">y =</span> name, <span class="at">x =</span> value)) <span class="sc">+</span> </span>
+<span id="cb47-9"><a href="#cb47-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_classic</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: Dropping 'draws_df' class as required metadata was removed.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Picking joint bandwidth of 0.000783</code></pre>
+</div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="Farkas_Gaborgen_EEG_method_paper_equations_files/figure-html/unnamed-chunk-22-2.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="Farkas_Gaborgen_EEG_method_paper_equations_files/figure-html/unnamed-chunk-24-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
 </div>
-<!-- Model 1 found average intercept -->
-<!-- ```{r} -->
-<!-- model001_df %>%  -->
-<!--   ggplot() + -->
-<!--   geom_abline(aes(intercept = intercept_average,  -->
-<!--                   slope = fatigue_average), -->
-<!--               size = .2,  -->
-<!--               alpha = .2) + -->
-<!--   scale_y_continuous(limits =c(-4,4), breaks = seq(-4, 4, by = 1), -->
-<!--                      name = "Z-scored ssVEP") + -->
-<!--   scale_x_continuous(limits =c(1,176), breaks = seq(0, 176, by = 10), -->
-<!--                      name = "Trials") + -->
-<!--   ggtitle("Model 001 Average intercept") + -->
-<!--   theme_classic() + -->
-<!--   theme(text = element_text(family = "arial", size = 15), -->
-<!--         axis.ticks.y = element_blank())  -->
-<!-- ``` -->
-<!-- Model 1 intercept by par -->
-<!-- ```{r} -->
-<!-- model001_df %>% -->
-<!--   select(starts_with(c("intercept[", "fatigue["))) %>%  -->
-<!--   pivot_longer( -->
-<!--     cols = starts_with("intercept") | starts_with("fatigue"), # Select columns to pivot -->
-<!--     names_to = c(".value", "id"), # Separate into 'intercept'/'fatigue' and 'id' -->
-<!--     names_pattern = "(.*)\\[(\\d+)\\]" # Regex to extract 'intercept' or 'fatigue' and ID -->
-<!--   ) %>%  -->
-<!--   mutate(id = factor(id, levels = unique(id))) %>%  -->
-<!--   filter(id %in% c(1:10)) %>%  -->
-<!--   ggplot() + -->
-<!--   geom_abline(aes(intercept = intercept,  -->
-<!--                   slope = fatigue), -->
-<!--               size = .2,  -->
-<!--               alpha = .2) + -->
-<!--   scale_y_continuous(limits =c(-3,3), breaks = seq(-4, 4, by = 1), -->
-<!--                      name = "Z-scored ssVEP") + -->
-<!--   scale_x_continuous(limits =c(1,176), breaks = seq(0, 176, by = 10), -->
-<!--                      name = "Trials") + -->
-<!--   ggtitle("Model 001 Average intercept by participant") + -->
-<!--   theme_classic() + -->
-<!--   theme(text = element_text(family = "arial", size = 15), -->
-<!--         axis.ticks.y = element_blank()) + -->
-<!--   facet_wrap(~id, ncol = 5) -->
-<!-- ``` -->
 </section>
-<section id="model-1-multilevel-participant-and-stimuli-predictors" class="level2" style="text-align: center;">
-<h2 style="text-align: center;" class="anchored" data-anchor-id="model-1-multilevel-participant-and-stimuli-predictors">Model 1:<br>Multilevel Participant and Stimuli Predictors</h2>
-<p>Where ( <span class="math inline">\(i\)</span> ) indexes all observations, ( <span class="math inline">\(j\)</span> ) indexes all 45 participants, and ( <span class="math inline">\(k\)</span> ) indexes all 90 stimuli.</p>
-<p><span class="math inline">\(Amplitude\)</span> is a vector of observed cortical amplitudes (either LPP or ssVEP).<br>
-<span class="math inline">\(Par\)</span> is a vector of a participant indices (1 to 45) for each <span class="math inline">\(Amplitude\)</span>.<br>
-<span class="math inline">\(Stim\)</span> is a vector of stimuli indices (1 to 90) for each <span class="math inline">\(Amplitude\)</span>.</p>
-<section id="linear-model-likelihood" class="level3" style="text-align: center;">
-<h3 style="text-align: center;" class="anchored" data-anchor-id="linear-model-likelihood">Linear Model (Likelihood)</h3>
-<p><span class="math display">\[
-\begin{gather}
-Amplitude_{[i]} \sim Normal(\mu_{[i]},\sigma_{[Par[i]]}) \tag{1}\\
-\mu_{[i]} = \beta_{1[Par[i]]} + \beta_{2[Stim[i]]} \tag{2}
-\end{gather}
-\]</span></p>
+<section id="model-s4-arousal-ratings-centered-per-cue-and-block" class="level2">
+<h2 class="anchored" data-anchor-id="model-s4-arousal-ratings-centered-per-cue-and-block">Model S4: Arousal ratings (centered) per cue and block</h2>
+<p>It was speculated that participant may be using the scale differently so centering the rating per participant by subtracting the mean rating within participant may affect the results. The average effect was similar but with less of the posterior extending above zero (0.90%).</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb50"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a>model006_b_arousal_average <span class="ot">&lt;-</span> model006_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="at">variables =</span> <span class="st">"b_arousal_average"</span>, <span class="at">format =</span> <span class="st">"df"</span>)</span>
+<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb50-3"><a href="#cb50-3" aria-hidden="true" tabindex="-1"></a>model006_b_arousal_average <span class="sc">%&gt;%</span> </span>
+<span id="cb50-4"><a href="#cb50-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb50-5"><a href="#cb50-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="fu">aes</span>(<span class="at">xintercept =</span> <span class="dv">0</span>)) <span class="sc">+</span></span>
+<span id="cb50-6"><a href="#cb50-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_density</span>(<span class="fu">aes</span>(<span class="at">x =</span> b_arousal_average)) <span class="sc">+</span> </span>
+<span id="cb50-7"><a href="#cb50-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_classic</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Farkas_Gaborgen_EEG_method_paper_equations_files/figure-html/unnamed-chunk-25-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="sourceCode cell-code" id="cb51"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(model006_b_arousal_average<span class="sc">$</span>b_arousal_average <span class="sc">&gt;</span> <span class="dv">0</span> ) <span class="sc">/</span> <span class="fu">nrow</span>(model006_b_arousal_average)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.8986125</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb53"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a><span class="fu">quantile</span>(model006_b_arousal_average<span class="sc">$</span>b_arousal_average, <span class="at">probs =</span> <span class="fu">c</span>(.<span class="dv">025</span>, .<span class="dv">5</span>, .<span class="dv">975</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>        2.5%          50%        97.5% 
+-0.005518036  0.009848275  0.024428300 </code></pre>
+</div>
+</div>
+<p>Yet, unlike the last model, this led to more variation between participant slopes.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb55"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a>model006_b_arousal <span class="ot">&lt;-</span> model006_fit<span class="sc">$</span><span class="fu">draws</span>(<span class="at">variables =</span> <span class="st">"b_arousal"</span>, <span class="at">format =</span> <span class="st">"df"</span>)</span>
+<span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-3"><a href="#cb55-3" aria-hidden="true" tabindex="-1"></a>model006_b_arousal <span class="sc">%&gt;%</span> </span>
+<span id="cb55-4"><a href="#cb55-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="fu">starts_with</span>(<span class="st">"b_arousal"</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb55-5"><a href="#cb55-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">name =</span> <span class="fu">factor</span>(name, <span class="at">levels =</span> <span class="fu">rev</span>(<span class="fu">unique</span>(name)))) <span class="sc">%&gt;%</span> </span>
+<span id="cb55-6"><a href="#cb55-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb55-7"><a href="#cb55-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="fu">aes</span>(<span class="at">xintercept =</span> <span class="dv">0</span>)) <span class="sc">+</span></span>
+<span id="cb55-8"><a href="#cb55-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_density_ridges</span>(<span class="fu">aes</span>(<span class="at">y =</span> name, <span class="at">x =</span> value)) <span class="sc">+</span> </span>
+<span id="cb55-9"><a href="#cb55-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_classic</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: Dropping 'draws_df' class as required metadata was removed.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Picking joint bandwidth of 0.00267</code></pre>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Farkas_Gaborgen_EEG_method_paper_equations_files/figure-html/unnamed-chunk-26-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
 </section>
-<section id="adaptive-regularizing-priors" class="level3" style="text-align: center;">
-<h3 style="text-align: center;" class="anchored" data-anchor-id="adaptive-regularizing-priors">Adaptive Regularizing Priors</h3>
-<p><span class="math display">\[
-\begin{gather}
-\beta_{1[j]} \sim Normal(\overline{Par}, \sigma Par) \tag{3}\\
-\beta_{2[k]} \sim Normal(0, \sigma Stim) \tag{4}\\
-\sigma_{[j]} \sim Normal(\overline{\sigma}, \tau) \tag{5}
-\end{gather}
-\]</span></p>
-</section>
-<section id="uninformative-weak-priors" class="level3" style="text-align: center;">
-<h3 style="text-align: center;" class="anchored" data-anchor-id="uninformative-weak-priors">Uninformative Weak Priors</h3>
-<p><span class="math display">\[
-\begin{gather}
-\overline{Par} \sim Normal(\overline{Amplitude},2 \cdot SD(Amplitude)) \tag{6}\\
-\sigma Par,\sigma Stim,\overline{\sigma},\tau \sim HalfNormal(0,2 \cdot SD(Amplitude)) \tag{7}
-\end{gather}
-\]</span></p>
-</section>
-</section>
-<section id="snr-formula" class="level2">
-<h2 class="anchored" data-anchor-id="snr-formula">SNR formula</h2>
-<p><span class="math display">\[
-{\text{Model 1 SNR}} = \frac {\overline{\beta_2 [\text{emotional stimuli}]} - \overline{\beta_2 [\text{neutral stimuli}]}} {\overline{\sigma}} \tag{8}
-\]</span></p>
-</section>
-<section id="model-2-multilevel-amplitude-and-arousal-bivariate-distribution" class="level2" style="text-align: center; white-space: nowrap;">
-<h2 style="text-align: center; white-space: nowrap;" class="anchored" data-anchor-id="model-2-multilevel-amplitude-and-arousal-bivariate-distribution">Model 2:<br>Multilevel Amplitude and Arousal Bivariate Distribution</h2>
-<p>Where ( <span class="math inline">\(i\)</span> ) indexes all observations and ( <span class="math inline">\(j\)</span> ) indexes all 45 participants.</p>
-<p><span class="math inline">\(Amplitude\)</span> is a vector of observed cortical amplitudes (either LPP or ssVEP).<br>
-<span class="math inline">\(Arousal\)</span> is a vector of observed arousal ratings aligned with <span class="math inline">\(Amplitude\)</span>.<br>
-<span class="math inline">\(Par\)</span> is a vector of a participant indices (1 to 45) for each <span class="math inline">\(Amplitude\)</span>.</p>
-<section id="bivariate-distribution-likelihood" class="level3" style="text-align: center;">
-<h3 style="text-align: center;" class="anchored" data-anchor-id="bivariate-distribution-likelihood">Bivariate Distribution (Likelihood)</h3>
-<p><span class="math display">\[
-\begin{gather}
-\begin{bmatrix}
-  Amplitude_{[i]} \\
-  Arousal_{[i]}
-\end{bmatrix} \sim MVNormal \left(
-\begin{bmatrix}
-  \mu Amp_{[Par[i]]} \\
-  \mu Aro_{[Par[i]]}
-\end{bmatrix},
-\begin{array}{c}
-{\huge \Sigma}_{[Par[i]]}
-\end{array}
-\right) \tag{9}\\
-\begin{array}{c}
-{\huge \Sigma}_{[Par[i]]}
-\end{array} =
-\begin{bmatrix}
-\sigma Amp_{[Par[i]]}^2 &amp; \sigma Amp Aro_{[Par[i]]} \\
-\sigma Amp Aro_{[Par[i]]} &amp; \sigma Aro_{[Par[i]]}^2
-\end{bmatrix} \tag{10}
-\end{gather}
-\]</span></p>
-</section>
-<section id="adaptive-regularizing-priors-1" class="level3" style="text-align: center;">
-<h3 style="text-align: center;" class="anchored" data-anchor-id="adaptive-regularizing-priors-1">Adaptive Regularizing Priors</h3>
-<p><span class="math display">\[
-\begin{gather}
-\mu Amp_{[j]} \sim Normal(\overline{\mu Amp},\sigma Par Amp) \tag{11}\\
-\mu Aro_{[j]} \sim Normal(\overline{\mu Aro},\sigma Par Aro) \tag{12}\\
-\sigma Amp_{[j]} \sim Normal(\overline{\sigma Amp}, \tau ParAmp) \tag{13}\\
-\sigma Aro_{[j]} \sim Normal(\overline{\sigma Aro}, \tau ParAro) \tag{14}\\
-\sigma Amp Aro_{[j]} \sim Normal(\overline{\sigma Amp Aro}, \tau AmpAro) \tag{15}
-\end{gather}
-\]</span></p>
-</section>
-<section id="uninformative-weak-priors-1" class="level3" style="text-align: center;">
-<h3 style="text-align: center;" class="anchored" data-anchor-id="uninformative-weak-priors-1">Uninformative Weak Priors</h3>
-<p><span class="math display">\[
-\begin{gather}
-\overline{\mu Amp} \sim Normal(\overline{Amplitude},2 \cdot SD(Amplitude)) \tag{16}\\
-\sigma Par Amp,\overline{\sigma Amp},\tau ParAmp,\tau AmpAro \sim HalfNormal(0,2 \cdot SD(Amplitude)) \tag{17}\\
-\overline{\mu Aro} \sim (Beta(1.1,1.1) \cdot 8) + 1 \tag{18}\\
-\sigma Par Aro,\overline{\sigma Aro},\tau ParAro \sim HalfNormal(0,4) \tag{19}\\
-\overline{\sigma Amp Aro} \sim Normal(0,2 \cdot SD(Amplitude)) \tag{20}
-\end{gather}
-\]</span></p>
-</section>
-</section>
-<section id="model-2-amplitude-log-likelihood-equation" class="level2" style="text-align: center;">
-<h2 style="text-align: center;" class="anchored" data-anchor-id="model-2-amplitude-log-likelihood-equation">Model 2 Amplitude log-likelihood equation</h2>
-<p><span class="math display">\[
-\begin{gather}
-\mu Amp \vert Arousal_{[i]} = \mu Amp_{[Par[i]]} + \frac {\sigma Amp Aro_{[Par[i]]}} {\sigma Aro_{[Par[i]]}^2} (Arousal_{[i]} - \mu Aro_{[Par[i]]}) \tag{21}\\
-\sigma Amp \vert Arousal_{[i]}^2 = \sigma Amp_{[Par[i]]}^2 - \frac {\sigma Amp Aro_{[Par[i]]}} {\sigma Aro_{[Par[i]]}^2} \tag{22}
-\end{gather}
-\]</span></p>
-</section>
-<section id="r2-formula" class="level2">
-<h2 class="anchored" data-anchor-id="r2-formula">R^2 formula</h2>
-<p><span class="math display">\[
-R^2 = \frac {\text{variance of predicted observations}} {(\text{variance of predicted observations } + \text{residual variance})} \tag{23}
-\]</span></p>
-</section>
-<section id="model-2-multilevel-participant-and-arousal-predictors" class="level2" style="text-align: center;">
-<h2 style="text-align: center;" class="anchored" data-anchor-id="model-2-multilevel-participant-and-arousal-predictors">Model 2: Multilevel Participant and Arousal Predictors</h2>
-<p><span class="math display">\[
-\begin{gather}
-Where \ ( i ) \ indexes \ all \ observations \ and \ ( j ) \ indexes \ 46 \ participants. \\
-Where \ ( Amplitude ) \ is \ a \ vector \ of \ observed \ cortical \ amplitudes. \\
-Where \ ( Par ) \ is \ a \ vector \ of \ participant \ indices \ for \ each \ amplitude. \\
-\end{gather} \\
-\]</span></p>
-<section id="linear-model-likelihood-1" class="level3" style="text-align: center;">
-<h3 style="text-align: center;" class="anchored" data-anchor-id="linear-model-likelihood-1">Linear Model (Likelihood)</h3>
-<p><span class="math display">\[
-\begin{gather}
-Amplitude_{[i]} \sim Normal(\mu_{[i]},\sigma) \tag{1}\\
-\mu_{[i]} = \beta1_{[Par[i]]} + \beta2_{[Par[i]]} \cdot Arousal_{[i]} \tag{2}
-\end{gather}
-\]</span></p>
-</section>
-<section id="adaptive-regularizing-priors-2" class="level3" style="text-align: center;">
-<h3 style="text-align: center;" class="anchored" data-anchor-id="adaptive-regularizing-priors-2">Adaptive Regularizing Priors</h3>
-<p><span class="math display">\[
-\begin{gather}
-\beta1_{[j]} \sim Normal(\bar{Par}, \sigma Par)  \tag{3}\\
-\beta2_{[j]} \sim Normal(\bar{\beta2}, \sigma Aro)  \tag{4}
-\end{gather}
-\]</span></p>
-</section>
-<section id="uninformative-weak-priors-2" class="level3" style="text-align: center;">
-<h3 style="text-align: center;" class="anchored" data-anchor-id="uninformative-weak-priors-2">Uninformative Weak Priors</h3>
-<p><span class="math display">\[
-\begin{gather}
-\bar{Par} \sim Normal(\bar{Arousal},2 \cdot SD(Amplitude)) \tag{5}\\
-\bar{\beta2} \sim Normal(0, 2 \cdot SD(Amplitude)) \tag{6}\\
-\sigma,\sigma Par,\sigma Aro \sim HalfNormal(0,2 \cdot SD(Amplitude)) \tag{7}
-\end{gather}
-\]</span></p>
-</section>
-</section>
-<section id="model-4-multilevel-participant-and-stimuli-predictors" class="level2" style="text-align: center;">
-<h2 style="text-align: center;" class="anchored" data-anchor-id="model-4-multilevel-participant-and-stimuli-predictors">Model 4: Multilevel participant and stimuli predictors</h2>
-<p><span class="math display">\[
-\begin{gather}
-Where \ ( i ) \ indexes \ all \ observations, ( j ) \ indexes \ participants,\\
-and \ ( k ) \ indexes \ stimuli.
-\end{gather}
-\]</span></p>
-<section id="linear-model" class="level3" style="text-align: center;">
-<h3 style="text-align: center;" class="anchored" data-anchor-id="linear-model">Linear model</h3>
-<p><span class="math display">\[
-\begin{gather}
-Amplitude_{[i]} \sim Normal(\mu_{[i]},\sigma) \tag{1}\\
-\mu_{[i]} = \beta_{par[i]} + \beta_{stim[i]} \tag{2}
-\end{gather}
-\]</span></p>
-</section>
-<section id="adaptive-regularizing-priors-3" class="level3" style="text-align: center;">
-<h3 style="text-align: center;" class="anchored" data-anchor-id="adaptive-regularizing-priors-3">Adaptive regularizing priors</h3>
-<p><span class="math display">\[
-\begin{gather}
-\beta_{par[j]} \sim Normal(\hat{\bar{par}}, \sigma_{par}) \tag{3}\\
-\beta_{stim[k]} \sim Normal(0, \sigma_{stim}) \tag{4}
-\end{gather}
-\]</span></p>
-</section>
-<section id="uninformative-weak-priors-3" class="level3" style="text-align: center;">
-<h3 style="text-align: center;" class="anchored" data-anchor-id="uninformative-weak-priors-3">Uninformative weak priors</h3>
-<p><span class="math display">\[
-\begin{gather}
-\hat{\bar{par}} \sim Normal(\bar{par},2 * SD(Amplitude)) \tag{5}\\
-\sigma,\sigma_{par},\sigma_{stim} \sim HalfNormal(0,2 * SD(Amplitude)) \tag{6}
-\end{gather}
-\]</span></p>
-</section>
+<section id="model-s5-arousal-expectancy-ratings-per-cue-and-block" class="level2">
+<h2 class="anchored" data-anchor-id="model-s5-arousal-expectancy-ratings-per-cue-and-block">Model S5: Arousal &amp; expectancy ratings per cue and block</h2>
+<p>The final model attempted to use arousal and shock-expectancy ratings to predict cue effects. This was done through main effects and an interaction:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb58"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a>model007_fit<span class="sc">$</span><span class="fu">code</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>  [1] "data {"                                                                                                                                                                   
+  [2] "  int&lt;lower=0&gt; n;"                                                                                                                                                        
+  [3] "  int&lt;lower=0&gt; n_observations;"                                                                                                                                           
+  [4] "  int&lt;lower=0&gt; n_missing;"                                                                                                                                                
+  [5] "  int&lt;lower=0&gt; n_participants;"                                                                                                                                           
+  [6] "  int&lt;lower=0&gt; n_trials; "                                                                                                                                                
+  [7] "  int&lt;lower=0&gt; n_phases;"                                                                                                                                                 
+  [8] "  int&lt;lower=0&gt; n_blocks;"                                                                                                                                                 
+  [9] "  int&lt;lower=0&gt; n_cues;"                                                                                                                                                   
+ [10] ""                                                                                                                                                                         
+ [11] "  array[n_observations] real amplitude;"                                                                                                                                  
+ [12] "  array[n] int participant;"                                                                                                                                              
+ [13] "  array[n] int phase;"                                                                                                                                                    
+ [14] "  array[n] int cue;"                                                                                                                                                      
+ [15] "  array[n] int trial;"                                                                                                                                                    
+ [16] "  array[n] int cue_trial_count;"                                                                                                                                          
+ [17] "  array[n] int phase_trial_count;"                                                                                                                                        
+ [18] "  array[n] int block_trial_count;"                                                                                                                                        
+ [19] "  array[n_participants, n_blocks, n_cues] real arousal_pbc_centered;"                                                                                                     
+ [20] "  array[n_participants, n_blocks, n_cues] real arousal_pbc;"                                                                                                              
+ [21] "  array[n_participants, n_blocks, n_cues] real expect_pbc_centered;"                                                                                                      
+ [22] "  array[n_participants, n_blocks, n_cues] real expect_pbc;"                                                                                                               
+ [23] "  array[n] int block;"                                                                                                                                                    
+ [24] "  array[n] int &lt;lower=0, upper=1&gt; paired;"                                                                                                                                
+ [25] "  array[n_observations] int&lt;lower=1, upper=n_observations + n_missing&gt; indices_observed;"                                                                                 
+ [26] "  array[n_missing] int&lt;lower=1, upper=n_observations + n_missing&gt; indices_missing;"                                                                                       
+ [27] "}"                                                                                                                                                                        
+ [28] ""                                                                                                                                                                         
+ [29] "parameters {"                                                                                                                                                             
+ [30] ""                                                                                                                                                                         
+ [31] "  real&lt;lower = 0&gt; sigma_average; //this won't hug zero so it does not need to be exp() //1"                                                                               
+ [32] "  real sigma_sd_raw; //2"                                                                                                                                                 
+ [33] "  real intercept_average; //3"                                                                                                                                            
+ [34] "  real intercept_sd_raw; //4"                                                                                                                                             
+ [35] "  real fatigue_average; //5"                                                                                                                                              
+ [36] "  real fatigue_sd_raw; //6"                                                                                                                                               
+ [37] "  real intercept_fatigue_corr_raw; //7"                                                                                                                                   
+ [38] "  "                                                                                                                                                                       
+ [39] "  real b_arousal_average; //8"                                                                                                                                            
+ [40] "  real b_arousal_sd_raw; //9  "                                                                                                                                           
+ [41] ""                                                                                                                                                                         
+ [42] "  real b_expect_average; //10   "                                                                                                                                         
+ [43] "  real b_expect_sd_raw; //11"                                                                                                                                             
+ [44] "  "                                                                                                                                                                       
+ [45] "  real b_arousal_expect_average; //12"                                                                                                                                    
+ [46] "  real b_arousal_expect_sd_raw; //13 "                                                                                                                                    
+ [47] "  "                                                                                                                                                                       
+ [48] "  array[n_participants] real&lt;lower = 0&gt; sigma; //this won't hug zero so it does not need to be exp() //37 if n_participants is 24"                                        
+ [49] "  array[n_participants] real intercept; //61"                                                                                                                             
+ [50] "  array[n_participants] real fatigue; //85"                                                                                                                               
+ [51] "  "                                                                                                                                                                       
+ [52] "  array[n_participants] real b_arousal; //109       "                                                                                                                     
+ [53] "  array[n_participants] real b_expect; //133"                                                                                                                             
+ [54] "  array[n_participants] real b_arousal_expect; //157       "                                                                                                              
+ [55] ""                                                                                                                                                                         
+ [56] "  array[n_missing] real amplitude_missing;"                                                                                                                               
+ [57] "}"                                                                                                                                                                        
+ [58] ""                                                                                                                                                                         
+ [59] "transformed parameters {"                                                                                                                                                 
+ [60] "  array[n] real amplitude_all;"                                                                                                                                           
+ [61] "  amplitude_all[indices_observed] = amplitude;"                                                                                                                           
+ [62] "  amplitude_all[indices_missing] = amplitude_missing;"                                                                                                                    
+ [63] "  "                                                                                                                                                                       
+ [64] "  real sigma_sd = exp(sigma_sd_raw);"                                                                                                                                     
+ [65] "  real intercept_sd = exp(intercept_sd_raw);"                                                                                                                             
+ [66] "  real fatigue_sd = exp(fatigue_sd_raw);"                                                                                                                                 
+ [67] "  "                                                                                                                                                                       
+ [68] "  real intercept_fatigue_corr = -inv_logit(intercept_fatigue_corr_raw);"                                                                                                  
+ [69] ""                                                                                                                                                                         
+ [70] "  cov_matrix[2] Sigma;"                                                                                                                                                   
+ [71] "  Sigma[1,1] = square(intercept_sd);"                                                                                                                                     
+ [72] "  Sigma[2,2] = square(fatigue_sd);"                                                                                                                                       
+ [73] "  Sigma[1,2] = intercept_fatigue_corr * intercept_sd * fatigue_sd;"                                                                                                       
+ [74] "  Sigma[2,1] = Sigma[1,2];"                                                                                                                                               
+ [75] "  "                                                                                                                                                                       
+ [76] "  matrix[2,2] Sigma_L = cholesky_decompose(Sigma);"                                                                                                                       
+ [77] "  "                                                                                                                                                                       
+ [78] "  real b_arousal_sd = exp(b_arousal_sd_raw);   "                                                                                                                          
+ [79] "  "                                                                                                                                                                       
+ [80] "  real b_expect_sd = exp(b_expect_sd_raw);       "                                                                                                                        
+ [81] "  "                                                                                                                                                                       
+ [82] "  real b_arousal_expect_sd = exp(b_arousal_expect_sd_raw);       "                                                                                                        
+ [83] "  "                                                                                                                                                                       
+ [84] "  array[n] real mu;"                                                                                                                                                      
+ [85] "  "                                                                                                                                                                       
+ [86] "  // Hard-coded number of trials per block (for the transition)."                                                                                                         
+ [87] "  // Adjust this if your block size differs."                                                                                                                             
+ [88] "  // 48 trials per block except for block 1."                                                                                                                             
+ [89] "  real trials_per_block = 48.0;"                                                                                                                                          
+ [90] ""                                                                                                                                                                         
+ [91] "  for (i in 1:n) {"                                                                                                                                                       
+ [92] "    // Fatigue contribution grows with block_trial_count[i]"                                                                                                              
+ [93] "    real fatigue_contrib = fatigue[participant[i]] * trial[i];"                                                                                                           
+ [94] ""                                                                                                                                                                         
+ [95] "    // Compute arousal effect"                                                                                                                                            
+ [96] "    if (block[i] == 1) {"                                                                                                                                                 
+ [97] "      // For the first block, use the block's ratings directly"                                                                                                           
+ [98] "      mu[i] = intercept[participant[i]] "                                                                                                                                 
+ [99] "              + fatigue_contrib"                                                                                                                                          
+[100] "              + b_arousal[participant[i]] * arousal_pbc[participant[i], block[i], cue[i]] +"                                                                              
+[101] "              + b_expect[participant[i]] * expect_pbc[participant[i], block[i], cue[i]] +"                                                                                
+[102] "              + b_arousal_expect[participant[i]] * arousal_pbc[participant[i], block[i], cue[i]] * expect_pbc[participant[i], block[i], cue[i]];"                         
+[103] "              "                                                                                                                                                           
+[104] "    } else {"                                                                                                                                                             
+[105] "      // For subsequent blocks, smoothly transition from the previous block's ratings"                                                                                    
+[106] "      real previous_arousal = arousal_pbc[participant[i], block[i]-1, cue[i]];"                                                                                           
+[107] "      real current_arousal  = arousal_pbc[participant[i], block[i], cue[i]];"                                                                                             
+[108] "      real previous_expect = expect_pbc[participant[i], block[i]-1, cue[i]];"                                                                                             
+[109] "      real current_expect  = expect_pbc[participant[i], block[i], cue[i]];"                                                                                               
+[110] ""                                                                                                                                                                         
+[111] "      // Weight previous block's arousal more at the start of the new block,"                                                                                             
+[112] "      // and gradually shift to the current block's arousal by the block's end."                                                                                          
+[113] "      real weight_previous = (trials_per_block - block_trial_count[i]) / trials_per_block;"                                                                               
+[114] "      real weight_current = block_trial_count[i] / trials_per_block;"                                                                                                     
+[115] ""                                                                                                                                                                         
+[116] "      real blended_arousal = previous_arousal * weight_previous + current_arousal * weight_current;"                                                                      
+[117] "      real blended_expect = previous_expect * weight_previous + current_expect * weight_current;"                                                                         
+[118] ""                                                                                                                                                                         
+[119] "      mu[i] = intercept[participant[i]]"                                                                                                                                  
+[120] "              + fatigue_contrib"                                                                                                                                          
+[121] "              + b_arousal[participant[i]] * blended_arousal +"                                                                                                            
+[122] "              + b_expect[participant[i]] * blended_expect +"                                                                                                              
+[123] "              + b_arousal_expect[participant[i]] * blended_arousal * blended_expect;"                                                                                     
+[124] "    }"                                                                                                                                                                    
+[125] "  }"                                                                                                                                                                      
+[126] "}"                                                                                                                                                                        
+[127] ""                                                                                                                                                                         
+[128] "model {"                                                                                                                                                                  
+[129] "  // Priors"                                                                                                                                                              
+[130] "  sigma_average ~ normal(1, 0.5);"                                                                                                                                        
+[131] "  sigma_sd_raw ~ normal(-3, 1);"                                                                                                                                          
+[132] ""                                                                                                                                                                         
+[133] "  sigma ~ student_t(n_participants-1, sigma_average, sigma_sd);"                                                                                                          
+[134] ""                                                                                                                                                                         
+[135] "  intercept_average ~ normal(0, 0.75);"                                                                                                                                   
+[136] "  intercept_sd_raw ~ normal(-1, 1);"                                                                                                                                      
+[137] "  fatigue_average ~ normal(0, 0.01);"                                                                                                                                     
+[138] "  fatigue_sd_raw ~ normal(-4.5, 0.75);"                                                                                                                                   
+[139] "  "                                                                                                                                                                       
+[140] "  intercept_fatigue_corr_raw ~ normal(0, 1.75); // this creates a roughly uniform distribution, if confused visualize in R with hist(boot::inv.logit(rnorm(5000,0,1.75)))"
+[141] "  "                                                                                                                                                                       
+[142] "  for (p in 1:n_participants) {"                                                                                                                                          
+[143] "    [intercept[p], fatigue[p]]' ~ multi_student_t_cholesky(n_participants - 1,"                                                                                           
+[144] "                                                           [intercept_average, fatigue_average]',"                                                                        
+[145] "                                                           Sigma_L);"                                                                                                     
+[146] "  }"                                                                                                                                                                      
+[147] "  "                                                                                                                                                                       
+[148] ""                                                                                                                                                                         
+[149] ""                                                                                                                                                                         
+[150] "  b_arousal_average ~ normal(0, 0.01);"                                                                                                                                   
+[151] "  b_arousal_sd_raw ~ normal(-4.5, 0.75);"                                                                                                                                 
+[152] "  b_arousal ~ student_t(n_participants-1, b_arousal_average, b_arousal_sd);"                                                                                              
+[153] ""                                                                                                                                                                         
+[154] "  b_expect_average ~ normal(0, 0.01);"                                                                                                                                    
+[155] "  b_expect_sd_raw ~ normal(-4.5, 0.75);"                                                                                                                                  
+[156] "  b_expect ~ student_t(n_participants-1, b_expect_average, b_expect_sd);"                                                                                                 
+[157] "  "                                                                                                                                                                       
+[158] "  b_arousal_expect_average ~ normal(0, 0.01);"                                                                                                                            
+[159] "  b_arousal_expect_sd_raw ~ normal(-4.5, 0.75);"                                                                                                                          
+[160] "  b_arousal_expect ~ student_t(n_participants-1, b_arousal_expect_average, b_arousal_expect_sd);"                                                                         
+[161] ""                                                                                                                                                                         
+[162] "  // Likelihood"                                                                                                                                                          
+[163] "  for(i in 1:n)"                                                                                                                                                          
+[164] "    amplitude_all[i] ~ normal(mu[i], sigma[participant[i]]);"                                                                                                             
+[165] "}"                                                                                                                                                                        
+[166] ""                                                                                                                                                                         
+[167] "generated quantities {"                                                                                                                                                   
+[168] "  array[n_observations] real mu_pred = mu[indices_observed];"                                                                                                             
+[169] "  array[n_observations] real log_lik;"                                                                                                                                    
+[170] "  "                                                                                                                                                                       
+[171] "  for (i in 1:n_observations) {"                                                                                                                                          
+[172] "    log_lik[i] = normal_lpdf(amplitude[i] | mu_pred[i], sigma[participant[i]]);"                                                                                          
+[173] "  }"                                                                                                                                                                      
+[174] "}"                                                                                                                                                                        </code></pre>
+</div>
+</div>
+<p>At this point, the slope made very little sense and appeared to just be overfitting to subject specific patterns. Taking these three models together, it did not seem justified to publish these results making any definitive points on a preliminary data set of a limited sample size. While it is noteworthy that there is a small arousal effect, it is likely limited by the fact that many of the participants do not show an ssVEP effect at all. So we instead focused on publishing a method paper on the Bayesian method and plan to return to the ratings when more data is available and we are more confident in the reasons why the ssVEP effect was not present for many of the participants. Future efforts that look at fMRI we expect will also aid in ratings interpretations.</p>
 </section>
 </section>
 

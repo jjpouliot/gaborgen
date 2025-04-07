@@ -963,572 +963,87 @@ So similar to Model S1, S2 just does not fit the data well and is hard to interp
 
 The experiment collects ratings for each cue at the end of each block. This includes valence and arousal from 0 to 10 (integers), and expectancy of shock (0 to 100%; increments of 10). As the cues get paired with shocks, it is expected the ssVEP amplitude will increase with arousal ratings for the CS+. To test this, the ratings per participant were used as a predictor of ssVEP amplitude in conjunction with the adaption effect. The first model uses the arousal rating at the end of each block as an effect added linearly to each trial. This is done to prevent sharp shifts and to provide an intercept when shifting from one block to the next.The complete Stan model (excluding adaptions priors) code is presented here:
 
-``` Stan
-data {
-  int<lower=0> n;
-  int<lower=0> n_observations;
-  int<lower=0> n_missing;
-  int<lower=0> n_participants;
-  int<lower=0> n_trials; 
-  int<lower=0> n_phases;
-  int<lower=0> n_blocks;
-  int<lower=0> n_cues;
-
-  array[n_observations] real amplitude;
-  array[n] int participant;
-  array[n] int phase;
-  array[n] int cue;
-  array[n] int trial;
-  array[n] int cue_trial_count;
-  array[n] int phase_trial_count;
-  array[n] int block_trial_count;
-  array[n_participants, n_blocks, n_cues] real arousal_pbc_centered;
-  array[n_participants, n_blocks, n_cues] real arousal_pbc;
-  array[n] int block;
-  array[n] int <lower=0, upper=1> paired;
-  array[n_observations] int<lower=1, upper=n_observations + n_missing> indices_observed;
-  array[n_missing] int<lower=1, upper=n_observations + n_missing> indices_missing;
-}
-
-parameters {
-
-  real<lower = 0> sigma_average; //this won't hug zero so it does not need to be exp() /1
-  real sigma_sd_raw; //2
-  real intercept_average; //3
-  real intercept_sd_raw; //4
-  real fatigue_average; //5
-  real fatigue_sd_raw; //6
-  real intercept_fatigue_corr_raw; //7
-  real<lower=0, upper=1> learning_paired_average; //8
-  real<lower=0, upper=1> learning_unpaired_average; //9
-  real learning_paired_sd_raw; //10
-  real learning_unpaired_sd_raw;  //11
-  real scaling_mean;  //12
-  real scaling_sd_raw;  //13
-  
-  array[n_participants] real<lower = 0> sigma; //this won't hug zero so it does not need to be exp() //37 if n_participants is 24
-  array[n_participants] real intercept; //61
-  array[n_participants] real fatigue; //85
-  array[n_participants] real<lower=0, upper=1> learning_paired; //109
-  array[n_participants] real<lower=0, upper=1> learning_unpaired; //133
-  array[n_cues] real scaling; //137
-  array[n_missing] real amplitude_missing;
-}
-
-transformed parameters {
-  array[n] real amplitude_all;
-  amplitude_all[indices_observed] = amplitude;
-  amplitude_all[indices_missing] = amplitude_missing;
-  
-  real sigma_sd = exp(sigma_sd_raw);
-  real intercept_sd = exp(intercept_sd_raw);
-  real fatigue_sd = exp(fatigue_sd_raw);
-  
-  real intercept_fatigue_corr = -inv_logit(intercept_fatigue_corr_raw);
-
-  cov_matrix[2] Sigma;
-  Sigma[1,1] = square(intercept_sd);
-  Sigma[2,2] = square(fatigue_sd);
-  Sigma[1,2] = intercept_fatigue_corr * intercept_sd * fatigue_sd;
-  Sigma[2,1] = Sigma[1,2];
-  
-  matrix[2,2] Sigma_L = cholesky_decompose(Sigma);
-  
-  real learning_paired_sd = exp(learning_paired_sd_raw);
-  real learning_unpaired_sd = exp(learning_unpaired_sd_raw);
-  real scaling_sd = exp(scaling_sd_raw);
-  
-  
-  array[n] real<lower=-0.000001,upper=1> CSP_associative_strength;
-  array[n-1] real<lower=-1, upper=1> CSP_change;
-
-  // Estimate CSP_associative_strength, Rescola Wagner type equation
-  for(i in 1:(n-1)) {
-    if (phase[i] == 1){ // Habituation phase
-      CSP_change[i] = 0;
-      CSP_associative_strength[i] = 0;
-        CSP_associative_strength[i+1] = fmin(fmax(CSP_associative_strength[i+1], 0.0), 1.0);
-    } else if (cue[i] == 1 && phase[i] != 1) {
-        if(paired[i] == 1){
-          CSP_change[i] = learning_paired[participant[i]] * 
-                          (paired[i] - CSP_associative_strength[i]);
-        } else {
-          CSP_change[i] = learning_unpaired[participant[i]] * 
-                          (paired[i] - CSP_associative_strength[i]);
-        }
-        CSP_associative_strength[i+1] = CSP_associative_strength[i] + CSP_change[i];
-
-        // Ensure CSP_associative_strength stays within the bounds
-        CSP_associative_strength[i+1] = fmin(fmax(CSP_associative_strength[i+1], 0.0), 1.0);
-    } else {
-       CSP_change[i] = 0;
-       CSP_associative_strength[i+1] = CSP_associative_strength[i];
-    }
-  }  
-}
-
-model {
-  // Priors
-  sigma_average ~ normal(1, 0.5);
-  sigma_sd_raw ~ normal(-3, 1);
-
-  sigma ~ student_t(n_participants-1, sigma_average, sigma_sd);
-
-  intercept_average ~ normal(0, 0.75);
-  intercept_sd_raw ~ normal(-1, 1);
-  fatigue_average ~ normal(0, 0.01);
-  fatigue_sd_raw ~ normal(-4.5, 0.75);
-  
-  intercept_fatigue_corr_raw ~ normal(0, 1.75); // this creates a roughly uniform distribution, if confused visualize in R with hist(boot::inv.logit(rnorm(5000,0,1.75)))
-  
-  for (p in 1:n_participants) {
-    [intercept[p], fatigue[p]]' ~ multi_student_t_cholesky(n_participants - 1,
-                                                           [intercept_average, fatigue_average]',
-                                                           Sigma_L);
-  }
-
-  scaling_mean ~ normal(0,1);
-  scaling_sd_raw ~ normal(-0.5,1.5);
-  // scaling_sd_raw ~ normal(-0.5,1);
-  for (q in 1:n_cues) {
-    scaling[q] ~ student_t(n_cues-1, scaling_mean, scaling_sd); 
-  }
-
-  learning_paired_average ~ beta(1.1, 1.1);
-  learning_paired_sd_raw ~ normal(-0.5,1.5);
-  // learning_paired_sd_raw ~ normal(-0.5,1);
-  learning_paired ~ student_t(n_participants-1, 
-                                  learning_paired_average, 
-                                  learning_paired_sd); 
-
-  learning_unpaired_average ~ beta(1.1, 1.1);
-  learning_unpaired_sd_raw ~ normal(-0.5,1.5);
-  // learning_unpaired_sd_raw ~ normal(-0.5,1);
-  learning_unpaired ~ student_t(n_participants-1, 
-                                    learning_unpaired_average, 
-                                    learning_unpaired_sd); 
-
-
-  // Likelihood
-  for(i in 1:n) {
-    real mu = intercept[participant[i]] +
-              (fatigue[participant[i]] * trial[i]) +
-              (scaling[cue[i]] * CSP_associative_strength[i]);
-
-    amplitude_all[i] ~ normal(mu, sigma[participant[i]]);
-  }
-}
-
-generated quantities {
-  // These mu_pred and log_lik names cannot change
-  
-  // For model predictions
-  array[n_observations] real mu_pred;
-  // This is necessary for cross-validation
-  array[n_observations] real log_lik;
-  
-  for (i in 1:n_observations) {
-    mu_pred[i] = intercept[participant[indices_observed[i]]] +
-                 (fatigue[participant[indices_observed[i]]] * trial[indices_observed[i]]) +
-                 (scaling[cue[indices_observed[i]]] * CSP_associative_strength[indices_observed[i]]);
-                 
-    log_lik[i] = normal_lpdf(amplitude[i] | mu_pred[i], sigma[participant[indices_observed[i]]]);
-  }
-}
-
+```{r}
+model005_fit$code()
 ```
 
-This model fits fine and leads to a small effect in the expected direction as the average posterior for the slope of arousal is above zero.
+
+
+This model fits fine and leads to a small effect in the expected direction. The 97% of the posterior for the average effect of arousal across trials is above zero. The median being .012 means for each change in unit change in the arousal ratings, we could expect a .012 change in z-scored ssVEP per trial.
 
 ```{r}
+model005_b_arousal_average <- model005_fit$draws(variables = "b_arousal_average", format = "df")
+
+model005_b_arousal_average %>% 
+  ggplot() +
+  geom_vline(aes(xintercept = 0)) +
+  geom_density(aes(x = b_arousal_average)) + 
+  theme_classic()
+
+sum(model005_b_arousal_average$b_arousal_average > 0 ) / nrow(model005_b_arousal_average)
+
+quantile(model005_b_arousal_average$b_arousal_average, probs = c(.025, .5, .975))
 
 ```
 
-
-
-
-<!-- $$ -->
-
-<!-- \begin{gather} -->
-
-<!-- \huge \text{Likelihood Function} \\ -->
-
-<!-- \\ -->
-
-<!-- Amplitude[i] \sim Normal(\mu[i], \sigma[participant[i]])\\ -->
-
-<!-- \\ -->
-
-<!-- \Large \text{if block[i] is  1 (habituation):}\\ -->
-
-<!-- \mu{[i]} = intercept{[participant[i]]} + adaptation[participant[i]] \cdot trial[i] + \beta Arousal[participant[i]] \cdot BlendedArousal[i]\\ -->
-
-<!-- \\ -->
-
-<!-- \Large \text{else if cue[i] is CS+ and paired[i] is 1 (US):}\\ -->
-
-<!-- \Delta CSPStrength[i] = LearningPaired[participant[i]] \cdot (paired[i] - CSPStrength[i]) \tag{30} \\ -->
-
-<!-- CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{31} \\ -->
-
-<!-- \\ -->
-
-<!-- \Large \text{else if cue[i] is CS+ and paired[i] is 0 (no US):}\\ -->
-
-<!-- \Delta CSPStrength[i] = LearningUnpaired[participant[i]] \cdot (paired[i] - CSPStrength[i]) \tag{32} \\ -->
-
-<!-- CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{33} \\ -->
-
-<!-- \\ -->
-
-<!-- \Large \text{else:}\\ -->
-
-<!-- \Delta CSPStrength[i] = 0 \tag{34} \\ -->
-
-<!-- CSPStrength[i + 1] =  CSPStrength[i] \tag{35} \\ -->
-
-<!-- \end{gather} -->
-
-<!-- $$ -->
-
-old below
-
-$$
-\begin{gather}
-\mu{[i]} = \alpha{[participant[i]]} +(\beta1[participant[i]] \cdot trial[i]) + (\beta Scaling[cue[i] \cdot CSPStrength) \tag{23} \\
-\\
-\text{if Habituation phase:}  \tag{24} \\
-CSPStrength[i] = 0 \tag{25} \\
-\Delta CSPStrength[i] = 0 \tag{26} \\
-CSPStrength[i + 1] = 0 \tag{27} \\
-\\
-\text{else if cue[i] is CS+:}  \tag{28} \\
-\Delta CSPStrength[i] = LearningRate[participant[i]] \cdot (paired[i] - CSPStrength) \tag{29} \\
-CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{30} \\
-\\
-\text{else:}  \tag{31} \\
-\Delta CSPStrength[i] = 0 \tag{32} \\
-CSPStrength[i + 1] =  CSPStrength[i] \tag{33} \\
-\\
-LearningRate = invLogit(LearningRateRaw) \tag{34} \\
-LearningRateRaw \sim StudentT(df = nParticipants-1, \ LearningRateAverageRaw, \ \sigma LearningRate)  \tag{35} \\
-LearningRateAverageRaw \sim Normal(0,1.75) \tag{36} \\
-\sigma LearningRate = exp(\sigma LearningRateRaw) \tag{37} \\
-\sigma LearningRateRaw \sim Normal(0, 2.5) \tag{38} \\
-\end{gather}
-$$
+There is not much evidence that the slope differs between participants.
 
 ```{r}
-set.seed(0)
-number_of_samples_plot <- 20000
-learn_sd <- rnorm(number_of_samples_plot,0, 2.5) %>%
-  exp() %>% # transform back to correct scale
-  data.frame(value = .)
+model005_b_arousal <- model005_fit$draws(variables = "b_arousal", format = "df")
 
-
-learn_sd %>% 
+model005_b_arousal %>% 
+  pivot_longer(starts_with("b_arousal")) %>% 
+  mutate(name = factor(name, levels = rev(unique(name)))) %>% 
   ggplot() +
-  coord_cartesian(xlim = c(-.1,10),
-                  expand = 0) +
-  # scale_x_continuous(breaks = seq(0,2, by = .5))+
-  geom_histogram(aes(x = value), bins = 10000) +
-  # geom_density(aes(x = value), fill = "gray") +
-  theme_classic() +
-  theme(axis.title = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank())
-
-scaling_sd <- rnorm(number_of_samples_plot,-.5,1.5) %>%
-  exp() %>% # transform back to correct scale
-  data.frame(value = .)
-
-
-scaling_sd %>% 
-  ggplot() +
-  coord_cartesian(xlim = c(-.1,5),
-                  expand = 0) +
-  # scale_x_continuous(breaks = seq(0,2, by = .5))+
-  geom_histogram(aes(x = value), bins = 500) +
-  # geom_density(aes(x = value), fill = "gray") +
-  theme_classic() +
-  theme(axis.title = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank())
-
+  geom_vline(aes(xintercept = 0)) +
+  geom_density_ridges(aes(y = name, x = value)) + 
+  theme_classic()
 
 ```
 
-<!-- Model 1 found average intercept -->
 
-<!-- ```{r} -->
+## Model S4: Arousal ratings (centered) per cue and block
 
-<!-- model001_df %>%  -->
+It was speculated that participant may be using the scale differently so centering the rating per participant by subtracting the mean rating within participant may affect the results. The average effect was similar but with less of the posterior extending above zero (0.90%).
 
-<!--   ggplot() + -->
 
-<!--   geom_abline(aes(intercept = intercept_average,  -->
+```{r}
+model006_b_arousal_average <- model006_fit$draws(variables = "b_arousal_average", format = "df")
 
-<!--                   slope = fatigue_average), -->
+model006_b_arousal_average %>% 
+  ggplot() +
+  geom_vline(aes(xintercept = 0)) +
+  geom_density(aes(x = b_arousal_average)) + 
+  theme_classic()
 
-<!--               size = .2,  -->
+sum(model006_b_arousal_average$b_arousal_average > 0 ) / nrow(model006_b_arousal_average)
 
-<!--               alpha = .2) + -->
+quantile(model006_b_arousal_average$b_arousal_average, probs = c(.025, .5, .975))
 
-<!--   scale_y_continuous(limits =c(-4,4), breaks = seq(-4, 4, by = 1), -->
+```
 
-<!--                      name = "Z-scored ssVEP") + -->
+Yet, unlike the last model, this led to more variation between participant slopes.
 
-<!--   scale_x_continuous(limits =c(1,176), breaks = seq(0, 176, by = 10), -->
+```{r}
+model006_b_arousal <- model006_fit$draws(variables = "b_arousal", format = "df")
 
-<!--                      name = "Trials") + -->
+model006_b_arousal %>% 
+  pivot_longer(starts_with("b_arousal")) %>% 
+  mutate(name = factor(name, levels = rev(unique(name)))) %>% 
+  ggplot() +
+  geom_vline(aes(xintercept = 0)) +
+  geom_density_ridges(aes(y = name, x = value)) + 
+  theme_classic()
 
-<!--   ggtitle("Model 001 Average intercept") + -->
+```
 
-<!--   theme_classic() + -->
+## Model S5: Arousal & expectancy ratings per cue and block
 
-<!--   theme(text = element_text(family = "arial", size = 15), -->
+The final model attempted to use arousal and shock-expectancy ratings to predict cue effects. This was done through main effects and an interaction:
 
-<!--         axis.ticks.y = element_blank())  -->
+```{r}
+model007_fit$code()
+```
 
-<!-- ``` -->
+At this point, the slope made very little sense and appeared to just be overfitting to subject specific patterns. Taking these three models together, it did not seem justified to publish these results making any definitive points on a preliminary data set of a limited sample size. While it is noteworthy that there is a small arousal effect, it is likely limited by the fact that many of the participants do not show an ssVEP effect at all. So we instead focused on publishing a method paper on the Bayesian method and plan to return to the ratings when more data is available and we are more confident in the reasons why the ssVEP effect was not present for many of the participants. Future efforts that look at fMRI we expect will also aid in ratings interpretations.
 
-<!-- Model 1 intercept by par -->
-
-<!-- ```{r} -->
-
-<!-- model001_df %>% -->
-
-<!--   select(starts_with(c("intercept[", "fatigue["))) %>%  -->
-
-<!--   pivot_longer( -->
-
-<!--     cols = starts_with("intercept") | starts_with("fatigue"), # Select columns to pivot -->
-
-<!--     names_to = c(".value", "id"), # Separate into 'intercept'/'fatigue' and 'id' -->
-
-<!--     names_pattern = "(.*)\\[(\\d+)\\]" # Regex to extract 'intercept' or 'fatigue' and ID -->
-
-<!--   ) %>%  -->
-
-<!--   mutate(id = factor(id, levels = unique(id))) %>%  -->
-
-<!--   filter(id %in% c(1:10)) %>%  -->
-
-<!--   ggplot() + -->
-
-<!--   geom_abline(aes(intercept = intercept,  -->
-
-<!--                   slope = fatigue), -->
-
-<!--               size = .2,  -->
-
-<!--               alpha = .2) + -->
-
-<!--   scale_y_continuous(limits =c(-3,3), breaks = seq(-4, 4, by = 1), -->
-
-<!--                      name = "Z-scored ssVEP") + -->
-
-<!--   scale_x_continuous(limits =c(1,176), breaks = seq(0, 176, by = 10), -->
-
-<!--                      name = "Trials") + -->
-
-<!--   ggtitle("Model 001 Average intercept by participant") + -->
-
-<!--   theme_classic() + -->
-
-<!--   theme(text = element_text(family = "arial", size = 15), -->
-
-<!--         axis.ticks.y = element_blank()) + -->
-
-<!--   facet_wrap(~id, ncol = 5) -->
-
-<!-- ``` -->
-
-## Model 1:<br>Multilevel Participant and Stimuli Predictors {style="text-align: center;"}
-
-Where ( $i$ ) indexes all observations, ( $j$ ) indexes all 45 participants, and ( $k$ ) indexes all 90 stimuli.
-
-$Amplitude$ is a vector of observed cortical amplitudes (either LPP or ssVEP).\
-$Par$ is a vector of a participant indices (1 to 45) for each $Amplitude$.\
-$Stim$ is a vector of stimuli indices (1 to 90) for each $Amplitude$.
-
-### Linear Model (Likelihood) {style="text-align: center;"}
-
-$$
-\begin{gather}
-Amplitude_{[i]} \sim Normal(\mu_{[i]},\sigma_{[Par[i]]}) \tag{1}\\
-\mu_{[i]} = \beta_{1[Par[i]]} + \beta_{2[Stim[i]]} \tag{2}
-\end{gather}
-$$
-
-### Adaptive Regularizing Priors {style="text-align: center;"}
-
-$$
-\begin{gather}
-\beta_{1[j]} \sim Normal(\overline{Par}, \sigma Par) \tag{3}\\
-\beta_{2[k]} \sim Normal(0, \sigma Stim) \tag{4}\\
-\sigma_{[j]} \sim Normal(\overline{\sigma}, \tau) \tag{5}
-\end{gather}
-$$
-
-### Uninformative Weak Priors {style="text-align: center;"}
-
-$$
-\begin{gather}
-\overline{Par} \sim Normal(\overline{Amplitude},2 \cdot SD(Amplitude)) \tag{6}\\
-\sigma Par,\sigma Stim,\overline{\sigma},\tau \sim HalfNormal(0,2 \cdot SD(Amplitude)) \tag{7}
-\end{gather}
-$$
-
-## SNR formula
-
-$$
-{\text{Model 1 SNR}} = \frac {\overline{\beta_2 [\text{emotional stimuli}]} - \overline{\beta_2 [\text{neutral stimuli}]}} {\overline{\sigma}} \tag{8}
-$$
-
-## Model 2:<br>Multilevel Amplitude and Arousal Bivariate Distribution {style="text-align: center; white-space: nowrap;"}
-
-Where ( $i$ ) indexes all observations and ( $j$ ) indexes all 45 participants.
-
-$Amplitude$ is a vector of observed cortical amplitudes (either LPP or ssVEP).\
-$Arousal$ is a vector of observed arousal ratings aligned with $Amplitude$.\
-$Par$ is a vector of a participant indices (1 to 45) for each $Amplitude$.
-
-### Bivariate Distribution (Likelihood) {style="text-align: center;"}
-
-$$
-\begin{gather}
-\begin{bmatrix}
-  Amplitude_{[i]} \\
-  Arousal_{[i]}
-\end{bmatrix} \sim MVNormal \left(
-\begin{bmatrix}
-  \mu Amp_{[Par[i]]} \\
-  \mu Aro_{[Par[i]]}
-\end{bmatrix},
-\begin{array}{c}
-{\huge \Sigma}_{[Par[i]]}
-\end{array}
-\right) \tag{9}\\
-\begin{array}{c}
-{\huge \Sigma}_{[Par[i]]}
-\end{array} = 
-\begin{bmatrix}
-\sigma Amp_{[Par[i]]}^2 & \sigma Amp Aro_{[Par[i]]} \\
-\sigma Amp Aro_{[Par[i]]} & \sigma Aro_{[Par[i]]}^2
-\end{bmatrix} \tag{10}
-\end{gather}
-$$
-
-### Adaptive Regularizing Priors {style="text-align: center;"}
-
-$$
-\begin{gather}
-\mu Amp_{[j]} \sim Normal(\overline{\mu Amp},\sigma Par Amp) \tag{11}\\
-\mu Aro_{[j]} \sim Normal(\overline{\mu Aro},\sigma Par Aro) \tag{12}\\
-\sigma Amp_{[j]} \sim Normal(\overline{\sigma Amp}, \tau ParAmp) \tag{13}\\
-\sigma Aro_{[j]} \sim Normal(\overline{\sigma Aro}, \tau ParAro) \tag{14}\\
-\sigma Amp Aro_{[j]} \sim Normal(\overline{\sigma Amp Aro}, \tau AmpAro) \tag{15}
-\end{gather}
-$$
-
-### Uninformative Weak Priors {style="text-align: center;"}
-
-$$
-\begin{gather}
-\overline{\mu Amp} \sim Normal(\overline{Amplitude},2 \cdot SD(Amplitude)) \tag{16}\\
-\sigma Par Amp,\overline{\sigma Amp},\tau ParAmp,\tau AmpAro \sim HalfNormal(0,2 \cdot SD(Amplitude)) \tag{17}\\
-\overline{\mu Aro} \sim (Beta(1.1,1.1) \cdot 8) + 1 \tag{18}\\
-\sigma Par Aro,\overline{\sigma Aro},\tau ParAro \sim HalfNormal(0,4) \tag{19}\\
-\overline{\sigma Amp Aro} \sim Normal(0,2 \cdot SD(Amplitude)) \tag{20}
-\end{gather}
-$$
-
-## Model 2 Amplitude log-likelihood equation {style="text-align: center;"}
-
-$$
-\begin{gather}
-\mu Amp \vert Arousal_{[i]} = \mu Amp_{[Par[i]]} + \frac {\sigma Amp Aro_{[Par[i]]}} {\sigma Aro_{[Par[i]]}^2} (Arousal_{[i]} - \mu Aro_{[Par[i]]}) \tag{21}\\
-\sigma Amp \vert Arousal_{[i]}^2 = \sigma Amp_{[Par[i]]}^2 - \frac {\sigma Amp Aro_{[Par[i]]}} {\sigma Aro_{[Par[i]]}^2} \tag{22}
-\end{gather}
-$$
-
-## R\^2 formula
-
-$$
-R^2 = \frac {\text{variance of predicted observations}} {(\text{variance of predicted observations } + \text{residual variance})} \tag{23}
-$$
-
-## Model 2: Multilevel Participant and Arousal Predictors {style="text-align: center;"}
-
-$$
-\begin{gather}
-Where \ ( i ) \ indexes \ all \ observations \ and \ ( j ) \ indexes \ 46 \ participants. \\
-Where \ ( Amplitude ) \ is \ a \ vector \ of \ observed \ cortical \ amplitudes. \\
-Where \ ( Par ) \ is \ a \ vector \ of \ participant \ indices \ for \ each \ amplitude. \\
-\end{gather} \\
-$$
-
-### Linear Model (Likelihood) {style="text-align: center;"}
-
-$$
-\begin{gather}
-Amplitude_{[i]} \sim Normal(\mu_{[i]},\sigma) \tag{1}\\
-\mu_{[i]} = \beta1_{[Par[i]]} + \beta2_{[Par[i]]} \cdot Arousal_{[i]} \tag{2}
-\end{gather}
-$$
-
-### Adaptive Regularizing Priors {style="text-align: center;"}
-
-$$
-\begin{gather}
-\beta1_{[j]} \sim Normal(\bar{Par}, \sigma Par)  \tag{3}\\
-\beta2_{[j]} \sim Normal(\bar{\beta2}, \sigma Aro)  \tag{4}
-\end{gather}
-$$
-
-### Uninformative Weak Priors {style="text-align: center;"}
-
-$$
-\begin{gather}
-\bar{Par} \sim Normal(\bar{Arousal},2 \cdot SD(Amplitude)) \tag{5}\\
-\bar{\beta2} \sim Normal(0, 2 \cdot SD(Amplitude)) \tag{6}\\
-\sigma,\sigma Par,\sigma Aro \sim HalfNormal(0,2 \cdot SD(Amplitude)) \tag{7}
-\end{gather}
-$$
-
-## Model 4: Multilevel participant and stimuli predictors {style="text-align: center;"}
-
-$$
-\begin{gather}
-Where \ ( i ) \ indexes \ all \ observations, ( j ) \ indexes \ participants,\\ 
-and \ ( k ) \ indexes \ stimuli.
-\end{gather}
-$$
-
-### Linear model {style="text-align: center;"}
-
-$$
-\begin{gather}
-Amplitude_{[i]} \sim Normal(\mu_{[i]},\sigma) \tag{1}\\
-\mu_{[i]} = \beta_{par[i]} + \beta_{stim[i]} \tag{2}
-\end{gather}
-$$
-
-### Adaptive regularizing priors {style="text-align: center;"}
-
-$$
-\begin{gather}
-\beta_{par[j]} \sim Normal(\hat{\bar{par}}, \sigma_{par}) \tag{3}\\
-\beta_{stim[k]} \sim Normal(0, \sigma_{stim}) \tag{4}
-\end{gather}
-$$
-
-### Uninformative weak priors {style="text-align: center;"}
-
-$$
-\begin{gather}
-\hat{\bar{par}} \sim Normal(\bar{par},2 * SD(Amplitude)) \tag{5}\\
-\sigma,\sigma_{par},\sigma_{stim} \sim HalfNormal(0,2 * SD(Amplitude)) \tag{6}
-\end{gather}
-$$

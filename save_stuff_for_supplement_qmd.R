@@ -36,8 +36,12 @@ save(cue_color, model002_fit_loo, model003_fit_loo, Oz_fft_df,
      model002_fit_learning_rate_posteriors, model002_fit_scaling_posteriors,
      model004_fit_learning_rate_posteriors,
      gaborgen_stan_list, 
+     model005_fit,
+     model006_fit,
+     model007_fit,
      CSP_df,
      file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/supplemental_data.RData")
+
 
 
 Oz_fft_df %>% 
