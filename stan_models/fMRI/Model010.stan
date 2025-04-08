@@ -1,67 +1,30 @@
 
 functions {
-  // This function 
+  // This function calculates the necessary log-likelihoods for each ROI
+  // This function is put in map_rect so that each "shard" is a participant
+  // This allows for parallel compututing such that multiple CPU threads can be used per chain
+  // Matrix and vector operations are used so that GPU accelleration can be used with OpenCL
   vector participant_roi_ll(vector theta, // reused for every shared
                             vector phi, // shard specific parameters
                             array[] real data_shard, // data (real numbers) used for this shard
                             array[] int int_data_shard) { // data (integers) used for this shard
-    // Expected structure of theta:
-    //   theta[1:K]         : beta coefficients (K = n_DM_cols)
-    //   theta[K+1]         : sigma (standard deviation)
-    //   theta[K+2]         : delta
-    //   theta[K+3]         : rho_time
-    int n_bold = int_data_shard[1];       // number of BOLD observations for this shard
-    int K = int_data_shard[2];            // number of DM columns
 
-    // Reconstruct the design matrix DM for this shard.
-    // We assume the first (n_bold*K) entries of data_shard are the design matrix (row-major order)
-    matrix[n_bold, K] DM;
-    {
-      int pos = 1;
-      for (i in 1:n_bold)
-        for (j in 1:K) {
-          DM[i, j] = data_shard[pos];
-          pos += 1;
-        }
-    }
     
-    // Next, the remaining n_bold entries of data_shard are the BOLD time series.
-    vector[n_bold] bold;
-    {
-      int offset = n_bold * K;
-      for (i in 1:n_bold)
-        bold[i] = data_shard[offset + i];
-    }
-    
-    // Compute the mean vector (Mu) for the BOLD data
-    vector[n_bold] mu = DM * theta[1:K];
-    
-    // Extract shard-specific parameters
-    real sigma    = theta[K+1];
-    real delta    = theta[K+2];
-    real rho_time = theta[K+3];
-    
-    // Construct the covariance matrix Cov_time.
-    // For illustration, we build a simple structure using the supplied parameters.
-    matrix[n_bold, n_bold] Cov_time;
-    for (i in 1:n_bold) {
-      for (j in 1:n_bold) {
-        // For example, let the off-diagonals be modulated by delta and rho_time:
-        if (i == j) {
-          Cov_time[i, j] = square(sigma);
-        } else {
-          Cov_time[i, j] = square(sigma) * delta * pow(rho_time, fabs(i - j));
-        }
-      }
-    }
-    
-    // Compute the Cholesky factor of Cov_time.
-    matrix[n_bold, n_bold] L_time = cholesky_decompose(Cov_time);
-    
-    // Compute and return the log likelihood for this shard.
-    // Note: multi_normal_cholesky_lpdf returns a real, but we need to return a vector.
-    return [ multi_normal_cholesky_lpdf(bold | mu, L_time) ]';
-  }
+    vector[1070] current_bold = data_shard[1:1070];
+
+    int n_censor = int_data_shard[1];
+
+    int n_DM_cols = int_data_shard[2];
+
+    array[1070 - n_censor] int usable_bold_indices = int_data_shard[3:(n_censor + 1)];
+
+    vector[1070 - n_censor] censored_bold = current_bold[usable_bold_indices];
+
+    matrix[1070, ]
+
+    vector[rows(DM_censored)] Mu = (DM_censored * Betas); 
+
+
 }
 
 
