@@ -5,24 +5,94 @@ functions {
   // Matrix and vector operations are used so that GPU accelleration can be used with OpenCL
   vector participant_ll(vector phi, // reused for every shared
                         vector theta, // shard specific parameters
-                        array[] real data_shard, // data (real numbers) used for this shard
-                        array[] int int_data_shard) { // data (integers) used for this shard
+                        array[] real data_shard_real, // data (real numbers) used for this shard
+                        array[] int data_shard_int) { // data (integers) used for this shard
 
-  //   data_shard_real[,r];
+  // unpack data_shard_int
+  int n_bold = data_shard_int[1];
+  int n_roi = data_shard_int[2];
+  int n_censor = data_shard_int[3];
+  int n_beta = data_shard_int[4];
+  array[n_bold] int usable_bold_indices = data_shard_int[5:(n_bold+4)];
 
+  array[n_bold - n_censor] int uncensored_indices;
+  int keep_index = 1;
+  for (i in 1:n_bold) {
+    if (usable_bold_indices[i] == 1) {
+      uncensored_indices[keep_index] = i;
+      keep_index = keep_index + 1;
+    }
+  }
+
+  // upack data_shard_real
+  matrix[n_bold, n_roi] bold = to_matrix(data_shard_real[1:(n_bold * n_roi)], n_bold, n_roi);
+  matrix[n_bold, n_beta] design_matrix = to_matrix(data_shard_real[(n_bold*n_roi + 1):(n_bold*n_roi + n_bold*n_beta)], n_bold, n_roi);
+
+
+  // unpack parameters
+  int start_index = 1;
+  int stop_index = n_roi;
+  array[n_roi] real sigma = to_array_1d(theta[start_index:stop_index]);
+
+  start_index = stop_index + 1;
+  stop_index = stop_index + n_roi;
+  array[n_roi] real delta = to_array_1d(theta[start_index:stop_index]);
+
+  start_index = stop_index + 1;
+  stop_index = stop_index + n_roi;
+  array[n_roi] real rho_time = to_array_1d(theta[start_index:stop_index]);
   
-  // matrix[1070,1070] Cov;
+  array[n_roi] vector[n_beta] betas;
+  for (r in 1:n_roi) {
+    start_index = stop_index + 1;
+    stop_index = stop_index + n_beta;
+    betas[r] = theta[start_index:stop_index];
+  }
+
+  // create operation matrices  
+  matrix[n_bold, n_bold] zero_diag_matrix =
+    rep_matrix(1, n_bold, n_bold) - diag_matrix(rep_vector(1, n_bold));
+
+  vector[n_bold] idx = linspaced_vector(n_bold, 1, n_bold);
   
-  // Cov = pow(sigma, 2) .* add_diag((delta .* zero_diag_matrix),1) .* (rho .^ rho_power_matrix);
+  // Create a matrix where each row is the index i.
+  // v * rep_row_vector(1, n_bold) produces an n_bold x n_bold matrix
+  // where row i consists of the value idx[i] repeated n_bold times.
+  matrix[n_bold, n_bold] row_idx = idx * rep_row_vector(1, n_bold);
   
-  // matrix[1070 - n_censor, 1070 - n_censor] Cov_censor = Cov[censor, censor];
+  // Similarly, rep_column_vector(1, n_bold) * idx'
+  // produces an n_bold x n_bold matrix where column j consists of the value idx[j] repeated.
+  matrix[n_bold, n_bold] col_idx = rep_vector(1, n_bold) * idx';
   
-  // matrix[1070 - n_censor, 1070 - n_censor] L_Cov_censor = cholesky_decompose(Cov_censor);
+  // Now compute the matrix of absolute differences:
+  matrix[n_bold, n_bold] rho_power_matrix = abs(row_idx - col_idx);
   
 
-  // vector[rows(DM_censored)] Mu = (DM_censored * Betas); 
+  // Create mu predictions and covariance matrices per roi, then calc likelihood
+  matrix[n_bold - n_censor, n_beta] design_matrix_censor = design_matrix[uncensored_indices,];
+  array[n_roi] vector[n_beta] Mu; 
+  array[n_roi] matrix[n_bold, n_bold] Cov;
+  array[n_roi] matrix[n_bold - n_censor, n_bold - n_censor] Cov_censor;
+  array[n_roi] matrix[n_bold - n_censor, n_bold - n_censor] L_Cov_censor;
 
-  // multi_normal_cholesky_lpdf(bold | Mu, L)
+  vector[n_roi] log_liks;
+  
+  for (r in 1:n_roi) {
+    Mu[r]= (design_matrix_censor * betas[r]);
+
+    Cov[r] = pow(sigma[r], 2) .* add_diag((delta[r] .* zero_diag_matrix),1) .* (rho_time[r] .^ rho_power_matrix);
+  
+    Cov_censor[r] = Cov[r][uncensored_indices, uncensored_indices];
+
+    L_Cov_censor[r] = cholesky_decompose(Cov_censor[r]);
+
+    log_liks[r] = multi_normal_cholesky_lpdf(bold[,r] | Mu[r], L_Cov_censor[r]);
+
+  }
+  
+  
+
+ 
 
 // }
  vector[3] test = zeros_row_vector(3)';
@@ -41,7 +111,7 @@ data {
 
   array[n] int par;
   array[n] int roi;
-  array[n_par, n_roi, n_bold] real bold;
+  array[n_par, n_bold*n_roi] real bold;
   array[n_par, n_bold] int usable_bold_indices;
   array[n_par] int n_censor;
   array[n_par, n_bold, n_beta] real design_array;
@@ -49,43 +119,40 @@ data {
 
 transformed data {
   // these matrices are used for more efficient operations
-  matrix[n_bold, n_bold] zero_diag_matrix;
+  // matrix[n_bold, n_bold] zero_diag_matrix;
 
-  for (i in 1:n_bold) {
-    for (j in 1:n_bold) {
-      if (i == j) {
-        zero_diag_matrix[i,j] = 0;
-      } else {
-        zero_diag_matrix[i,j] = 1;
-      }
-    }
-  }
+  // for (i in 1:n_bold) {
+  //   for (j in 1:n_bold) {
+  //     if (i == j) {
+  //       zero_diag_matrix[i,j] = 0;
+  //     } else {
+  //       zero_diag_matrix[i,j] = 1;
+  //     }
+  //   }
+  // }
   
-  matrix[n_bold,n_bold] rho_power_matrix;
+  // matrix[n_bold,n_bold] rho_power_matrix;
 
-  for (i in 1:n_bold) {
-    for (j in 1:n_bold) {
-      rho_power_matrix[i,j] = abs(i-j);
-    }
-  }
+  // for (i in 1:n_bold) {
+  //   for (j in 1:n_bold) {
+  //     rho_power_matrix[i,j] = abs(i-j);
+  //   }
+  // }
+
 
 
   // For map_rect: 
   // create data_shard_real for each participant
-  // array[n_par, n_roi * n_bold + n_beta * n_bold]
-    array[n_par, (n_roi * n_bold) + (n_beta * n_bold)] real data_shard_real;
+  // array[n_par, n_bold * n_roi + n_bold * n_beta]
+  array[n_par, n_bold * n_roi + n_bold * n_beta] real data_shard_real;
   for (p in 1:n_par) {
-    data_shard_real[p, 1:(n_roi * n_bold)] = to_array_1d(to_vector(to_matrix(bold[p, , ])));
-    for (r in 1:n_roi) {
-    }
-    data_shard_real[p][, (n_roi + 1):(n_roi + n_beta)] = to_matrix(design_array[p, , ]);
-
-    data_shard_real[p][, (n_roi + n_beta + 1):(n_roi + n_beta + rows(zero_diag_matrix))] = 
-      zero_diag_matrix;
-      
-    data_shard_real[p][, (n_roi+n_beta+rows(zero_diag_matrix)+1):(n_roi+n_beta+rows(zero_diag_matrix)+rows(rho_power_matrix))] = 
-      rho_power_matrix;
-
+    data_shard_real[p, 1:(n_bold * n_roi)] = bold[p, ];
+    // I think this is row-major order 
+    // design_array[p,1,1]
+    // design_array[p,1,2]
+    // design_array[p,2,1]
+    // design_array[p,2,2]
+    data_shard_real[p, (n_bold*n_roi + 1):(n_bold*n_roi + n_bold*n_beta)] = to_array_1d(design_array[p,,]);
   }
 
 
@@ -112,16 +179,17 @@ transformed data {
 
   // create data_shard_int for each participant
   // array[n_bold + 3]
-  // censor
   // n_bold
   // n_roi
   // n_censor
-  array[n_par, n_bold + 3] int data_shard_int;
+  // censor
+  array[n_par, n_bold + 4] int data_shard_int;
   for(p in 1:n_par){
-    data_shard_int[p,1:n_bold] = usable_bold_indices[p,];
-    data_shard_int[p,n_bold + 1] = n_bold;
-    data_shard_int[p,n_bold + 2] = n_roi;
-    data_shard_int[p,n_bold + 3] = n_censor[p];
+    data_shard_int[p, 1] = n_bold;
+    data_shard_int[p, 2] = n_roi;
+    data_shard_int[p, 3] = n_censor[p];
+    data_shard_int[p, 4] = n_beta;
+    data_shard_int[p, 5:(n_bold + 4)] = usable_bold_indices[p,];
   }
 
 }
@@ -246,13 +314,22 @@ model {
   array[n_par] vector[(n_roi * 3) + (n_roi * n_beta)] theta;
 
   for (p in 1:n_par) {
-    theta[p][1:n_roi] = to_vector(sigma[p,]);
-    theta[p][(1+n_roi):(n_roi *2)] = to_vector(delta[p,]);
-    theta[p][(1+n_roi*2):(n_roi *3)] = to_vector(rho_time[p,]);
-    // first beta rois added outside loop
-    theta[p][(1+n_roi*3):(n_roi * 3 + n_beta)] = to_vector(betas[1][p,]);
-    for (b in 2:n_beta) {
-      theta[p][(1 + n_roi * 3 + n_beta):(n_roi * 3 + n_beta * b)] = to_vector(betas[b][p,]);
+    int start_index = 1;
+    int stop_index = n_roi;
+    theta[p][start_index:stop_index] = to_vector(sigma[p,]);
+
+    start_index = stop_index + 1;
+    stop_index = stop_index + n_roi;
+    theta[p][start_index:stop_index] = to_vector(delta[p,]);
+
+    start_index = stop_index + 1;
+    stop_index = stop_index + n_roi;
+    theta[p][start_index:stop_index] = to_vector(rho_time[p,]);
+
+    for (r in 1:n_roi) {
+      start_index = stop_index + 1;
+      stop_index = stop_index + n_beta;
+      theta[p][start_index:stop_index] = to_vector(betas[p,r]);
     }
   }
 
@@ -305,7 +382,7 @@ target += sum(map_rect(participant_ll, phi, theta, data_shard_real, data_shard_i
   // Set priors for global parameters here (or on the individual theta_shards if modeled hierarchically).
 
   // Parallelize the likelihood across shards using map_rect.
-  target += sum(map_rect(participant_roi_ll, phi, theta_shards, data_shards, int_data_shards));
+  // target += sum(map_rect(participant_roi_ll, phi, theta_shards, data_shards, int_data_shards));
 
 
 }

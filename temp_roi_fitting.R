@@ -89,10 +89,10 @@ for (i in 1:length(useable_participants)) {
     "roi" = long_mean_bold$roi,
     "roi_id" = as.numeric(long_mean_bold$roi_id),
     "time_sec" = long_mean_bold$time,
-    "censor" = censor_info,
     "bold" = long_mean_bold$bold
   ) %>%
-    arrange(roi_id, time_sec)
+    arrange(roi_id, time_sec) %>%
+    mutate("censor" = rep(censor_info, n() / 1070), .before = "bold") # so everything lines up right
 
   bold_per_roi_df <- rbind.data.frame(
     bold_per_roi_df,
@@ -171,22 +171,148 @@ for (i in 1:length(useable_participants)) {
 }
 
 # create stan list ####
+used_df <- bold_per_roi_df %>%
+  filter(roi_id %in% c(1, 2))
+
+
 fmri_stan_list <- list()
 
-fmri_stan_list$n_participants <- 1
-fmri_stan_list$n_ROIs <- 1
+fmri_stan_list$n_par <- used_df$par %>% unique() %>% length()
 
-# 69 = Anterior_Ventral_Insular_Area_L
-fmri_stan_list$amplitude_no_censor <- roi_df %>%
-  select(paste0("Mean_", 69)) %>%
-  pull()
+fmri_stan_list$n_roi <- used_df$roi_id %>% unique() %>% length()
 
-fmri_stan_list$censor <- c(1:1070)[censor_info == 1]
+fmri_stan_list$n_bold <- 1070
 
-fmri_stan_list$n_amplitude <- fmri_stan_list$amplitude_no_censor %>%
-  length()
+fmri_stan_list$n <- fmri_stan_list$n_par *
+  fmri_stan_list$n_roi *
+  fmri_stan_list$n_bold
 
-fmri_stan_list$n_censor <- 1070 - length(fmri_stan_list$censor)
+fmri_stan_list$par <- used_df$par %>% as.factor() %>% as.integer()
+
+fmri_stan_list$roi <- used_df$roi_id %>% as.factor() %>% as.integer()
+
+# just vector
+# fmri_stan_list$bold <- used_df$bold
+# [par, time]
+fmri_stan_list$bold <- used_df$bold %>%
+  array(
+    dim = c(
+      fmri_stan_list$n_bold * fmri_stan_list$n_roi,
+      # fmri_stan_list$n_roi,
+      fmri_stan_list$n_par
+    )
+  ) %>%
+  aperm(c(2, 1))
+# [par, roi, time]
+# fmri_stan_list$bold <- used_df$bold %>%
+#   array(
+#     dim = c(
+#       1070,
+#       fmri_stan_list$n_roi,
+#       fmri_stan_list$n_par
+#     )
+#   ) %>%
+#   aperm(c(3, 2, 1))
+
+# just vector
+# fmri_stan_list$usable_bold_indices <- used_df$censor %>% as.integer()
+# [par, roi, time] to [par, time]; same for each roi
+fmri_stan_list$usable_bold_indices <- used_df$censor %>%
+  array(
+    dim = c(
+      1070,
+      fmri_stan_list$n_roi,
+      fmri_stan_list$n_par
+    )
+  ) %>%
+  aperm(c(3, 2, 1))
+fmri_stan_list$usable_bold_indices <- fmri_stan_list$usable_bold_indices[, 1, ]
+
+
+# array [n_par] int
+censor_vec <- vector()
+for (p in 1:fmri_stan_list$n_par) {
+  censor_vec <- c(
+    censor_vec,
+    (1070 - sum(fmri_stan_list$usable_bold_indices[p, ] == 1))
+  )
+}
+fmri_stan_list$n_censor <- censor_vec %>% as.integer()
+
+fmri_stan_list$n_beta <- ncol(all_par_design_matrices) - 2
+
+# array[n_par, 1070, n_beta] real design_array
+design_list <- split(
+  all_par_design_matrices,
+  all_par_design_matrices$participant
+)
+design_matrices <- lapply(
+  design_list,
+  function(df) as.matrix(df[, setdiff(names(df), c("participant", "time"))])
+)
+tmp_array <- array(
+  unlist(design_matrices),
+  dim = c(
+    1070,
+    fmri_stan_list$n_beta,
+    fmri_stan_list$n_par
+  )
+)
+design_array <- aperm(tmp_array, c(3, 1, 2))
+
+fmri_stan_list$design_array <- design_array
+
+# Stan settings ####
+number_of_chains <- 4
+warmup_samples_per_chain <- 200
+posterior_samples_per_chain <- 200
+where_to_save_chains <- '/home/andrew/Documents/stan_chains_ssd/'
+# where_to_save_chains <- '/run/media/andrew/Barracuda_8tb/stan_chains/'
+# where_to_save_chains <- '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains'
+
+model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model001.stan'
+
+
+# Fit models
+model001 <- cmdstanr::cmdstan_model(
+  stan_file = model_path,
+  force_recompile = T,
+  cpp_options = list(stan_threads = TRUE, stan_opencl = TRUE)
+)
+
+model001_fit <- model001$sample(
+  data = fmri_stan_list,
+  refresh = 50,
+  seed = 3,
+  threads_per_chain = 2,
+  iter_warmup = warmup_samples_per_chain,
+  iter_sampling = posterior_samples_per_chain,
+  save_warmup = F,
+  show_messages = T,
+  output_dir = where_to_save_chains,
+  chains = number_of_chains,
+  parallel_chains = number_of_chains
+)
+
+
+#
+
+#
+
+#
+
+split()
+
+split(
+  all_par_design_matrices,
+  all_par_design_matrices$participant,
+  drop = c("participant")
+)
+
+fmri_stan_list$design_matrices[1, , ] <- all_par_design_matrices %>%
+  filter(participant == 149) %>%
+  select(3:ncol(all_par_design_matrices)) %>%
+  as.matrix()
 
 #no polort high-pass
 fmri_stan_list$design_matrix <- design_matrix[, 17:ncol(design_matrix)]
