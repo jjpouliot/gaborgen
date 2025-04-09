@@ -1,9 +1,384 @@
 library(tidyverse)
 library(cmdstanr)
-library(signal)
+# library(signal)
 
 # we recommend running this in a fresh R session or restarting your current session
 # install.packages("cmdstanr", repos = c('https://stan-dev.r-universe.dev', getOption("repos")))
+
+# Filter used, same notation as matlab
+highpass <- signal::butter(n = 5, W = 0.026, type = "high")
+
+
+# load data from text files ####
+
+data_dir <- c(
+  "/home/andrew/Downloads/roi_data_and_info"
+  # "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info"
+)
+
+roi_key <- read_delim(paste0(data_dir, '/HCPex_SUIT_labels.txt'))
+
+colnames(roi_key) <- c("roi_id", "roi")
+
+# useable_participants <- c("145")
+useable_participants <- c("133", "145", "149")
+
+bold_per_roi_df <- data.frame(
+  "par" = numeric(),
+  "roi" = character(),
+  "roi_id" = numeric(),
+  "seconds" = numeric(),
+  "uncensored" = numeric(),
+  "bold" = numeric()
+)
+
+
+for (i in 1:length(useable_participants)) {
+  bold_text_file <- list.files(
+    path = data_dir,
+    pattern = paste0(useable_participants[i], "_roi_stats.txt"),
+    recursive = T,
+    full.names = T,
+    include.dirs = F
+  )
+
+  all_bold <- read_delim(
+    bold_text_file,
+    trim_ws = T
+  )
+
+  all_bold <- all_bold %>%
+    select(starts_with("NZMEAN")) %>%
+    mutate(across(everything(), ~ . - 100)) %>%
+    mutate(across(everything(), ~ signal::filtfilt(highpass, .)))
+
+  # why are there extra areas that are not in the key?
+  long_mean_bold <- all_bold %>%
+    mutate(time = seq(0, 1069 * 2, by = 2)) %>%
+    pivot_longer(cols = contains("NZMEAN_")) %>%
+    select(name, time, value) %>%
+    mutate(
+      roi_id = sub(pattern = "NZMean_", replacement = "", x = name),
+      par = useable_participants[i]
+    ) %>%
+    rename("bold" = value) %>%
+    merge(x = ., y = roi_key, by.x = "roi_id", by.y = "roi_id")
+
+  if (useable_participants[i] < 123) {
+    censor_info <- read_delim(
+      paste0(
+        data_dir,
+        '/censor_GABORGEN24_',
+        useable_participants[i],
+        '_combined_2.1D'
+      ),
+      col_names = F
+    )[[2]]
+  } else {
+    censor_info <- read_delim(
+      paste0(
+        data_dir,
+        '/censor_GABORGEN24_DAY1_',
+        useable_participants[i],
+        '_combined_2.1D'
+      ),
+      col_names = F
+    )[[2]]
+  }
+
+  current_bold_per_roi_df <- data.frame(
+    "par" = long_mean_bold$par,
+    "roi" = long_mean_bold$roi,
+    "roi_id" = as.numeric(long_mean_bold$roi_id),
+    "time_sec" = long_mean_bold$time,
+    "bold" = long_mean_bold$bold
+  ) %>%
+    arrange(roi_id, time_sec) %>%
+    mutate("censor" = rep(censor_info, n() / 1070), .before = "bold") # so everything lines up right
+
+  bold_per_roi_df <- rbind.data.frame(
+    bold_per_roi_df,
+    current_bold_per_roi_df
+  )
+}
+
+# by participant design matrix
+all_par_design_matrices <- tibble()
+
+for (i in 1:length(useable_participants)) {
+  if (useable_participants[i] < 123) {
+    current_design_matrix <- read_delim(
+      paste0(
+        data_dir,
+        '/GABORGEN24_',
+        useable_participants[i],
+        '.results_X.nocensor.xmat.1D'
+      ),
+      skip = 64,
+      col_names = F
+    )
+  } else {
+    current_design_matrix <- read_delim(
+      paste0(
+        data_dir,
+        '/GABORGEN24_DAY1_',
+        useable_participants[i],
+        '.results_X.nocensor.xmat.1D'
+      ),
+      skip = 64,
+      col_names = F
+    )
+  }
+  current_design_matrix <- current_design_matrix[
+    1:(nrow(current_design_matrix) - 1),
+    2:ncol(current_design_matrix)
+  ]
+
+  current_design_matrix$X2 <- as.numeric(current_design_matrix$X2)
+
+  # don't need high pass variables
+  current_design_matrix <- current_design_matrix[,
+    17:ncol(current_design_matrix)
+  ]
+
+  colnames(current_design_matrix) <- c(
+    "phase_1_stim_1",
+    "phase_1_stim_2",
+    "phase_1_stim_3",
+    "phase_1_stim_4",
+    "phase_2_stim_1",
+    "phase_2_stim_2",
+    "phase_2_stim_3",
+    "phase_2_stim_4",
+    "phase_3_stim_1",
+    "phase_3_stim_2",
+    "phase_3_stim_3",
+    "phase_3_stim_4",
+    "mot_demean_r01_0",
+    "mot_demean_r01_1",
+    "mot_demean_r01_2",
+    "mot_demean_r01_3",
+    "mot_demean_r01_4",
+    "mot_demean_r01_5"
+  )
+
+  current_design_matrix <- current_design_matrix %>%
+    mutate(time = seq(0, 1069 * 2, by = 2), .before = 1) %>%
+    mutate(participant = useable_participants[i], .before = 1)
+
+  all_par_design_matrices <- rbind(
+    all_par_design_matrices,
+    current_design_matrix
+  )
+}
+
+# create stan list ####
+used_df <- bold_per_roi_df %>%
+  filter(roi_id %in% c(1,2,3,69))
+
+
+fmri_stan_list <- list()
+
+fmri_stan_list$n_par <- used_df$par %>% unique() %>% length()
+
+fmri_stan_list$n_roi <- used_df$roi_id %>% unique() %>% length()
+
+fmri_stan_list$n_bold <- 1070
+
+fmri_stan_list$n <- fmri_stan_list$n_par *
+  fmri_stan_list$n_roi *
+  fmri_stan_list$n_bold
+
+fmri_stan_list$par <- used_df$par %>% as.factor() %>% as.integer()
+
+fmri_stan_list$roi <- used_df$roi_id %>% as.factor() %>% as.integer()
+
+# just vector
+# fmri_stan_list$bold <- used_df$bold
+# [par, time]
+fmri_stan_list$bold <- used_df$bold %>%
+  array(
+    dim = c(
+      fmri_stan_list$n_bold * fmri_stan_list$n_roi,
+      # fmri_stan_list$n_roi,
+      fmri_stan_list$n_par
+    )
+  ) %>%
+  aperm(c(2, 1))
+# [par, roi, time]
+# fmri_stan_list$bold <- used_df$bold %>%
+#   array(
+#     dim = c(
+#       1070,
+#       fmri_stan_list$n_roi,
+#       fmri_stan_list$n_par
+#     )
+#   ) %>%
+#   aperm(c(3, 2, 1))
+
+# just vector
+# fmri_stan_list$usable_bold_indices <- used_df$censor %>% as.integer()
+# [par, roi, time] to [par, time]; same for each roi
+fmri_stan_list$usable_bold_indices <- used_df$censor %>%
+  array(
+    dim = c(
+      1070,
+      fmri_stan_list$n_roi,
+      fmri_stan_list$n_par
+    )
+  ) %>%
+  aperm(c(3, 2, 1))
+
+# We first subset with drop = FALSE to preserve all dimensions:
+temp <- fmri_stan_list$usable_bold_indices[, 1, , drop = FALSE]
+# temp now has dimensions: [n_par, 1, 1070]
+
+# Then we manually reshape the result by dropping the singleton second dimension:
+dim(temp) <- c(dim(temp)[1], dim(temp)[3])
+# Now temp is a matrix of dimensions: [n_par, 1070]
+
+# Finally, assign it back:
+fmri_stan_list$usable_bold_indices <- temp
+
+# fmri_stan_list$usable_bold_indices <- fmri_stan_list$usable_bold_indices[, 1, ] %>% array(dim =c(fmri_stan_list$n_par, 1070))
+
+
+# array [n_par] int
+censor_vec <- vector()
+for (p in 1:fmri_stan_list$n_par) {
+  censor_vec <- c(
+    censor_vec,
+    (1070 - sum(fmri_stan_list$usable_bold_indices[p, ] == 1))
+  )
+}
+fmri_stan_list$n_censor <- censor_vec %>% as.integer()
+
+fmri_stan_list$n_beta <- ncol(all_par_design_matrices) - 2
+
+# array[n_par, 1070, n_beta] real design_array
+design_list <- split(
+  all_par_design_matrices,
+  all_par_design_matrices$participant
+)
+design_matrices <- lapply(
+  design_list,
+  function(df) as.matrix(df[, setdiff(names(df), c("participant", "time"))])
+)
+tmp_array <- array(
+  unlist(design_matrices),
+  dim = c(
+    1070,
+    fmri_stan_list$n_beta,
+    fmri_stan_list$n_par
+  )
+)
+design_array <- aperm(tmp_array, c(3, 1, 2))
+
+fmri_stan_list$design_array <- design_array
+
+# Stan settings ####
+number_of_chains <- 4
+warmup_samples_per_chain <- 200
+posterior_samples_per_chain <- 200
+where_to_save_chains <- '/home/andrew/Documents/stan_chains_ssd/'
+# where_to_save_chains <- '/run/media/andrew/Barracuda_8tb/stan_chains/'
+# where_to_save_chains <- '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains'
+
+# First map_rect model ####
+
+model_path <- '/home/andrew/Documents/GitHub/gaborgen/stan_models/fMRI/Model012.stan'
+# model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model012.stan'
+
+
+# Fit models
+model012 <- cmdstanr::cmdstan_model(
+  stan_file = model_path,
+  force_recompile = T,
+  # cpp_options = list(stan_threads = TRUE)
+  cpp_options = list(stan_threads = TRUE, stan_opencl = TRUE)
+)
+
+model012_fit <- model012$sample(
+  data = fmri_stan_list,
+  refresh = 50,
+  seed = 3,
+  threads_per_chain = 3,
+  iter_warmup = warmup_samples_per_chain,
+  iter_sampling = posterior_samples_per_chain,
+  save_warmup = T,
+  show_messages = T,
+  output_dir = where_to_save_chains,
+  chains = number_of_chains,
+  parallel_chains = number_of_chains
+)
+
+model012_fit$output()
+
+#
+
+#
+
+#
+
+split()
+
+split(
+  all_par_design_matrices,
+  all_par_design_matrices$participant,
+  drop = c("participant")
+)
+
+fmri_stan_list$design_matrices[1, , ] <- all_par_design_matrices %>%
+  filter(participant == 149) %>%
+  select(3:ncol(all_par_design_matrices)) %>%
+  as.matrix()
+
+#no polort high-pass
+fmri_stan_list$design_matrix <- design_matrix[, 17:ncol(design_matrix)]
+# fmri_stan_list$design_matrix <- design_matrix
+
+fmri_stan_list$n_DM_cols <- ncol(fmri_stan_list$design_matrix)
+
+
+roi_df <- read_delim(
+  '/home/andrew/Downloads/stan_data/145_first_attempt/roi_stats.txt',
+  trim_ws = T
+)
+
+design_matrix <- design_matrix[
+  1:(nrow(design_matrix) - 1),
+  2:ncol(design_matrix)
+]
+
+design_matrix$X2 <- as.numeric(design_matrix$X2)
+
+censor_info <- read_delim(
+  '/home/andrew/Downloads/stan_data/145_first_attempt/censor_GABORGEN24_DAY1_145_combined_2.1D',
+  col_names = F
+)[[2]]
+
+fmri_stan_list <- list()
+
+fmri_stan_list$n_participants <- 1
+fmri_stan_list$n_ROIs <- 1
+
+# 69 = Anterior_Ventral_Insular_Area_L
+fmri_stan_list$amplitude_no_censor <- roi_df %>%
+  select(paste0("Mean_", 69)) %>%
+  pull()
+
+fmri_stan_list$censor <- c(1:1070)[censor_info == 1]
+
+fmri_stan_list$n_amplitude <- fmri_stan_list$amplitude_no_censor %>%
+  length()
+
+fmri_stan_list$n_censor <- 1070 - length(fmri_stan_list$censor)
+
+#no polort high-pass
+fmri_stan_list$design_matrix <- design_matrix[, 17:ncol(design_matrix)]
+# fmri_stan_list$design_matrix <- design_matrix
+
+fmri_stan_list$n_DM_cols <- ncol(fmri_stan_list$design_matrix)
 
 
 highpass <- butter(n = 5, W = 0.026, type = "high")
@@ -14,7 +389,9 @@ roi_df <- read_delim(
   '/home/andrew/Downloads/stan_data/145_first_attempt/roi_stats.txt',
   trim_ws = T
 )
-roi_key <- read_delim('/home/andrew/Downloads/stan_data/145_first_attempt/HCPex_SUIT_labels.txt')
+roi_key <- read_delim(
+  '/home/andrew/Downloads/stan_data/145_first_attempt/HCPex_SUIT_labels.txt'
+)
 
 colnames(roi_key) <- c("roi_id", "roi")
 
@@ -66,57 +443,62 @@ participant_dir <- c("/home/andrew/Downloads/stan_data/")
 
 participant_ids <- c("145", "149")
 
-bold_per_roi_df <- data.frame("par" = numeric(),
-                              "roi" = character(),
-                              "roi_id" = numeric(),
-                              "seconds" = numeric(),
-                              "censor" = numeric(),
-                              "bold" = numeric())
+bold_per_roi_df <- data.frame(
+  "par" = numeric(),
+  "roi" = character(),
+  "roi_id" = numeric(),
+  "seconds" = numeric(),
+  "censor" = numeric(),
+  "bold" = numeric()
+)
 
 
-for(i in 1:length(participant_ids)) {
-
-  
-  
+for (i in 1:length(participant_ids)) {
   participant_files <- list.files(
-    path = participant_dir, 
+    path = participant_dir,
     pattern = participant_ids[i],
     recursive = T,
     full.names = T,
-    include.dirs = F)
-  
-  bold_text_file <- participant_files[grepl(x = participant_files,pattern = "roi" )]
-  
+    include.dirs = F
+  )
+
+  bold_text_file <- participant_files[grepl(
+    x = participant_files,
+    pattern = "roi"
+  )]
+
   all_bold <- read_delim(
     bold_text_file,
     trim_ws = T
   )
-  
-  censor_info <- 
-  
-  # why are there extra areas that are not in the key?
-  long_mean_bold <- all_bold %>%
-    mutate(time = seq(0, 1069*2, by = 2)) %>% 
-    pivot_longer(cols = contains("NZMEAN_")) %>%
-    select(name,time, value) %>% 
-    mutate(roi_id = sub(pattern = "NZMean_", replacement = "", x = name),
-           par = participant_ids[i]) %>% 
-    rename("raw_bold" = value) %>% 
-    merge(x  = ., y = roi_key,
-          by.x = "roi_id", by.y = "roi_id")
-  
-  current_bold_per_roi_df <- data.frame("par" = long_mean_bold$par,
-                                        "roi" = long_mean_bold$roi,
-                                        "roi_id" = long_mean_bold$roi_id,
-                                        "time_sec" = long_mean_bold$time,
-                                        "censor" = long,
-                                        "bold" = numeric())
+
+  censor_info <-
+    # why are there extra areas that are not in the key?
+    long_mean_bold <- all_bold %>%
+      mutate(time = seq(0, 1069 * 2, by = 2)) %>%
+      pivot_longer(cols = contains("NZMEAN_")) %>%
+      select(name, time, value) %>%
+      mutate(
+        roi_id = sub(pattern = "NZMean_", replacement = "", x = name),
+        par = participant_ids[i]
+      ) %>%
+      rename("raw_bold" = value) %>%
+      merge(x = ., y = roi_key, by.x = "roi_id", by.y = "roi_id")
+
+  current_bold_per_roi_df <- data.frame(
+    "par" = long_mean_bold$par,
+    "roi" = long_mean_bold$roi,
+    "roi_id" = long_mean_bold$roi_id,
+    "time_sec" = long_mean_bold$time,
+    "censor" = long,
+    "bold" = numeric()
+  )
   current_bold_per_roi_df$par <- long_mean_bold$par
-  current_bold_per_roi_df$roi <-  long_mean_bold$roi
-  current_bold_per_roi_df$roi_id <-  long_mean_bold$roi_id
-  
- bold_per_roi_df$
-  
+  current_bold_per_roi_df$roi <- long_mean_bold$roi
+  current_bold_per_roi_df$roi_id <- long_mean_bold$roi_id
+
+  bold_per_roi_df$
+
   roi_df <- read_delim(
     '/home/andrew/Downloads/stan_data/145_first_attempt/roi_stats.txt',
     trim_ws = T
@@ -126,37 +508,36 @@ for(i in 1:length(participant_ids)) {
     1:(nrow(design_matrix) - 1),
     2:ncol(design_matrix)
   ]
-  
+
   design_matrix$X2 <- as.numeric(design_matrix$X2)
-  
+
   censor_info <- read_delim(
     '/home/andrew/Downloads/stan_data/145_first_attempt/censor_GABORGEN24_DAY1_145_combined_2.1D',
     col_names = F
   )[[2]]
-  
+
   fmri_stan_list <- list()
-  
+
   fmri_stan_list$n_participants <- 1
   fmri_stan_list$n_ROIs <- 1
-  
+
   # 69 = Anterior_Ventral_Insular_Area_L
   fmri_stan_list$amplitude_no_censor <- roi_df %>%
     select(paste0("Mean_", 69)) %>%
     pull()
-  
+
   fmri_stan_list$censor <- c(1:1070)[censor_info == 1]
-  
+
   fmri_stan_list$n_amplitude <- fmri_stan_list$amplitude_no_censor %>%
     length()
-  
+
   fmri_stan_list$n_censor <- 1070 - length(fmri_stan_list$censor)
-  
+
   #no polort high-pass
   fmri_stan_list$design_matrix <- design_matrix[, 17:ncol(design_matrix)]
   # fmri_stan_list$design_matrix <- design_matrix
-  
+
   fmri_stan_list$n_DM_cols <- ncol(fmri_stan_list$design_matrix)
-  
 }
 
 
@@ -325,12 +706,11 @@ model002_fit_summary <-
 model_path <- '~/Documents/GitHub/gaborgen/stan_models/fMRI/Model003.stan'
 # model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model003.stan'
 
-
 # Fit models
 model003 <- cmdstanr::cmdstan_model(
   stan_file = model_path,
   force_recompile = T,
-  cpp_options = list(stan_threads = TRUE,stan_opencl = TRUE)
+  cpp_options = list(stan_threads = TRUE, stan_opencl = TRUE)
 )
 
 model003_fit <- model003$sample(
@@ -379,24 +759,13 @@ model003_fit_summary <-
 model003_draws_array <- model003_fit$draws()
 
 # even though it converges anyway, now can get convergence with 15 samples
-posterior::rhat_nested(posterior::extract_variable_matrix(
-  model003_fit,variable = c("lp__"))[1:15,], 
-                       superchain_ids = c(1, 
-                                          1, 
-                                          1, 
-                                          1, 
-                                          2, 
-                                          2, 
-                                          2, 
-                                          2,
-                                          3, 
-                                          3, 
-                                          3, 
-                                          3,
-                                          4, 
-                                          4, 
-                                          4, 
-                                          4))
+posterior::rhat_nested(
+  posterior::extract_variable_matrix(
+    model003_fit,
+    variable = c("lp__")
+  )[1:15, ],
+  superchain_ids = c(1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4)
+)
 
 
 model003_draws <- model003_fit$draws(format = "df")
@@ -502,17 +871,15 @@ model003_plot_betas_df %>%
   theme_classic()
 
 
-
 # Model 6:3 but faster ####
 model_path <- '~/Documents/GitHub/gaborgen/stan_models/fMRI/Model006.stan'
 # model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model003.stan'
-
 
 # Fit models
 model006 <- cmdstanr::cmdstan_model(
   stan_file = model_path,
   force_recompile = T,
-  cpp_options = list(stan_threads = TRUE,stan_opencl = TRUE)
+  cpp_options = list(stan_threads = TRUE, stan_opencl = TRUE)
 )
 
 model006_fit <- model006$sample(
@@ -534,12 +901,11 @@ model006_fit <- model006$sample(
 model_path <- '~/Documents/GitHub/gaborgen/stan_models/fMRI/Model007.stan'
 # model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model003.stan'
 
-
 # Fit models
 model007 <- cmdstanr::cmdstan_model(
   stan_file = model_path,
   force_recompile = T,
-  cpp_options = list(stan_threads = TRUE,stan_opencl = TRUE)
+  cpp_options = list(stan_threads = TRUE, stan_opencl = TRUE)
 )
 
 model007_fit <- model007$sample(
@@ -571,12 +937,11 @@ model007_fit_summary <-
 model_path <- '~/Documents/GitHub/gaborgen/stan_models/fMRI/Model008.stan'
 # model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model003.stan'
 
-
 # Fit models
 model008 <- cmdstanr::cmdstan_model(
   stan_file = model_path,
   force_recompile = T,
-  cpp_options = list(stan_threads = TRUE,stan_opencl = TRUE)
+  cpp_options = list(stan_threads = TRUE, stan_opencl = TRUE)
 )
 
 model008_fit <- model008$sample(
@@ -620,8 +985,6 @@ model003_fit_relevant_parameters <- model003_fit_meta_data$model_params[
 
 model003_fit_summary <-
   model003_fit$summary(variables = model003_fit_relevant_parameters)
-
-
 
 
 # Try faster latent correlation
