@@ -148,7 +148,10 @@ transformed data {
     // design_array[p,1,2]
     // design_array[p,2,1]
     // design_array[p,2,2]
-    data_shard_real[p, (n_bold*n_roi + 1):(n_bold*n_roi + n_bold*n_beta)] = to_array_1d(design_array[p,,]);
+    data_shard_real[p, (n_bold*n_roi + 1):(n_bold*n_roi + n_bold*n_beta)] = to_array_1d(to_matrix(design_array[p,,]));
+    
+    // data_shard_real[p, (n_bold*n_roi + 1):(n_bold*n_roi + n_bold*n_beta)] = to_array_1d(design_array[p,,]' );
+
   }
 
 
