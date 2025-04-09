@@ -26,7 +26,7 @@ functions {
 
   // upack data_shard_real
   matrix[n_bold, n_roi] bold = to_matrix(data_shard_real[1:(n_bold * n_roi)], n_bold, n_roi);
-  matrix[n_bold, n_beta] design_matrix = to_matrix(data_shard_real[(n_bold*n_roi + 1):(n_bold*n_roi + n_bold*n_beta)], n_bold, n_roi);
+  matrix[n_bold, n_beta] design_matrix = to_matrix(data_shard_real[(n_bold*n_roi + 1):(n_bold*n_roi + n_bold*n_beta)], n_bold, n_beta);
 
 
   // unpack parameters
@@ -70,12 +70,14 @@ functions {
 
   // Create mu predictions and covariance matrices per roi, then calc likelihood
   matrix[n_bold - n_censor, n_beta] design_matrix_censor = design_matrix[uncensored_indices,];
-  array[n_roi] vector[n_beta] Mu; 
+  array[n_roi] vector[n_bold - n_censor] Mu; 
   array[n_roi] matrix[n_bold, n_bold] Cov;
   array[n_roi] matrix[n_bold - n_censor, n_bold - n_censor] Cov_censor;
   array[n_roi] matrix[n_bold - n_censor, n_bold - n_censor] L_Cov_censor;
 
-  vector[n_roi] log_liks;
+  matrix[n_bold - n_censor, n_roi] bold_censored = bold[uncensored_indices,1:n_roi];
+
+  vector[1] log_lik;
   
   for (r in 1:n_roi) {
     Mu[r]= (design_matrix_censor * betas[r]);
@@ -86,18 +88,12 @@ functions {
 
     L_Cov_censor[r] = cholesky_decompose(Cov_censor[r]);
 
-    log_liks[r] = multi_normal_cholesky_lpdf(bold[,r] | Mu[r], L_Cov_censor[r]);
+    log_lik += multi_normal_cholesky_lpdf(bold_censored[,r] | Mu[r], L_Cov_censor[r]);
 
   }
-  
-  
 
- 
-
-// }
- vector[3] test = zeros_row_vector(3)';
- return test;
-} 
+  return log_lik;
+}  
 }
 
 

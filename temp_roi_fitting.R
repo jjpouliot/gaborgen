@@ -263,37 +263,41 @@ design_array <- aperm(tmp_array, c(3, 1, 2))
 fmri_stan_list$design_array <- design_array
 
 # Stan settings ####
-number_of_chains <- 4
+number_of_chains <- 2
 warmup_samples_per_chain <- 200
 posterior_samples_per_chain <- 200
-where_to_save_chains <- '/home/andrew/Documents/stan_chains_ssd/'
+# where_to_save_chains <- '/home/andrew/Documents/stan_chains_ssd/'
 # where_to_save_chains <- '/run/media/andrew/Barracuda_8tb/stan_chains/'
-# where_to_save_chains <- '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains'
+where_to_save_chains <- '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains'
 
-model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model001.stan'
+# First map_rect model ####
+
+model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model012.stan'
 
 
 # Fit models
-model001 <- cmdstanr::cmdstan_model(
+model012 <- cmdstanr::cmdstan_model(
   stan_file = model_path,
   force_recompile = T,
-  cpp_options = list(stan_threads = TRUE, stan_opencl = TRUE)
+  cpp_options = list(stan_threads = TRUE)
+  # cpp_options = list(stan_threads = TRUE, stan_opencl = TRUE)
 )
 
-model001_fit <- model001$sample(
+model012_fit <- model012$sample(
   data = fmri_stan_list,
   refresh = 50,
   seed = 3,
   threads_per_chain = 2,
   iter_warmup = warmup_samples_per_chain,
   iter_sampling = posterior_samples_per_chain,
-  save_warmup = F,
+  save_warmup = T,
   show_messages = T,
   output_dir = where_to_save_chains,
   chains = number_of_chains,
   parallel_chains = number_of_chains
 )
 
+model012_fit$output()
 
 #
 
