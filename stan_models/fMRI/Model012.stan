@@ -77,7 +77,7 @@ functions {
 
   matrix[n_bold - n_censor, n_roi] bold_censored = bold[uncensored_indices,1:n_roi];
 
-  vector[1] log_lik;
+  real lp = 0;
   
   for (r in 1:n_roi) {
     Mu[r]= (design_matrix_censor * betas[r]);
@@ -88,11 +88,11 @@ functions {
 
     L_Cov_censor[r] = cholesky_decompose(Cov_censor[r]);
 
-    log_lik += multi_normal_cholesky_lpdf(bold_censored[,r] | Mu[r], L_Cov_censor[r]);
+    lp += multi_normal_cholesky_lpdf(bold_censored[,r] | Mu[r], L_Cov_censor[r]);
 
   }
 
-  return log_lik;
+  return [lp]';
 }  
 }
 
