@@ -19,7 +19,7 @@ roi_key <- read_delim(paste0(data_dir, '/HCPex_SUIT_labels.txt'))
 
 colnames(roi_key) <- c("roi_id", "roi")
 
-useable_participants <- c("145", "149")
+useable_participants <- c("131", "145", "149")
 
 bold_per_roi_df <- data.frame(
   "par" = numeric(),
@@ -172,7 +172,7 @@ for (i in 1:length(useable_participants)) {
 
 # create stan list ####
 used_df <- bold_per_roi_df %>%
-  filter(roi_id %in% c(1, 2))
+  filter(roi_id %in% c(1, 69))
 
 
 fmri_stan_list <- list()
@@ -287,7 +287,7 @@ model012_fit <- model012$sample(
   data = fmri_stan_list,
   refresh = 50,
   seed = 3,
-  threads_per_chain = 2,
+  threads_per_chain = 3,
   iter_warmup = warmup_samples_per_chain,
   iter_sampling = posterior_samples_per_chain,
   save_warmup = T,
