@@ -12,8 +12,8 @@ highpass <- signal::butter(n = 5, W = 0.026, type = "high")
 # load data from text files ####
 
 data_dir <- c(
-  "/home/andrew/Downloads/roi_data_and_info"
-  # "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info"
+  # "/home/andrew/Downloads/roi_data_and_info"
+  "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info"
 )
 
 roi_key <- read_delim(paste0(data_dir, '/HCPex_SUIT_labels.txt'))
@@ -21,7 +21,7 @@ roi_key <- read_delim(paste0(data_dir, '/HCPex_SUIT_labels.txt'))
 colnames(roi_key) <- c("roi_id", "roi")
 
 # useable_participants <- c("145")
-useable_participants <- c("133", "145", "149")
+useable_participants <- c("127", "133", "145", "149")
 
 bold_per_roi_df <- data.frame(
   "par" = numeric(),
@@ -166,6 +166,24 @@ for (i in 1:length(useable_participants)) {
     mutate(time = seq(0, 1069 * 2, by = 2), .before = 1) %>%
     mutate(participant = useable_participants[i], .before = 1)
 
+  # add in shock predictor made in a006
+  current_shock_beta <- read.table(
+    file = paste0(
+      data_dir,
+      "/gaborgen24_fMRI_Day1_",
+      useable_participants[i],
+      "_design_matrix.xmat.1D"
+    ),
+    comment.char = "#", # ignores lines starting with #
+    header = FALSE
+  )
+
+  current_design_matrix <- current_design_matrix %>%
+    mutate(
+      "shock" = current_shock_beta$V3,
+      .before = "mot_demean_r01_0"
+    )
+
   all_par_design_matrices <- rbind(
     all_par_design_matrices,
     current_design_matrix
@@ -174,7 +192,7 @@ for (i in 1:length(useable_participants)) {
 
 # create stan list ####
 used_df <- bold_per_roi_df %>%
-  filter(roi_id %in% c(1, 2, 3, 69))
+  filter(roi_id %in% c(69))
 
 
 fmri_stan_list <- list()
@@ -219,7 +237,7 @@ fmri_stan_list$bold <- used_df$bold %>%
 # just vector
 # fmri_stan_list$usable_bold_indices <- used_df$censor %>% as.integer()
 # [par, roi, time] to [par, time]; same for each roi
-fmri_stan_list$usable_bold_indices <- used_df$censor %>%
+fmri_stan_list$usable_bold_indices_one_is_true <- used_df$censor %>%
   array(
     dim = c(
       1070,
@@ -230,7 +248,7 @@ fmri_stan_list$usable_bold_indices <- used_df$censor %>%
   aperm(c(3, 2, 1))
 
 # We first subset with drop = FALSE to preserve all dimensions:
-temp <- fmri_stan_list$usable_bold_indices[, 1, , drop = FALSE]
+temp <- fmri_stan_list$usable_bold_indices_one_is_true[, 1, , drop = FALSE]
 # temp now has dimensions: [n_par, 1, 1070]
 
 # Then we manually reshape the result by dropping the singleton second dimension:
@@ -238,7 +256,7 @@ dim(temp) <- c(dim(temp)[1], dim(temp)[3])
 # Now temp is a matrix of dimensions: [n_par, 1070]
 
 # Finally, assign it back:
-fmri_stan_list$usable_bold_indices <- temp
+fmri_stan_list$usable_bold_indices_one_is_true <- temp
 
 # fmri_stan_list$usable_bold_indices <- fmri_stan_list$usable_bold_indices[, 1, ] %>% array(dim =c(fmri_stan_list$n_par, 1070))
 
@@ -247,7 +265,7 @@ censor_vec <- vector()
 for (p in 1:fmri_stan_list$n_par) {
   censor_vec <- c(
     censor_vec,
-    (1070 - sum(fmri_stan_list$usable_bold_indices[p, ] == 1))
+    (1070 - sum(fmri_stan_list$usable_bold_indices_one_is_true[p, ] == 1))
   )
 }
 fmri_stan_list$n_censor <- censor_vec %>% as.integer()
@@ -274,6 +292,12 @@ tmp_array <- array(
 design_array <- aperm(tmp_array, c(3, 1, 2))
 
 fmri_stan_list$design_array <- design_array
+
+
+cmdstanr::write_stan_json(
+  fmri_stan_list,
+  file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_2.json"
+)
 
 # Stan settings ####
 number_of_chains <- 4
