@@ -43,4 +43,84 @@ for (i in 1:length(participants_to_process)) {
   }
 }
 
+# Make design matrices with shock, BLOCK
+
+participants_to_find <- c(101:154)
+
+data_directory <- "~/research_data/gaborgen/raw_data"
+
+log_file_paths <- list.files(path = data_directory, 
+                             pattern = "logfile.dat$", 
+                             recursive = T,
+                             full.names = T)
+
+where_to_save <- "/Users/andrewfarkas/research_data/gaborgen/temp_analyses/ROI_folder"
+
+# write shock times
+
+for (i in 1:length(log_file_paths)) {
+  
+  log_file <- read.delim(log_file_paths[i], 
+                         header = T, sep = ",")
+  
+  
+  
+  name_to_save <- sub(basename(log_file_paths[i]), 
+                      pattern = "logfile.dat$", 
+                      replacement = "shock_onsets.1D")
+  
+  
+  # approximate shock onset, 
+  shock_onsets <- subset(log_file, 
+         paired == 1,
+         select = timeSinceFirstTR,
+         drop = T) + 2 # shock comes two seconds after the paired stimulus (approximately, double check needed)
+  
+  write(x = shock_onsets, 
+        file = paste0(where_to_save, name_to_save),
+        ncolumns = 1)
+
+}
+
+
+#BLOCK(d, p) ; d = duration seconds, p = amplitude, 1 is easiest to understand and should be default unless you know what you're doing
+
+shock_onset_stim_files <- list.files(path = where_to_save, 
+                             pattern = "shock_onsets.1D$", 
+                             recursive = T,
+                             full.names = T)
+
+setwd(where_to_save)
+
+
+
+#enters(\n) will cause command to enter early
+
+for (i in 1:length(shock_onset_stim_files)) {
+  sub_name <- sub(basename(shock_onset_stim_files[i]),pattern = "shock_onsets.1D$", replacement = "")
+  
+  system2('tcsh', 
+          args = c('-c', shQuote(paste('3dDeconvolve -nodata 1070 2.0 -num_stimts 1 -stim_times 1', paste0(shock_onset_stim_files[i], " "), '"BLOCK(.1,1)" -x1D', paste0(sub_name, "design_matrix.xmat.1D "), '-xjpeg', paste0(sub_name, "design_matrix.jpg "), '-x1D_stop'))))
+  
+}
+
+
+# 3dDeconvolve -nodata 1070 2.0 \
+# -num_stimts 1 \
+# -stim_times 1 /Users/andrewfarkas/research_data/gaborgen/temp_analyses/ROI_folder/gaborgen24_fMRI_Day1_121_shock_onsets.1D "BLOCK(.1,1)" \
+# -x1D design_matrix.xmat.1D \
+# -xjpeg design_matrix.jpg \
+# -x1D_stop
+# 
+# 
+# 
+# 
+# 
+# 3dDeconvolve -nodata 200 2.0 \
+# -num_stimts 1 \
+# -stim_times 1 stimfile.1D 'BLOCK(2,1)' \
+# -x1D design_matrix.xmat.1D \
+# -xjpeg design_matrix.jpg \
+# -x1D_stop
+
 
