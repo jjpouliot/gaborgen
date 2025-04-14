@@ -12,8 +12,8 @@ highpass <- signal::butter(n = 5, W = 0.026, type = "high")
 # load data from text files ####
 
 data_dir <- c(
-  "/home/andrew/Downloads/roi_data_and_info"
-  # "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info"
+  # "/home/andrew/Downloads/roi_data_and_info"
+  "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info"
 )
 
 roi_key <- read_delim(paste0(data_dir, '/HCPex_SUIT_labels.txt'))
@@ -21,7 +21,7 @@ roi_key <- read_delim(paste0(data_dir, '/HCPex_SUIT_labels.txt'))
 colnames(roi_key) <- c("roi_id", "roi")
 
 # useable_participants <- c("145")
-useable_participants <- c("133", "145", "149")
+useable_participants <- c("127", "133", "145", "149")
 
 bold_per_roi_df <- data.frame(
   "par" = numeric(),
@@ -174,7 +174,7 @@ for (i in 1:length(useable_participants)) {
 
 # create stan list ####
 used_df <- bold_per_roi_df %>%
-  filter(roi_id %in% c(1, 2, 3, 69))
+  filter(roi_id %in% c(69))
 
 
 fmri_stan_list <- list()
@@ -274,6 +274,12 @@ tmp_array <- array(
 design_array <- aperm(tmp_array, c(3, 1, 2))
 
 fmri_stan_list$design_array <- design_array
+
+
+cmdstanr::write_stan_json(
+  fmri_stan_list,
+  file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list.json"
+)
 
 # Stan settings ####
 number_of_chains <- 4

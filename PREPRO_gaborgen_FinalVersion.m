@@ -5,20 +5,25 @@ clc
 clear
 close all
 
-gaborgenCodeRepository = '/Users/jcedielescobar/Documents/GitHub';
-eeglabDirectory = '/Users/jcedielescobar/Documents/MATLAB/eeglab2024.2';
+% gaborgenCodeRepository = '/Users/jcedielescobar/Documents/GitHub';
+% eeglabDirectory = '/Users/jcedielescobar/Documents/MATLAB/eeglab2024.2';
+gaborgenCodeRepository = '/home/andrewf/Repositories/gaborgen';
+eeglabDirectory = '/home/andrewf/Repositories/eeglab2024.0';
+
 cd(eeglabDirectory)
 [AllEEG, ~, ~, ~] = eeglab;
 cd(gaborgenCodeRepository)
 % Add EMGS directory and all subdirectories to path
-emegs28path = 'C:\Users\jcedi\OneDrive\Documents\GitHub\EMEGShelper'; 
+emegs28path = '/home/andrewf/Repositories/emegs2.8'; 
+% emegs28path = 'C:\Users\jcedi\OneDrive\Documents\GitHub\EMEGShelper'; 
 addpath(genpath(emegs28path), '-end'); 
 
-addpath(genpath('/Users/jcedielescobar/Documents/GitHub'), '-end');
+% addpath(genpath('/Users/jcedielescobar/Documents/GitHub'), '-end');
 %% Format transformation
 
 % Define the main folder path
 main_path = '/Users/jcedielescobar/Documents/Prepro/Day1';
+% main_path = '/Users/jcedielescobar/Documents/Prepro/Day1';
 
 % Initialize a cell to store results
 results = {};
