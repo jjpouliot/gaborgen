@@ -167,27 +167,29 @@ for (i in 1:length(useable_participants)) {
     mutate(participant = useable_participants[i], .before = 1)
 
   # add in shock predictor made in a006
-  current_shock_beta <- read.table(
-    file = paste0(
-      data_dir,
-      "/gaborgen24_fMRI_Day1_",
-      useable_participants[i],
-      "_design_matrix.xmat.1D"
-    ),
-    comment.char = "#", # ignores lines starting with #
-    header = FALSE
-  )
-
-  current_design_matrix <- current_design_matrix %>%
-    mutate(
-      "shock" = current_shock_beta$V3,
-      .before = "mot_demean_r01_0"
+  if (add_shock) {
+    current_shock_beta <- read.table(
+      file = paste0(
+        data_dir,
+        "/gaborgen24_fMRI_Day1_",
+        useable_participants[i],
+        "_design_matrix.xmat.1D"
+      ),
+      comment.char = "#", # ignores lines starting with #
+      header = FALSE
     )
 
-  all_par_design_matrices <- rbind(
-    all_par_design_matrices,
-    current_design_matrix
-  )
+    current_design_matrix <- current_design_matrix %>%
+      mutate(
+        "shock" = current_shock_beta$V3,
+        .before = "mot_demean_r01_0"
+      )
+
+    all_par_design_matrices <- rbind(
+      all_par_design_matrices,
+      current_design_matrix
+    )
+  }
 }
 
 # create stan list ####
@@ -296,8 +298,12 @@ fmri_stan_list$design_array <- design_array
 
 cmdstanr::write_stan_json(
   fmri_stan_list,
-  file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_2.json"
+  file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_no_shock.json"
 )
+# cmdstanr::write_stan_json(
+#   fmri_stan_list,
+#   file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_2.json"
+# )
 
 # Stan settings ####
 number_of_chains <- 4
