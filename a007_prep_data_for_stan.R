@@ -22,6 +22,7 @@ colnames(roi_key) <- c("roi_id", "roi")
 
 # useable_participants <- c("145")
 useable_participants <- c("127", "133", "145", "149")
+add_shock <- T
 
 bold_per_roi_df <- data.frame(
   "par" = numeric(),
@@ -184,12 +185,12 @@ for (i in 1:length(useable_participants)) {
         "shock" = current_shock_beta$V3,
         .before = "mot_demean_r01_0"
       )
-
-    all_par_design_matrices <- rbind(
-      all_par_design_matrices,
-      current_design_matrix
-    )
   }
+
+  all_par_design_matrices <- rbind(
+    all_par_design_matrices,
+    current_design_matrix
+  )
 }
 
 # create stan list ####
