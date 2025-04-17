@@ -1,8 +1,8 @@
 #!/bin/sh
-#SBATCH --job-name=af_make_model
+#SBATCH --job-name=rebuild_cmd_make
 #SBATCH --mail-user=andrew.farkas@ufl.edu
 #SBATCH --mail-type=ALL
-#SBATCH --output /blue/akeil/andrew.farkas/logs/af_make_model%j.out
+#SBATCH --output /blue/akeil/andrew.farkas/logs/rebuild_cmd_make%j.out
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=15
@@ -10,7 +10,7 @@
 #SBATCH --ntasks-per-socket=1
 #SBATCH --distribution=cyclic:cyclic
 #SBATCH --mem-per-cpu=2gb
-#SBATCH --time=00:05:00
+#SBATCH --time=00:15:00
 
 ml purge
 
@@ -23,11 +23,7 @@ ml stan
 
 cd /blue/akeil/andrew.farkas/cmdstan-2.36.0/
 
-make /blue/akeil/andrew.farkas/repository/gaborgen/stan_models/fMRI/Model014
+make clean-all
 
-
-#make /blue/akeil/andrew.farkas/repository/gaborgen/stan_models/fMRI/Model013
-
-#make /blue/akeil/andrew.farkas/gaborgen24_eeg_fmri/repository/gaborgen/stan_models/fMRI/Model012
-
+make build
 
