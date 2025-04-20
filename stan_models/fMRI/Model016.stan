@@ -249,7 +249,8 @@ transformed parameters {
   }
 
   // save the log_lik per shard for elpd_loo later
-  vector[n_par] log_lik_shards = map_rect(participant_ll, phi, theta, data_shard_real, data_shard_int);
+  // this is bad slow way of doing this, makes it a parameter that gets a lot of tracking
+  // vector[n_par] log_lik_shards = map_rect(participant_ll, phi, theta, data_shard_real, data_shard_int);
 
 }
 
@@ -294,7 +295,7 @@ model {
   }
 
 
-target += sum(log_lik_shards);
+target += map_rect(participant_ll, phi, theta, data_shard_real, data_shard_int);
 
 // target += sum(map_rect(participant_ll, phi, theta, data_shard_real, data_shard_int));
 
@@ -304,7 +305,7 @@ generated quantities {
   // array[n_observations] real mu_pred = mu[indices_observed];
   vector[n_par] log_lik;
   
-  log_lik = log_lik_shards;
+  log_lik = map_rect(participant_ll, phi, theta, data_shard_real, data_shard_int);
 
 
   // for (i in 1:n_observations) {
