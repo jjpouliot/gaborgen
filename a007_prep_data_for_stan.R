@@ -324,31 +324,31 @@ cmdstanr::write_stan_json(
 )
 
 # Stan settings ####
-number_of_chains <- 4
+number_of_chains <- 1
 warmup_samples_per_chain <- 200
 posterior_samples_per_chain <- 200
-where_to_save_chains <- '/home/andrew/Documents/stan_chains_ssd/'
+# where_to_save_chains <- '/home/andrew/Documents/stan_chains_ssd/'
 # where_to_save_chains <- '/run/media/andrew/Barracuda_8tb/stan_chains/'
-# where_to_save_chains <- '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains'
+where_to_save_chains <- '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains'
 
 # First map_rect model ####
 
-model_path <- '/home/andrew/Documents/GitHub/gaborgen/stan_models/fMRI/Model012.stan'
-# model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model012.stan'
+# model_path <- '/home/andrew/Documents/GitHub/gaborgen/stan_models/fMRI/Model012.stan'
+model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model017.stan'
 
 # Fit models
-model012 <- cmdstanr::cmdstan_model(
+model <- cmdstanr::cmdstan_model(
   stan_file = model_path,
   force_recompile = T,
-  # cpp_options = list(stan_threads = TRUE)
-  cpp_options = list(stan_threads = TRUE, stan_opencl = TRUE)
+  cpp_options = list(stan_threads = TRUE)
+  # cpp_options = list(stan_threads = TRUE, stan_opencl = TRUE)
 )
 
-model012_fit <- model012$sample(
+model_fit <- model$sample(
   data = fmri_stan_list,
   refresh = 50,
   seed = 3,
-  threads_per_chain = 3,
+  threads_per_chain = 5,
   iter_warmup = warmup_samples_per_chain,
   iter_sampling = posterior_samples_per_chain,
   save_warmup = T,
@@ -636,7 +636,7 @@ posterior_samples_per_chain <- 200
 # where_to_save_chains <- '/run/media/andrew/Barracuda_8tb/stan_chains/'
 where_to_save_chains <- '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains'
 
-model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model016.stan'
+model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model014.stan'
 
 
 # Fit models
@@ -653,10 +653,10 @@ model_fit <- model$sample(
   data = fmri_stan_list,
   refresh = 50,
   seed = 3,
-  threads_per_chain = 2,
+  threads_per_chain = 5,
   iter_warmup = warmup_samples_per_chain,
   iter_sampling = posterior_samples_per_chain,
-  save_warmup = F,
+  save_warmup = T,
   show_messages = T,
   output_dir = where_to_save_chains,
   chains = number_of_chains,
