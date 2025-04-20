@@ -8,6 +8,7 @@
 #SBATCH --cpus-per-task=15
 #SBATCH --ntasks-per-node=1
 #SBATCH --ntasks-per-socket=1
+#SBATCH --qos=akeil-b
 #SBATCH --distribution=cyclic:cyclic
 #SBATCH --mem-per-cpu=2gb
 #SBATCH --time=00:05:00
@@ -23,7 +24,7 @@ ml stan
 
 cd /blue/akeil/andrew.farkas/cmdstan-2.36.0/
 
-make /blue/akeil/andrew.farkas/repository/gaborgen/stan_models/fMRI/Model014
+make /blue/akeil/andrew.farkas/repository/gaborgen/stan_models/fMRI/Model016
 
 
 #make /blue/akeil/andrew.farkas/repository/gaborgen/stan_models/fMRI/Model013
