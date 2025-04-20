@@ -21,7 +21,24 @@ roi_key <- read_delim(paste0(data_dir, '/HCPex_SUIT_labels.txt'))
 colnames(roi_key) <- c("roi_id", "roi")
 
 # useable_participants <- c("145")
-useable_participants <- c("127", "133", "145", "149")
+useable_participants <- c(
+  "116",
+  "117",
+  "119",
+  #"120", no ROI?
+  "121",
+  "122",
+  "125",
+  "126",
+  "127",
+  "128",
+  "129",
+  "131",
+  "132",
+  "133",
+  "145",
+  "149"
+)
 add_shock <- T
 
 bold_per_roi_df <- data.frame(
@@ -36,7 +53,7 @@ bold_per_roi_df <- data.frame(
 
 for (i in 1:length(useable_participants)) {
   bold_text_file <- list.files(
-    path = data_dir,
+    path = paste0(data_dir, "/roi_timeseries"),
     pattern = paste0(useable_participants[i], "_roi_stats.txt"),
     recursive = T,
     full.names = T,
@@ -68,7 +85,7 @@ for (i in 1:length(useable_participants)) {
   if (useable_participants[i] < 123) {
     censor_info <- read_delim(
       paste0(
-        data_dir,
+        paste0(data_dir, "/default_afni_movement_censor"),
         '/censor_GABORGEN24_',
         useable_participants[i],
         '_combined_2.1D'
@@ -78,7 +95,7 @@ for (i in 1:length(useable_participants)) {
   } else {
     censor_info <- read_delim(
       paste0(
-        data_dir,
+        paste0(data_dir, "/default_afni_movement_censor"),
         '/censor_GABORGEN24_DAY1_',
         useable_participants[i],
         '_combined_2.1D'
@@ -110,7 +127,7 @@ for (i in 1:length(useable_participants)) {
   if (useable_participants[i] < 123) {
     current_design_matrix <- read_delim(
       paste0(
-        data_dir,
+        paste0(data_dir, "/design_matrices"),
         '/GABORGEN24_',
         useable_participants[i],
         '.results_X.nocensor.xmat.1D'
@@ -121,7 +138,7 @@ for (i in 1:length(useable_participants)) {
   } else {
     current_design_matrix <- read_delim(
       paste0(
-        data_dir,
+        paste0(data_dir, "/design_matrices"),
         '/GABORGEN24_DAY1_',
         useable_participants[i],
         '.results_X.nocensor.xmat.1D'
@@ -171,7 +188,7 @@ for (i in 1:length(useable_participants)) {
   if (add_shock) {
     current_shock_beta <- read.table(
       file = paste0(
-        data_dir,
+        paste0(data_dir, "/shock_design_matrix_column_to_add"),
         "/gaborgen24_fMRI_Day1_",
         useable_participants[i],
         "_design_matrix.xmat.1D"
@@ -297,14 +314,14 @@ design_array <- aperm(tmp_array, c(3, 1, 2))
 fmri_stan_list$design_array <- design_array
 
 
-cmdstanr::write_stan_json(
-  fmri_stan_list,
-  file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_no_shock.json"
-)
 # cmdstanr::write_stan_json(
 #   fmri_stan_list,
-#   file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_2.json"
+#   file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_no_shock.json"
 # )
+cmdstanr::write_stan_json(
+  fmri_stan_list,
+  file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list.json"
+)
 
 # Stan settings ####
 number_of_chains <- 4
@@ -612,24 +629,27 @@ for (i in 1:length(participant_ids)) {
 
 
 # Stan settings ####
-number_of_chains <- 16
+number_of_chains <- 1
 warmup_samples_per_chain <- 200
 posterior_samples_per_chain <- 200
-where_to_save_chains <- '/home/andrew/Documents/stan_chains_ssd/'
+# where_to_save_chains <- '/home/andrew/Documents/stan_chains_ssd/'
 # where_to_save_chains <- '/run/media/andrew/Barracuda_8tb/stan_chains/'
-# where_to_save_chains <- '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains'
+where_to_save_chains <- '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains'
 
-model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model001.stan'
+model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model016.stan'
 
 
 # Fit models
-model001 <- cmdstanr::cmdstan_model(
+model <- cmdstanr::cmdstan_model(
   stan_file = model_path,
   force_recompile = T,
-  cpp_options = list(stan_threads = TRUE, stan_opencl = TRUE)
+  cpp_options = list(
+    stan_threads = TRUE #,
+    # stan_opencl = TRUE
+  )
 )
 
-model001_fit <- model001$sample(
+model_fit <- model$sample(
   data = fmri_stan_list,
   refresh = 50,
   seed = 3,
