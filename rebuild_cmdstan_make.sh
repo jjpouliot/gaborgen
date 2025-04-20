@@ -12,9 +12,11 @@
 #SBATCH --mem-per-cpu=2gb
 #SBATCH --time=00:15:00
 
-ml purge
+module purge
 
-export LIBRARY_PATH=/apps/opencl/intel/system_studio_2019/opencl/SDK/lib64:$LIBRARY_PATH
+dos2unix /blue/akeil/andrew.farkas/cmdstan-2.36.0/make/local
+
+#export LIBRARY_PATH=/apps/opencl/intel/system_studio_2019/opencl/SDK/lib64:$LIBRARY_PATH
 
 ml gcc/12.2.0
 ml openmpi/4.1.6

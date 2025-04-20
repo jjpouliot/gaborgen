@@ -1,0 +1,14 @@
+STAN_THREADS = true
+STAN_OPENCL = true
+OPENCL_DEVICE_ID=0
+OPENCL_PLATFORM_ID=0
+# OPENCL_INC  = -I/apps/opencl/intel/system_studio_2019/opencl/SDK/include
+# OPENCL_LIBS = -L/apps/opencl/intel/system_studio_2019/opencl/SDK/lib64 -lOpenCL
+STAN_MPI = true
+CXX = mpicxx
+CXXFLAGS += -DSTAN_THREADS
+TBB_CXX_TYPE = gcc
+TBB_INTERFACE_NEW = true
+TBB_INC = /apps/stan/2.36.0/include/
+TBB_LIB = /apps/stan/2.36.0/lib/
+PRECOMPILED_HEADERS = false
