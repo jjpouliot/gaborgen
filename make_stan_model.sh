@@ -24,7 +24,7 @@ ml stan
 
 cd /blue/akeil/andrew.farkas/cmdstan-2.36.0/
 
-make /blue/akeil/andrew.farkas/repository/gaborgen/stan_models/fMRI/Model016
+make /blue/akeil/andrew.farkas/repository/gaborgen/stan_models/fMRI/Model018
 
 
 #make /blue/akeil/andrew.farkas/repository/gaborgen/stan_models/fMRI/Model013
