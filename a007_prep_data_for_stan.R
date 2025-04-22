@@ -334,7 +334,7 @@ where_to_save_chains <- '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/sta
 # First map_rect model ####
 
 # model_path <- '/home/andrew/Documents/GitHub/gaborgen/stan_models/fMRI/Model012.stan'
-model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model017.stan'
+model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model018.stan'
 
 # Fit models
 model <- cmdstanr::cmdstan_model(
@@ -344,11 +344,17 @@ model <- cmdstanr::cmdstan_model(
   # cpp_options = list(stan_threads = TRUE, stan_opencl = TRUE)
 )
 
+model_fit <- model$optimize(
+  data = fmri_stan_list,
+  iter = 1e6
+)
+
+
 model_fit <- model$sample(
   data = fmri_stan_list,
   refresh = 50,
   seed = 3,
-  threads_per_chain = 5,
+  threads_per_chain = 6,
   iter_warmup = warmup_samples_per_chain,
   iter_sampling = posterior_samples_per_chain,
   save_warmup = T,
