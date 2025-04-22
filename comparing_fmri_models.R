@@ -33,9 +33,13 @@ model016_draws <- model016_fit_mpi$draws(format = "df")
 
 model018_fit_mpi <- as_cmdstan_fit(
   files = c(
-    "/home/andrewf/Downloads/model018_chain_65957320_1.csv"
+    "/home/andrewf/Downloads/model018_chain_65957320_1.csv",
+    "/home/andrewf/Downloads/model018_chain_65957320_3.csv",
+    "/home/andrewf/Downloads/model018_chain_65986961_1.csv"
   )
 )
+
+model018_fit_mpi_summary <- model018_fit_mpi$summary()
 
 model018_draws <- model018_fit_mpi$draws(format = "df")
 
@@ -53,8 +57,8 @@ model016_draws %>%
 model018_draws %>%
   select(starts_with('betas[')) %>%
   select(ends_with(c(",1,5]", ",1,13]"))) %>%
-  # pivot_longer(cols = ends_with(",1,5]")) %>%
-  pivot_longer(cols = ends_with(",1,13]")) %>%
+  pivot_longer(cols = ends_with(",1,5]")) %>%
+  # pivot_longer(cols = ends_with(",1,13]")) %>%
   ggplot() +
   geom_density(aes(x = value, color = name))
 

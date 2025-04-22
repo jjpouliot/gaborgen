@@ -344,10 +344,18 @@ model <- cmdstanr::cmdstan_model(
   # cpp_options = list(stan_threads = TRUE, stan_opencl = TRUE)
 )
 
-model_fit <- model$optimize(
+model_opt <- model$optimize(
   data = fmri_stan_list,
-  iter = 1e6
+  iter = 1e6,
+  jacobian = T,
+  threads = 7
 )
+
+model_opt$metadata()
+
+model_opt_summary <- model_opt$summary()
+
+model$variables()$parameters
 
 
 model_fit <- model$sample(
