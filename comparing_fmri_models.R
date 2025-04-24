@@ -5,6 +5,63 @@ library(patchwork)
 # we recommend running this in a fresh R session or restarting your current session
 # install.packages("cmdstanr", repos = c('https://stan-dev.r-universe.dev', getOption("repos")))
 
+model018_fit_mpi <- as_cmdstan_fit(
+  files = c(
+    "/home/andrewf/Downloads/model018_chain_66251546_1.csv",
+    "/home/andrewf/Downloads/model018_chain_66251546_2.csv"
+  )
+)
+
+model018_fit_mpi_meta_data <- model018_fit_mpi$metadata()
+
+model018_fit_mpi_relevant_parameters <- model018_fit_mpi_meta_data$model_params[
+  !str_detect(
+    model018_fit_mpi_meta_data$model_params,
+    "log_lik|mu|amplitude|raw|S|theta"
+  )
+]
+
+
+model018_fit_mpi_summary <- model018_fit_mpi$summary(
+  variables = model018_fit_mpi_relevant_parameters
+)
+
+model018_fit_mpi_summary <- model018_fit_mpi$summary()
+
+
+model018_mpi_draws <- model018_fit_mpi$draws(format = "df")
+
+model018_loo <- model018_fit_mpi$loo()
+
+
+model019_fit_mpi <- as_cmdstan_fit(
+  files = c(
+    "/home/andrewf/Downloads/model019_chain_66250437_1.csv"
+  )
+)
+
+model019_fit_mpi_meta_data <- model019_fit_mpi$metadata()
+
+model019_fit_mpi_relevant_parameters <- model019_fit_mpi_meta_data$model_params[
+  !str_detect(
+    model019_fit_mpi_meta_data$model_params,
+    "mu|amplitude|raw|S|theta|bold_z"
+  )
+]
+
+
+model019_fit_mpi_summary <- model019_fit_mpi$summary(
+  variables = model019_fit_mpi_relevant_parameters
+)
+
+model019_fit_mpi_summary <- model019_fit_mpi$summary()
+
+
+model019_mpi_draws <- model019_fit_mpi$draws(format = "df")
+
+model019_loo <- model019_fit_mpi$loo()
+
+
 model013_fit_mpi <- as_cmdstan_fit(
   files = c(
     "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains/model013_chain_65201387_1.csv",
@@ -115,6 +172,8 @@ model018_draws %>%
 
 model018_draws$`log_lik[1]`[1]
 
+posterior_indices <- sample(1:3000, size = 10)
+
 fmri_stan_list$usable_bold_indices_one_is_true[1, ]
 
 cov_mat <- matrix(nrow = 1070, ncol = 1070)
@@ -183,22 +242,91 @@ for (i in 1:length(bold_censor)) {
 sum(log_liks)
 model018_draws$`log_lik[1]`[1]
 
-# vectorized cov_mat for fun
-# pull out your parameters
-sigma_val <- model018_draws$`sigma[1,1]`[1]
-delta_val <- model018_draws$`delta[1,1]`[1]
-rho_val <- model018_draws$`rho_time[1,1]`[1]
-s2 <- sigma_val^2
 
-# index vector
-n <- 1070
-idx <- seq_len(n)
+# visualize posterior draws
+posterior_indices <- sample(1:3000, size = 10)
+cov_list <- list()
 
-# 1) build the |i-j| distance matrix
-dist_mat <- abs(outer(idx, idx, FUN = "-"))
+for (i in 1:length(posterior_indices)) {
+  # vectorized cov_mat for fun
+  # pull out your parameters
+  sigma_val <- model018_draws$`sigma[1,1]`[i]
+  delta_val <- model018_draws$`delta[1,1]`[i]
+  rho_val <- model018_draws$`rho_time[1,1]`[i]
+  s2 <- sigma_val^2
 
-# 2) fill in covariances: delta*rho^|i-j|*sigma^2 everywhere
-cov_mat <- s2 * delta_val * rho_val^dist_mat
+  # index vector
+  n <- 1070
+  idx <- seq_len(n)
 
-# 3) override the diagonal to be sigma^2
-diag(cov_mat) <- s2
+  # 1) build the |i-j| distance matrix
+  dist_mat <- abs(outer(idx, idx, FUN = "-"))
+
+  # 2) fill in covariances: delta*rho^|i-j|*sigma^2 everywhere
+  cov_mat <- s2 * delta_val * rho_val^dist_mat
+
+  # 3) override the diagonal to be sigma^2
+  diag(cov_mat) <- s2
+
+  cov_list[[i]] <- cov_mat
+
+  dm <- fmri_stan_list$design_array[1, , ] %>% matrix(nrow = 1070)
+
+  #must censor dm before multiplying with beta
+  dm_censor <- dm[fmri_stan_list$usable_bold_indices_one_is_true[1, ] == 1, ]
+
+  beta_vector <- model018_draws %>%
+    select(starts_with("betas[1,")) %>%
+    slice(posterior_indices) %>%
+    unlist() %>%
+    matrix(ncol = length(posterior_indices))
+
+  mu_censor <- dm_censor %*% beta_vector
+}
+
+
+bold <- fmri_stan_list$bold[1, ]
+
+bold_censor <- bold[fmri_stan_list$usable_bold_indices_one_is_true[1, ] == 1]
+
+# visualize
+str(mu)
+
+bold_plot_df <- data.frame(
+  time = seq(0, 1069 * 2, by = 2),
+  usable = fmri_stan_list$usable_bold_indices_one_is_true[1, ] == 1,
+  bold
+) %>%
+  filter(usable == T)
+
+mu_plot_df <- data.frame(
+  time = seq(0, 1069 * 2, by = 2)[
+    fmri_stan_list$usable_bold_indices_one_is_true[1, ] == 1
+  ],
+  mu_censor
+) %>%
+  pivot_longer(starts_with("X"))
+
+
+ggplot() +
+  geom_line(
+    data = bold_plot_df,
+    aes(x = time, y = bold)
+  ) +
+  geom_line(
+    data = mu_plot_df,
+    aes(x = time, y = value, group = name),
+    color = "red",
+    line_width = 0.2,
+    alpha = .5
+  ) +
+  # coord_cartesian(xlim = c(0,500)) +
+  theme_bw()
+
+
+(dm %*% beta_vector) %>% plot(type = "l")
+fmri_stan_list$bold[1, ] %>% plot(type = "l")
+
+
+mu_censor %>% plot(type = "l")
+bold_censor %>% plot(type = "l")

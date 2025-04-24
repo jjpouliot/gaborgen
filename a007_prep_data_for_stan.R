@@ -39,6 +39,49 @@ useable_participants <- c(
   "145",
   "149"
 )
+
+# useable_participants <- c(
+#   "101",
+#   #"102", # 22% censored
+#   "103",
+#   "106",
+#   "107",
+#   "108",
+#   "109",
+#   "113",
+#   #"114", alot censored
+#   "115",
+#   "116",
+#   "117",
+#   "119",
+#   #"120", no ROI? # lots censored
+#   "121",
+#   "122",
+#   "123",
+#   #"124", # lots censored
+#   "125",
+#   "126",
+#   "127",
+#   "128",
+#   "129",
+#   #"131", #missing qc
+#   "132",
+#   #"133", #missing qc
+#   #"134",#missing qc
+#   #"135",#missing qc
+#   #"136",#lots censored
+#   #"137", make roi
+#   #"138", make roi
+#   #"139", #lots censored
+#   #"140", #lots censored
+#   "141",
+#   #"142", #probably asleep
+#   #"143", #probably asleep
+#   #"144", #lots censored
+#   "145",
+#   "149"
+# )
+
 add_shock <- T
 
 bold_per_roi_df <- data.frame(
@@ -212,8 +255,8 @@ for (i in 1:length(useable_participants)) {
 
 # create stan list ####
 used_df <- bold_per_roi_df %>%
-  filter(roi_id %in% c(69))
-
+  filter(roi_id %in% c(69)) #
+# filter(roi_id %in% c(1:3, 181:183)) # visual
 
 fmri_stan_list <- list()
 
@@ -313,20 +356,26 @@ design_array <- aperm(tmp_array, c(3, 1, 2))
 
 fmri_stan_list$design_array <- design_array
 
+fmri_stan_list$n_beta_stim <- 13
 
 # cmdstanr::write_stan_json(
 #   fmri_stan_list,
 #   file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_no_shock.json"
 # )
+# cmdstanr::write_stan_json(
+#   fmri_stan_list,
+#   file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_visual.json")
+
 cmdstanr::write_stan_json(
   fmri_stan_list,
   file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list.json"
 )
 
+
 # Stan settings ####
 number_of_chains <- 1
-warmup_samples_per_chain <- 200
-posterior_samples_per_chain <- 200
+warmup_samples_per_chain <- 2000
+posterior_samples_per_chain <- 2000
 # where_to_save_chains <- '/home/andrew/Documents/stan_chains_ssd/'
 # where_to_save_chains <- '/run/media/andrew/Barracuda_8tb/stan_chains/'
 where_to_save_chains <- '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains'
@@ -334,7 +383,8 @@ where_to_save_chains <- '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/sta
 # First map_rect model ####
 
 # model_path <- '/home/andrew/Documents/GitHub/gaborgen/stan_models/fMRI/Model012.stan'
-model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model018.stan'
+# model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model019.stan'
+model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model022.stan'
 
 # Fit models
 model <- cmdstanr::cmdstan_model(
@@ -363,6 +413,7 @@ model_fit <- model$sample(
   refresh = 50,
   seed = 3,
   threads_per_chain = 6,
+  init = 1,
   iter_warmup = warmup_samples_per_chain,
   iter_sampling = posterior_samples_per_chain,
   save_warmup = T,
