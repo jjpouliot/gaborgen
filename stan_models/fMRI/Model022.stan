@@ -273,7 +273,7 @@ parameters {
   array[n_par, n_roi] real sigma_z;
   array[n_par, n_roi] real delta_z;
   array[n_par, n_roi] real rho_time_z;
-  array[n_par, n_roi] vector[n_beta] betas_z;
+  array[n_par, n_roi] vector[n_beta_stim] betas_z;
 
 
   vector[0] phi; // parameters shared between all data shards; sometimes empty
