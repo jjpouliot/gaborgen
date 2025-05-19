@@ -24,6 +24,10 @@ data {
   array[n_missing] int<lower=1, upper=n_observations + n_missing> indices_missing;
 }
 
+transformed data {
+   real trial_center = (n_trials + 1) / 2.0;
+}
+
 parameters {
 
   real<lower = 0> sigma_average; //this won't hug zero so it does not need to be exp() //1
@@ -55,7 +59,7 @@ transformed parameters {
   real intercept_sd = exp(intercept_sd_raw);
   real fatigue_sd = exp(fatigue_sd_raw);
   
-  real intercept_fatigue_corr = -inv_logit(intercept_fatigue_corr_raw);
+  real intercept_fatigue_corr = tanh(intercept_fatigue_corr_raw);
 
   cov_matrix[2] Sigma;
   Sigma[1,1] = square(intercept_sd);
@@ -75,8 +79,9 @@ transformed parameters {
   real trials_per_block = 48.0;
 
   for (i in 1:n) {
+    real centered_trial = trial[i] - trial_center;
     // Fatigue contribution grows with block_trial_count[i]
-    real fatigue_contrib = fatigue[participant[i]] * trial[i];
+    real fatigue_contrib = fatigue[participant[i]] * centered_trial;
 
     // Compute arousal effect
     if (block[i] == 1) {
@@ -113,13 +118,15 @@ model {
 
   sigma ~ student_t(n_participants-1, sigma_average, sigma_sd);
 
-  intercept_average ~ normal(0, 0.75);
+  intercept_average ~ normal(0, 0.2);
   intercept_sd_raw ~ normal(-1, 1);
   fatigue_average ~ normal(0, 0.01);
   fatigue_sd_raw ~ normal(-4.5, 0.75);
-  
-  intercept_fatigue_corr_raw ~ normal(0, 1.75); // this creates a roughly uniform distribution, if confused visualize in R with hist(boot::inv.logit(rnorm(5000,0,1.75)))
-  
+    
+  // when intercept wasn't centered
+  // intercept_fatigue_corr_raw ~ normal(0, 1.75); // this creates a roughly uniform distribution, if confused visualize in R with hist(boot::inv.logit(rnorm(5000,0,1.75)))
+  intercept_fatigue_corr_raw ~ std_normal(); 
+
   for (p in 1:n_participants) {
     [intercept[p], fatigue[p]]' ~ multi_student_t_cholesky(n_participants - 1,
                                                            [intercept_average, fatigue_average]',

@@ -45,17 +45,17 @@ functions {
 
   // Create mu predictions and covariance matrices per roi, then calc likelihood
   matrix[n_bold - n_censor, n_beta] design_matrix_censor = design_matrix[uncensored_indices,];
-  vector[n_bold - n_censor] Mu = (design_matrix_censor * betas);
+  vector[n_bold - n_censor] Mu = (design_matrix_censor * betas_z);
   matrix[n_bold, n_bold] delta_mat = 
   // 1 on diagonal, delta off
     add_diag(
       add_diag(
-        rep_matrix(delta, n_bold, n_bold), 
-        - delta),
+        rep_matrix(delta_z, n_bold, n_bold), 
+        - delta_z),
       1);
 
-  matrix [n_bold, n_bold] rho_mat = rho_time .^ rho_power_matrix;
-  matrix[n_bold, n_bold] Cov = pow(sigma, 2) .*  delta_mat .* rho_mat;
+  matrix [n_bold, n_bold] rho_mat = rho_time_z .^ rho_power_matrix;
+  matrix[n_bold, n_bold] Cov = pow(sigma_z, 2) .*  delta_mat .* rho_mat;
   matrix[n_bold - n_censor, n_bold - n_censor] Cov_censor = Cov[uncensored_indices, uncensored_indices];
   matrix[n_bold - n_censor, n_bold - n_censor] L_Cov_censor = cholesky_decompose(Cov_censor);
 
@@ -196,8 +196,10 @@ transformed data {
   // n_bold; 1
   // n_censor; 2
   // n_beta; 3
-  // uncensored_indices_padded; 3 + n_bold
-  array[n_par * n_roi, 3+n_bold] int data_shard_int;
+  // p (participant); 4 
+  // r (roi); 5
+  // uncensored_indices_padded; 5 + n_bold
+  array[n_par * n_roi, 5+n_bold] int data_shard_int;
   int shard_index_1stD = 1;
   for(p in 1:n_par) {
     for(r in 1:n_roi) {
@@ -205,9 +207,11 @@ transformed data {
       data_shard_int[shard_index_1stD, 1] = n_bold;
       data_shard_int[shard_index_1stD, 2] = n_censor[p];
       data_shard_int[shard_index_1stD, 3] = n_beta;
+      data_shard_int[shard_index_1stD, 4] = p;
+      data_shard_int[shard_index_1stD, 5] = r;
       // pack uncensored indices padded vector
       data_shard_int[shard_index_1stD, 
-                     4:(3 + n_bold)] = 
+                     5:(4 + n_bold)] = 
                      uncensored_indices_padded[p,];
 
 
@@ -217,9 +221,9 @@ transformed data {
 
   // For map_rect: 
   // create data_shard_real for each roi by participant
-  // bold n_bold
-  // design_matrix n_bold + n_bold * n_beta
-  // rho_power_matrix n_bold + n_bold * n_beta + n_bold * n_bold
+  // bold; n_bold
+  // design_matrix; n_bold + n_bold * n_beta
+  // rho_power_matrix; n_bold + n_bold * n_beta + n_bold * n_bold
   array[n_par * n_roi, n_bold + n_bold * n_beta + n_bold * n_bold] real data_shard_real;
   shard_index_1stD = 1;
   for (p in 1:n_par) {
@@ -254,18 +258,20 @@ transformed data {
 
 parameters {
 
+  
   // parameters shared between all data shards
   // total number of parameters in phi
-  // mu_sigma_raw; 1
-  // tau_sigma; 2
-  // mu_delta_raw; 3
-  // tau_delta; 4
-  // mu_rho_time_raw; 5
-  // tau_rho_time; 6
-  // mu_betas; = 2 * n_beta * n_roi 
-  // tau_betas; = 2 * n_beta * n_roi 
-  vector[3*(2*n_roi) + 2*n_beta*n_roi] phi; 
-
+  // raw versions get transformed later in map_rect
+  // mu_sigma_raw; 1  * n_roi
+  // tau_sigma_raw; 2  * n_roi
+  // mu_delta_raw; 3  * n_roi
+  // tau_delta_raw; 4  * n_roi
+  // mu_rho_time_raw; 5  * n_roi
+  // tau_rho_time; 6 * n_roi
+  // mu_betas; 6 * n_roi + 1 * n_beta * n_roi 
+  // tau_betas_raw; 6 * n_roi + 2 * n_beta * n_roi 
+  vector[6 * n_roi + 2 * n_beta * n_roi] phi; 
+  
   // old things that are now in phi
   // array[n_roi] real <lower=0> mu_sigma_raw; // this still needs to be half normal
   // array[n_roi] real <lower=0> tau_sigma_raw;
@@ -275,8 +281,8 @@ parameters {
   // array[n_roi] real <lower=0> tau_rho_time_raw;
   // array[n_roi] vector[n_beta] mu_betas;
   // array[n_roi, n_beta] real <lower=0> tau_betas;
-
-
+  
+  
   // local data shard parameters theta for participant by roi
   // sigma_z; 1 
   // delta_z; 2
@@ -289,6 +295,23 @@ parameters {
   // array[n_par, n_roi] real delta_z;
   // array[n_par, n_roi] real rho_time_z;
   // array[n_par, n_roi] vector[n_beta] betas_z;
+  
+  // these are the pairwise correlations between the ROIs
+  // they get used to make covariance matrices later on
+  // rho_z because it goes through tanh to become a real correlation
+  vector[(n_roi*(n_roi-1))%/%2] rho_z_mu_sigma_raw;
+  vector[(n_roi*(n_roi-1))%/%2] rho_z_tau_sigma_raw;
+  vector[(n_roi*(n_roi-1))%/%2] rho_z_mu_delta_raw;
+  vector[(n_roi*(n_roi-1))%/%2] rho_z_tau_delta_raw;
+  vector[(n_roi*(n_roi-1))%/%2] rho_z_mu_rho_time_raw;
+  vector[(n_roi*(n_roi-1))%/%2] rho_z_tau_rho_time;
+  array[n_beta] vector[(n_roi*(n_roi-1))%/%2] rho_z_mu_betas;
+  array[n_beta] vector[(n_roi*(n_roi-1))%/%2] rho_z_tau_betas_raw;
+
+  vector[(n_roi*(n_roi-1))%/%2] rho_z_sigma_z_raw;
+  vector[(n_roi*(n_roi-1))%/%2] rho_z_delta_z_raw;
+  vector[(n_roi*(n_roi-1))%/%2] rho_z_rho_time_z_raw; //rho_z_rho is not a typo, it is how rho over time is correlated between ROIs
+  array[n_beta] vector[(n_roi*(n_roi-1))%/%2] rho_z_betas_z;
 
 }
 
@@ -369,6 +392,106 @@ model {
   //     betas_z[p,r] ~ std_normal();
   //   }
   // }
+
+
+  rho_z_mu_sigma_raw ~ std_normal();
+  rho_z_tau_sigma_raw ~ std_normal();
+  rho_z_mu_delta_raw ~ std_normal();
+  rho_z_tau_delta_raw ~ std_normal();
+  rho_z_mu_rho_time_raw ~ std_normal();
+  rho_z_tau_rho_time ~ std_normal();
+
+  
+  rho_z_sigma_z_raw ~ std_normal();
+  rho_z_delta_z_raw ~ std_normal();
+  rho_z_rho_time_z_raw ~ std_normal();
+
+  for (b in 1:n_beta) {
+    rho_z_mu_betas[b] ~ std_normal();
+    rho_z_tau_betas_raw[b] ~ std_normal();
+
+    rho_z_betas_z[b] ~ std_normal();
+  }    
+
+
+  matrix[n_roi, n_roi] Corr_mu_sigma_raw = rep_matrix(1, n_roi, n_roi);
+  matrix[n_roi, n_roi] Corr_tau_sigma_raw = rep_matrix(1, n_roi, n_roi);
+  matrix[n_roi, n_roi] Corr_mu_delta_raw = rep_matrix(1, n_roi, n_roi);
+  matrix[n_roi, n_roi] Corr_tau_delta_raw = rep_matrix(1, n_roi, n_roi);
+  matrix[n_roi, n_roi] Corr_mu_rho_time_raw = rep_matrix(1, n_roi, n_roi);
+  matrix[n_roi, n_roi] Corr_tau_rho_time_raw = rep_matrix(1, n_roi, n_roi);
+  
+  matrix[n_roi, n_roi] Corr_sigma_z_raw = rep_matrix(1, n_roi, n_roi);
+  matrix[n_roi, n_roi] Corr_delta_z_raw = rep_matrix(1, n_roi, n_roi);
+  matrix[n_roi, n_roi] Corr_rho_time_z_raw = rep_matrix(1, n_roi, n_roi);
+
+  array[n_beta] matrix[n_roi, n_roi] Corr_mu_betas = rep_array(rep_matrix(1, n_roi, n_roi), n_beta);
+  array[n_beta] matrix[n_roi, n_roi] Corr_tau_betas_raw = rep_array(rep_matrix(1, n_roi, n_roi), n_beta);
+  
+  array[n_beta] matrix[n_roi, n_roi] Corr_betas_z = rep_array(rep_matrix(1, n_roi, n_roi), n_beta);
+  
+  int rho_idx = 1;
+  for (i in 1:(n_roi-1)) {
+    for (j in (i + 1):n_roi) {
+      Corr_mu_sigma_raw[i,j] = tanh(rho_z_mu_sigma_raw[rho_idx]);
+      Corr_tau_sigma_raw[i,j] = tanh(rho_z_tau_sigma_raw[rho_idx]);
+      Corr_mu_delta_raw[i,j] = tanh(rho_z_mu_delta_raw[rho_idx]);
+      Corr_tau_delta_raw[i,j] = tanh(rho_z_tau_delta_raw[rho_idx]);
+      Corr_mu_rho_time_raw[i,j] = tanh(rho_z_mu_rho_time_raw[rho_idx]);
+      Corr_tau_rho_time_raw[i,j] = tanh(rho_z_tau_delta_raw[rho_idx]);
+      
+      
+      Corr_sigma_z_raw[i,j] = tanh(rho_z_sigma_z_raw[rho_idx]);
+      Corr_delta_z_raw[i,j] = tanh(rho_z_delta_z_raw[rho_idx]);
+      Corr_rho_time_z_raw[i,j] = tanh(rho_z_rho_time_z_raw[rho_idx]);
+      for (b in 1:n_beta) {
+        Corr_mu_betas[b][i,j] = tanh(rho_z_mu_betas[b][rho_idx]);
+        Corr_tau_betas_raw[b][i,j] = tanh(rho_z_tau_betas_raw[b][rho_idx]);
+        
+        Corr_betas_z[b][i,j] = tanh(rho_z_betas_z[b][rho_idx]);
+      }
+      rho_idx += 1;
+    }
+  }
+
+  matrix[n_roi, n_roi] L_Corr_mu_sigma = cholesky_decompose(Corr_mu_sigma_raw);
+  matrix[n_roi, n_roi] L_Corr_tau_sigma = cholesky_decompose(Corr_tau_sigma_raw);
+  matrix[n_roi, n_roi] L_Corr_mu_delta_raw = cholesky_decompose(Corr_mu_delta_raw);
+  matrix[n_roi, n_roi] L_Corr_tau_delta_raw = cholesky_decompose(Corr_tau_delta_raw);
+  matrix[n_roi, n_roi] L_Corr_mu_rho_time_raw = cholesky_decompose(Corr_mu_rho_time_raw);
+  matrix[n_roi, n_roi] L_Corr_tau_rho_time_raw = cholesky_decompose(Corr_tau_rho_time_raw);
+  
+  matrix[n_roi, n_roi] L_Corr_sigma_z = cholesky_decompose(Corr_sigma_z_raw);
+  matrix[n_roi, n_roi] L_Corr_delta_z_raw = cholesky_decompose(Corr_delta_z_raw);
+  matrix[n_roi, n_roi] L_Corr_rho_time_z_raw = cholesky_decompose(Corr_rho_time_z_raw);
+  
+  array[n_beta] matrix[n_roi, n_roi] L_Corr_mu_betas;
+  array[n_beta] matrix[n_roi, n_roi] L_Corr_tau_betas_raw;
+  
+  array[n_beta] matrix[n_roi, n_roi] L_Corr_betas_z;
+
+  for (b in 1:n_beta) {
+    L_Corr_mu_betas[b] = cholesky_decompose(Corr_mu_betas[b]);
+    L_Corr_tau_betas_raw[b] = cholesky_decompose(Corr_tau_betas_raw[b]);
+    
+    L_Corr_betas_z[b] = cholesky_decompose(Corr_betas_z[b]);
+  }    
+
+
+  // mu_sigma_raw
+  int phi_start_idx = 1;
+  int phi_stop_idx = n_roi;
+  phi[phi_start_idx:phi_stop_idx] ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_mu_sigma);
+  
+  // tau_sigma_raw
+  phi_start_idx += phi_stop_idx;
+  phi_stop_idx += n_roi;
+  phi[phi_start_idx:phi_stop_idx] ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_tau_sigma);
+  
+  phi_start_idx += phi_stop_idx;
+  phi_stop_idx += n_roi;
+  phi[phi_start_idx:phi_stop_idx] ~ multi_normal_cholesky(rep_vector(0,n_roi), Corr_sigma_z);
+
 
   target += map_rect(participant_ll, phi, theta, data_shard_real, data_shard_int);
 

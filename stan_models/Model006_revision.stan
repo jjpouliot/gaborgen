@@ -24,24 +24,28 @@ data {
   array[n_missing] int<lower=1, upper=n_observations + n_missing> indices_missing;
 }
 
+transformed data {
+   real trial_center = (n_trials + 1) / 2.0;
+}
+
 parameters {
 
-  real<lower = 0> sigma_average; //this won't hug zero so it does not need to be exp() //1
-  real sigma_sd_raw; //2
-  real intercept_average; //3
-  real intercept_sd_raw; //4
-  real fatigue_average; //5
-  real fatigue_sd_raw; //6
-  real intercept_fatigue_corr_raw; //7
+  real<lower = 0> sigma_average; //this won't hug zero so it does not need to be exp()
+  real sigma_sd_raw;
+  real intercept_average;
+  real intercept_sd_raw;
+  real fatigue_average;
+  real fatigue_sd_raw;
+  real intercept_fatigue_corr_raw;
   
-  real b_arousal_average; //8
-  real b_arousal_sd_raw; //9  
+  real b_arousal_average;       
+  real b_arousal_sd_raw;       
   
-  array[n_participants] real<lower = 0> sigma; //this won't hug zero so it does not need to be exp() //33 if n_participants is 24
-  array[n_participants] real intercept; //57
-  array[n_participants] real fatigue; //81
+  array[n_participants] real<lower = 0> sigma; //this won't hug zero so it does not need to be exp()
+  array[n_participants] real intercept;
+  array[n_participants] real fatigue;
   
-  array[n_participants] real b_arousal; //105    
+  array[n_participants] real b_arousal;       
 
   array[n_missing] real amplitude_missing;
 }
@@ -55,7 +59,7 @@ transformed parameters {
   real intercept_sd = exp(intercept_sd_raw);
   real fatigue_sd = exp(fatigue_sd_raw);
   
-  real intercept_fatigue_corr = -inv_logit(intercept_fatigue_corr_raw);
+  real intercept_fatigue_corr = tanh(intercept_fatigue_corr_raw);
 
   cov_matrix[2] Sigma;
   Sigma[1,1] = square(intercept_sd);
@@ -75,22 +79,23 @@ transformed parameters {
   real trials_per_block = 48.0;
 
   for (i in 1:n) {
+    real centered_trial = trial[i] - trial_center;
     // Fatigue contribution grows with block_trial_count[i]
-    real fatigue_contrib = fatigue[participant[i]] * trial[i];
+    real fatigue_contrib = fatigue[participant[i]] * centered_trial;
 
     // Compute arousal effect
     if (block[i] == 1) {
       // For the first block, use the block's arousal rating directly
       mu[i] = intercept[participant[i]] 
               + fatigue_contrib
-              + b_arousal[participant[i]] * arousal_pbc[participant[i], block[i], cue[i]];
-              // + b_arousal[participant[i]] * arousal_pbc_centered[participant[i], block[i], cue[i]];
+              // + b_arousal[participant[i]] * arousal_pbc[participant[i], block[i], cue[i]];
+              + b_arousal[participant[i]] * arousal_pbc_centered[participant[i], block[i], cue[i]];
     } else {
       // For subsequent blocks, smoothly transition from the previous block's rating
-      real previous_arousal = arousal_pbc[participant[i], block[i]-1, cue[i]];
-      real current_arousal  = arousal_pbc[participant[i], block[i], cue[i]];
-      // real previous_arousal = arousal_pbc_centered[participant[i], block[i]-1, cue[i]];
-      // real current_arousal  = arousal_pbc_centered[participant[i], block[i], cue[i]];
+      // real previous_arousal = arousal_pbc[participant[i], block[i]-1, cue[i]];
+      // real current_arousal  = arousal_pbc[participant[i], block[i], cue[i]];
+      real previous_arousal = arousal_pbc_centered[participant[i], block[i]-1, cue[i]];
+      real current_arousal  = arousal_pbc_centered[participant[i], block[i], cue[i]];
 
       // Weight previous block's arousal more at the start of the new block,
       // and gradually shift to the current block's arousal by the block's end.

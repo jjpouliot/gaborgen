@@ -11,10 +11,218 @@ This document aims to detail all models fit for the associated techinal report (
 library(tidyverse)
 library(patchwork)
 library(ggridges)
+library(ggbeeswarm)
 
 # load necessary data and models
-load(file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/supplemental_data.RData")
+# load(file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/supplemental_data.RData")
+load(file = "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/supplemental_data.RData")
 
+```
+
+# Visualization of ratings for reviewers
+
+```{r}
+rating_text_size <-15
+Oz_fft_df %>% 
+  group_by(participant, block, cue) %>% 
+  reframe(avg_ar = mean(ar)) %>% 
+  mutate("block_named" = case_when(
+    block == 1 ~ "Habituation",
+    block == 2 ~ "Acquisition #1",
+    block == 3 ~ "Acquisition #2",
+    block == 4 ~ "Extinction")) %>% 
+  mutate(block_named = factor(block_named, 
+  levels = c(
+    "Habituation",
+    "Acquisition #1",
+    "Acquisition #2",
+    "Extinction"
+  ))) %>% 
+  ggplot() + 
+  geom_line(aes(x=cue, y = avg_ar, group = cue, position = ggbeeswarm::geom_quasirandom())) +
+  geom_quasirandom(aes(x = cue, y = avg_ar, color = cue)) +
+  facet_wrap(
+    ~block_named, nrow = 1) +
+  scale_color_manual(values = cue_color) +
+  scale_y_continuous(name = "Arousal Rating") +
+  ggtitle("Participant Arousal Ratings per Cue by Block") +
+  theme_bw() +
+  theme(text = element_text(size = rating_text_size))
+
+Oz_fft_df %>% 
+  group_by(participant, block, cue) %>% 
+  reframe(avg_ar = mean(ar)) %>% 
+  mutate("block_named" = case_when(
+    block == 1 ~ "Habituation",
+    block == 2 ~ "Acquisition #1",
+    block == 3 ~ "Acquisition #2",
+    block == 4 ~ "Extinction")) %>% 
+  mutate(block_named = factor(block_named, 
+  levels = c(
+    "Habituation",
+    "Acquisition #1",
+    "Acquisition #2",
+    "Extinction"
+  ))) %>% 
+  ggplot(aes(x = cue, y = avg_ar)) + 
+  geom_line(aes(group = participant), 
+    position = ggbeeswarm::position_quasirandom(width = 0.4)) +
+  geom_quasirandom(aes(color = cue),
+    position = ggbeeswarm::position_quasirandom(width = 0.4)) +
+  facet_wrap(
+    ~block_named, nrow = 1) +
+  scale_color_manual(values = cue_color) +
+  scale_y_continuous(name = "Arousal Rating") +
+  ggtitle("Participant Arousal Ratings per Cue by Block") +
+  theme_bw() +
+  theme(text = element_text(size = rating_text_size))
+
+Oz_fft_df %>% 
+  group_by(stan_par_id, block, cue) %>% 
+  reframe(avg_ar = mean(ar)) %>% 
+  mutate("block_named" = case_when(
+    block == 1 ~ "Habituation",
+    block == 2 ~ "Acquisition #1",
+    block == 3 ~ "Acquisition #2",
+    block == 4 ~ "Extinction")) %>% 
+  mutate(block_named = factor(block_named, 
+  levels = c(
+    "Habituation",
+    "Acquisition #1",
+    "Acquisition #2",
+    "Extinction"
+  ))) %>% 
+  ggplot() + 
+  geom_label(aes(x = cue, y = avg_ar, color = cue, label = stan_par_id),
+  # check_overlap = TRUE,
+  #  position = position_jitter()
+   position = position_quasirandom(groupOnX = T,width = .5)
+   ) +
+  facet_wrap(
+    ~block_named, ncol = 1) +
+  scale_color_manual(values = cue_color) +
+  scale_y_continuous(name = "Arousal Rating") +
+  ggtitle("Participant Arousal Ratings per Cue by Block") +
+  theme_bw() +
+  theme(text = element_text(size = rating_text_size))
+
+Oz_fft_df %>% 
+  group_by(stan_par_id, block, cue) %>% 
+  reframe(avg_val = mean(val)) %>% 
+  mutate("block_named" = case_when(
+    block == 1 ~ "Habituation",
+    block == 2 ~ "Acquisition #1",
+    block == 3 ~ "Acquisition #2",
+    block == 4 ~ "Extinction")) %>% 
+  mutate(block_named = factor(block_named, 
+  levels = c(
+    "Habituation",
+    "Acquisition #1",
+    "Acquisition #2",
+    "Extinction"
+  ))) %>% 
+  ggplot() + 
+  geom_label(aes(x = cue, y = avg_val, color = cue, label = stan_par_id),
+  # check_overlap = TRUE,
+  #  position = position_jitter()
+   position = position_quasirandom(groupOnX = T,width = .5)
+   ) +
+  # geom_label(aes(x = cue, y = avg_val, color = cue, label = stan_par_id),
+  # # check_overlap = TRUE,
+  #  position = position_jitter()
+  # #  position = position_quasirandom(groupOnX = F,width = 1.5,bandwidth = .75)
+  #  ) +
+  facet_wrap(
+    ~block_named, ncol = 1) +
+  scale_color_manual(values = cue_color) +
+  scale_y_continuous(name = "Valence Rating") +
+  ggtitle("Participant Valence Ratings per Cue by Block") +
+  theme_bw() +
+  theme(text = element_text(size = rating_text_size))
+
+Oz_fft_df %>% 
+  group_by(stan_par_id, block, cue) %>% 
+  reframe(avg_exp = mean(exp)) %>% 
+  mutate("block_named" = case_when(
+    block == 1 ~ "Habituation",
+    block == 2 ~ "Acquisition #1",
+    block == 3 ~ "Acquisition #2",
+    block == 4 ~ "Extinction")) %>% 
+  mutate(block_named = factor(block_named, 
+  levels = c(
+    "Habituation",
+    "Acquisition #1",
+    "Acquisition #2",
+    "Extinction"
+  ))) %>% 
+  ggplot() + 
+    geom_label(aes(x = cue, y = avg_exp, color = cue, label = stan_par_id),
+  # check_overlap = TRUE,
+  #  position = position_jitter()
+   position = position_quasirandom(groupOnX = T,width = .5)
+   ) +
+  # geom_text(aes(x = cue, y = avg_exp, color = cue, label = stan_par_id),
+  # # check_overlap = TRUE,
+  #  position = position_dodge2(width = 1)
+  # #  position = position_quasirandom(groupOnX = F,width = 1.5,bandwidth = .75)
+  #  ) +
+  facet_wrap(
+    ~block_named, ncol = 1) +
+  scale_color_manual(values = cue_color) +
+  scale_y_continuous(name = "Shock Expectancy (% chance) Rating") +
+  ggtitle("Participant Shock Expectancy Ratings per Cue by Block") +
+  theme_bw() +
+  theme(text = element_text(size = rating_text_size))
+
+Oz_fft_df %>% 
+  group_by(participant, block, cue) %>% 
+  reframe(avg_val = mean(val)) %>% 
+  mutate("block_named" = case_when(
+    block == 1 ~ "Habituation",
+    block == 2 ~ "Acquisition #1",
+    block == 3 ~ "Acquisition #2",
+    block == 4 ~ "Extinction")) %>% 
+  mutate(block_named = factor(block_named, 
+  levels = c(
+    "Habituation",
+    "Acquisition #1",
+    "Acquisition #2",
+    "Extinction"
+  ))) %>% 
+  ggplot() + 
+  geom_quasirandom(aes(x = cue, y = avg_val, color = cue)) +
+  facet_wrap(
+    ~block_named, nrow = 1) +
+  scale_color_manual(values = cue_color) +
+  scale_y_continuous(name = "Valence Rating") +
+  ggtitle("Participant Valence Ratings per Cue by Block") +
+  theme_bw() +
+  theme(text = element_text(size = rating_text_size))
+
+Oz_fft_df %>% 
+  group_by(participant, block, cue) %>% 
+  reframe(avg_exp = mean(exp)) %>% 
+  mutate("block_named" = case_when(
+    block == 1 ~ "Habituation",
+    block == 2 ~ "Acquisition #1",
+    block == 3 ~ "Acquisition #2",
+    block == 4 ~ "Extinction")) %>% 
+  mutate(block_named = factor(block_named, 
+  levels = c(
+    "Habituation",
+    "Acquisition #1",
+    "Acquisition #2",
+    "Extinction"
+  ))) %>% 
+  ggplot() + 
+  geom_quasirandom(aes(x = cue, y = avg_exp, color = cue)) +
+  facet_wrap(
+    ~block_named, nrow = 1) +
+  scale_color_manual(values = cue_color) +
+  scale_y_continuous(name = "Shock Expectancy (% chance) Rating") +
+  ggtitle("Participant Shock Expectancy Ratings per Cue by Block") +
+  theme_bw() +
+  theme(text = element_text(size = rating_text_size))
 ```
 
 # Shared by all models
@@ -91,7 +299,7 @@ Present in the means per cue by block (Figure 1), there is a downward trend over
 
 $$
 \begin{gather}
-\mu[i] = intercept[participant[i]] \ + \ adaptation[participant[i]]\cdot trial[i] \ + \ ... \tag{9}\\
+\mu[i] = intercept[participant[i]] \ + \ adaptation[participant[i]]\cdot trialCentered[i] \ + \ ... \tag{9}\\
 \end{gather}
 $$
 
@@ -121,16 +329,16 @@ df = (nParticipants - 1),
 \rho \cdot \sigma Intercept \cdot \sigma Adaptation & \sigma Adaptation^2
 \end{bmatrix} \tag{11} \\
 \\
-interceptAverage \sim Normal(0,0.75)\tag{12} \\
+interceptAverage \sim Normal(0,0.2)\tag{12} \\
 adaptationAverage \sim Normal(0,0.01)\tag{13} \\ 
 \\
 \sigma Intercept = exp(\sigma Intercept Raw)\tag{14} \\
 \sigma Adaptation = exp(\sigma Adaptation Raw)\tag{15} \\
-\rho = -invLogit(\rho Raw)\tag{16} \\
+\rho = tanh(\rho Raw)\tag{16} \\
 \\
 \sigma Intercept Raw \sim Normal(-1, 1)\tag{17} \\
 \sigma Adaptation Raw \sim Normal(-4.5, 0.75)\tag{18} \\
-\rho Raw \sim Normal(0, 1.75)\tag{19} \\
+\rho Raw \sim Normal(0, 1)\tag{19} \\
 \end{gather}
 $$
 
@@ -140,7 +348,7 @@ Now I show the prior predictive distributions for the average intercept and slop
 #|echo: false
 #|output: false
 #|message: false
-model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/priors_visualization_2.stan'
+model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/priors_visualization_3.stan'
 
 #force_recompile = T is sometimes helpful
 model_priors <- cmdstanr::cmdstan_model(model_path, 
@@ -155,7 +363,7 @@ model_priors_fit <- model_priors$sample(refresh = 1000,
                                         iter_sampling = 1000, 
                                         save_warmup = F, 
                                         show_messages = T,
-                                        output_dir = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains",
+                                        # output_dir = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains",
                                         chains = 4,
                                         parallel_chains = 4)
 
@@ -172,7 +380,7 @@ model_priors_fit_df <- model_priors_fit$draws(format = "df")
 
 number_of_samples_to_plot <- 100
 
-set.seed(0)
+set.seed(2)
 samples_to_plot <- sample(1:nrow(model_priors_fit_df),
                           size = number_of_samples_to_plot,
                           replace = F)
@@ -181,8 +389,9 @@ model_priors_fit_df[samples_to_plot,] %>%
 # model_priors_fit_df %>% 
   # as.data.frame() %>% 
   ggplot() +
-  
-  geom_abline(aes(intercept = intercept_average - (fatigue_average * (176/2)), 
+  # center trial
+  # geom_abline(aes(intercept = intercept_average, 
+  geom_abline(aes(intercept = intercept_average - (fatigue_average * ((176 + 1) /2)), 
                   slope = fatigue_average ),
               size = .5, 
               alpha = .5) +
@@ -190,7 +399,7 @@ model_priors_fit_df[samples_to_plot,] %>%
                      name = "Z-scored ssVEP") +
   scale_x_continuous(limits =c(1,176), breaks = seq(0, 176, by = 10),
                      name = "Trials") +
-  ggtitle("Average Fatigue Prior Predictive regression lines") +
+  ggtitle("Average Adaptation Prior Predictive regression lines") +
   theme_classic() +
   theme(text = element_text(family = "arial", size = 15),
         axis.ticks.y = element_blank())
@@ -416,8 +625,8 @@ The suggested practice according to Gelman and McElreath textbooks, is to build 
 ## Load relevant posteriors
 
 ```{r}
-parent_folder <- "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI"
-git_repository <- "/home/andrewf/Repositories/gaborgen"
+# parent_folder <- "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI"
+# git_repository <- "/home/andrewfarkas/Repositories/gaborgen"
 
 # load(file = paste0(parent_folder,"/gaborgen_eeg_manuscript_all_models.RData"))
 ```

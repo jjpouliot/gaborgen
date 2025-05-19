@@ -13,7 +13,8 @@ highpass <- signal::butter(n = 5, W = 0.026, type = "high")
 
 data_dir <- c(
   # "/home/andrew/Downloads/roi_data_and_info"
-  "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info"
+  # "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info"
+  "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info"
 )
 
 roi_key <- read_delim(paste0(data_dir, '/HCPex_SUIT_labels.txt'))
@@ -277,25 +278,25 @@ fmri_stan_list$roi <- used_df$roi_id %>% as.factor() %>% as.integer()
 # just vector
 # fmri_stan_list$bold <- used_df$bold
 # [par, time]
-fmri_stan_list$bold <- used_df$bold %>%
-  array(
-    dim = c(
-      fmri_stan_list$n_bold * fmri_stan_list$n_roi,
-      # fmri_stan_list$n_roi,
-      fmri_stan_list$n_par
-    )
-  ) %>%
-  aperm(c(2, 1))
-# [par, roi, time]
 # fmri_stan_list$bold <- used_df$bold %>%
 #   array(
 #     dim = c(
-#       1070,
-#       fmri_stan_list$n_roi,
+#       fmri_stan_list$n_bold * fmri_stan_list$n_roi,
+#       # fmri_stan_list$n_roi,
 #       fmri_stan_list$n_par
 #     )
 #   ) %>%
-#   aperm(c(3, 2, 1))
+#   aperm(c(2, 1))
+# [par, roi, time]
+fmri_stan_list$bold <- used_df$bold %>%
+  array(
+    dim = c(
+      1070,
+      fmri_stan_list$n_roi,
+      fmri_stan_list$n_par
+    )
+  ) %>%
+  aperm(c(3, 2, 1))
 
 # just vector
 # fmri_stan_list$usable_bold_indices <- used_df$censor %>% as.integer()
@@ -333,6 +334,10 @@ for (p in 1:fmri_stan_list$n_par) {
 }
 fmri_stan_list$n_censor <- censor_vec %>% as.integer()
 
+# try without motion betas
+# all_par_design_matrices <- all_par_design_matrices %>%
+#   select(!starts_with("mot"))
+
 fmri_stan_list$n_beta <- ncol(all_par_design_matrices) - 2
 
 # array[n_par, 1070, n_beta] real design_array
@@ -368,7 +373,7 @@ fmri_stan_list$n_beta_stim <- 13
 
 cmdstanr::write_stan_json(
   fmri_stan_list,
-  file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list.json"
+  file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_no_mot_betas.json"
 )
 
 
@@ -378,26 +383,30 @@ warmup_samples_per_chain <- 2000
 posterior_samples_per_chain <- 2000
 # where_to_save_chains <- '/home/andrew/Documents/stan_chains_ssd/'
 # where_to_save_chains <- '/run/media/andrew/Barracuda_8tb/stan_chains/'
-where_to_save_chains <- '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains'
+# where_to_save_chains <- '/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains'
+where_to_save_chains <- '/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains'
 
 # First map_rect model ####
 
 # model_path <- '/home/andrew/Documents/GitHub/gaborgen/stan_models/fMRI/Model012.stan'
 # model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model019.stan'
-model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model022.stan'
+# model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model021.stan'
+# model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model018.stan'
+model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model023.stan'
 
 # Fit models
 model <- cmdstanr::cmdstan_model(
   stan_file = model_path,
   force_recompile = T,
-  cpp_options = list(stan_threads = TRUE)
-  # cpp_options = list(stan_threads = TRUE, stan_opencl = TRUE)
+  # cpp_options = list(stan_threads = TRUE)
+  cpp_options = list(stan_threads = TRUE, stan_opencl = TRUE)
 )
+
 
 model_opt <- model$optimize(
   data = fmri_stan_list,
   iter = 1e6,
-  jacobian = T,
+  jacobian = F,
   threads = 7
 )
 
@@ -412,12 +421,13 @@ model_fit <- model$sample(
   data = fmri_stan_list,
   refresh = 50,
   seed = 3,
-  threads_per_chain = 6,
-  init = 1,
+  threads_per_chain = 1,
+  init = .1,
   iter_warmup = warmup_samples_per_chain,
   iter_sampling = posterior_samples_per_chain,
   save_warmup = T,
   show_messages = T,
+  opencl_ids = c(0, 0),
   output_dir = where_to_save_chains,
   chains = number_of_chains,
   parallel_chains = number_of_chains
