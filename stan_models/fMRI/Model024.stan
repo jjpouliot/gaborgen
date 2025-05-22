@@ -13,8 +13,10 @@ functions {
   int n_bold = data_shard_int[1];
   int n_censor = data_shard_int[2];
   int n_beta = data_shard_int[3];
+  int p = data_shard_int[4];
+  int r = data_shard_int[5];
   array[n_bold] int uncensored_indices_padded = 
-    data_shard_int[4:(n_bold+3)];
+    data_shard_int[6:(n_bold+5)];
 
   array[n_bold - n_censor] int uncensored_indices = 
     uncensored_indices_padded[1:(n_bold - n_censor)];
@@ -75,11 +77,12 @@ functions {
 
   // unpack data_shard_int
   int n_bold = data_shard_int[1];
-  int n_roi = data_shard_int[2];
-  int n_censor = data_shard_int[3];
-  int n_beta = data_shard_int[4];
+  int n_censor = data_shard_int[2];
+  int n_beta = data_shard_int[3];
+  int p = data_shard_int[4];
+  int r = data_shard_int[5];
   array[n_bold] int uncensored_indices_padded = 
-    data_shard_int[5:(n_bold+4)];
+    data_shard_int[6:(n_bold+5)];
 
   array[n_bold - n_censor] int uncensored_indices = 
     uncensored_indices_padded[1:(n_bold - n_censor)];
@@ -191,6 +194,8 @@ transformed data {
     }
   }
 
+  int total_usable_TRs_all = total_usable_TRs * n_roi;
+
 
   // For map_rect: 
   // create data_shard_int for each roi by participant
@@ -200,7 +205,8 @@ transformed data {
   // p (participant); 4 
   // r (roi); 5
   // uncensored_indices_padded; 5 + n_bold
-  array[n_shards, 5+n_bold] int data_shard_int;
+    array[n_shards, 5+n_bold] int data_shard_int;
+//   array[n_shards, 3+n_bold] int data_shard_int;
   int shard_index_1stD = 1;
   for(p in 1:n_par) {
     for(r in 1:n_roi) {
@@ -212,7 +218,7 @@ transformed data {
       data_shard_int[shard_index_1stD, 5] = r;
       // pack uncensored indices padded vector
       data_shard_int[shard_index_1stD, 
-                     5:(4 + n_bold)] = 
+                     6:(5 + n_bold)] = 
                      uncensored_indices_padded[p,];
 
 
@@ -259,7 +265,6 @@ transformed data {
 
 parameters {
 
-  
   // parameters shared between all data shards
   // total number of parameters in phi
   // raw versions get transformed later in map_rect
@@ -271,7 +276,10 @@ parameters {
   // tau_rho_time; 6 * n_roi
   // mu_betas; 6 * n_roi + 1 * n_beta * n_roi 
   // tau_betas_raw; 6 * n_roi + 2 * n_beta * n_roi 
-  vector[6 * n_roi + 2 * n_beta * n_roi] phi; 
+  // vector[6 * n_roi + 2 * n_beta * n_roi] phi; 
+  // jk phi is empty again, but maybe there should be another function for duplicating this for each parameter
+  vector[0] phi; // parameters shared between all data shards; sometimes empty
+  
 
   // for theta
   array[n_par] vector[n_roi] sigma_z;
@@ -279,17 +287,15 @@ parameters {
   array[n_par] vector[n_roi] rho_time_z_raw;
   array[n_par, n_beta] vector[n_roi] betas_z;
   
-  // old things that are now in phi
+  vector <lower=0> [n_roi] mu_sigma_raw; // this still needs to be half normal
   // array[n_roi] real <lower=0> mu_sigma_raw; // this still needs to be half normal
-  // array[n_roi] real <lower=0> tau_sigma_raw;
-  // array[n_roi] real mu_delta_raw;
-  // array[n_roi] real <lower=0>  tau_delta_raw;
-  // array[n_roi] real mu_rho_time_raw;
-  // array[n_roi] real <lower=0> tau_rho_time_raw;
-  // array[n_roi] vector[n_beta] mu_betas;
-  // array[n_roi, n_beta] real <lower=0> tau_betas;
-  
-  
+  vector <lower=0> [n_roi] tau_sigma_raw;
+  vector[n_roi] mu_delta_raw;
+  vector <lower=0> [n_roi]  tau_delta_raw;
+  vector[n_roi] mu_rho_time_raw;
+  vector <lower=0> [n_roi] tau_rho_time_raw;
+  array[n_beta] vector[n_roi] mu_betas;
+  array[n_beta] vector[n_roi] tau_betas;
 
   // old used to be packed into theta, now done in map rect
   // array[n_par, n_roi] real sigma_z;
@@ -321,53 +327,29 @@ transformed parameters {
   // amplitude_all[indices_observed] = amplitude;
   // amplitude_all[indices_missing] = amplitude_missing;
 
-  // now done in map_rect
-  // array[n_par, n_roi] real <lower=0>  sigma;
-  // array[n_par, n_roi] real <lower=0>  delta;
-  // array[n_par, n_roi] real <lower=0>  rho_time;
-  // array[n_par, n_roi] vector[n_beta] betas;
-
-  // for (p in 1:n_par) {
-  //   for (r in 1:n_roi) {
-  //     sigma[p, r] = mu_sigma_raw[r] * 0.5 + tau_sigma_raw[r] * sigma_z[p, r];
-  //     delta[p, r] = inv_logit((mu_delta_raw[r] * 1.75) + tau_delta_raw[r] * delta_z[p, r]);
-  //     rho_time[p, r] = inv_logit((mu_rho_time_raw[r] * 1.75) + tau_rho_time_raw[r] * rho_time_z[p, r]);
-  //     for (b in 1:n_beta){
-  //       betas[p,r][b] = mu_betas[r][b] + tau_betas[r,b] * betas_z[p,r][b];
-  //     }
-  //   }
-  // }
 
 
 
-  // for (i in 1:1) {
-  //   // has to be in loop to make this integer
-  //   int Pshard_index_1stD = 1;
-  //   for (p in 1:n_par) {
-  //     for (r in 1:n_roi) {
-  //       theta[Pshard_index_1stD][1] = sigma[p,r];
-  //       theta[Pshard_index_1stD][2] = delta[p,r];
-  //       theta[Pshard_index_1stD][3] = rho_time[p,r];
-  //       theta[Pshard_index_1stD][4:(3 + n_beta)] = to_vector(betas[p,r]);
-      
-  //       // int current_theta_index = 4 + n_beta;
-  //       // int useable_bold_index = 1;
-  //       // for (b in 1:n_bold) {
-  //       //   if (usable_bold_indices_one_is_true[p,b] == 1) {
-  //       //     theta[Pshard_index_1stD][current_theta_index] = bold_z[useable_bold_index];
-  //       //     current_theta_index += 1;
-  //       //     useable_bold_index += 1;
-  //       //   }
-  //       // }
-  //       // if (n_censor[p] > 0) {
-  //       //   theta[Pshard_index_1stD][current_theta_index:current_theta_index + n_censor[p] - 1] = 
-  //       //     rep_vector(0, n_censor[p]);
-  //       // }
-  //       Pshard_index_1stD = Pshard_index_1stD + 1;
-  //     }
-  //   }
-  // }
 
+
+  array[n_par, n_roi] real <lower=0>  sigma;
+  array[n_par, n_roi] real <lower=0>  delta;
+  array[n_par, n_roi] real <lower=0>  rho_time;
+  array[n_par, n_roi] vector[n_beta] betas;
+
+  for (p in 1:n_par) {
+    for (r in 1:n_roi) {
+      sigma[p, r] = mu_sigma_raw[r] * 0.5 + tau_sigma_raw[r] * sigma_z[p][r];
+      delta[p, r] = inv_logit((mu_delta_raw[r] * 1.75) + tau_delta_raw[r] * delta_z_raw[p][r]);
+      rho_time[p, r] = inv_logit((mu_rho_time_raw[r] * 1.75) + tau_rho_time_raw[r] * rho_time_z_raw[p][r]);
+      for (b in 1:n_beta){
+        //notice ordering changes from betas_z to betas
+        betas[p,r][b] = mu_betas[b][r] + tau_betas[b][r] * betas_z[p,b][r];
+      }
+    }
+  }
+
+  
   // local shard parameters theta for participant by roi
   // sigma_z; 1 
   // delta_z; 2
@@ -376,10 +358,39 @@ transformed parameters {
   array[n_shards] vector[(3 + n_beta)] theta;
 
 
-  theta[1] = to_vector(sigma_z);
+  for (i in 1:1) {
+    // has to be in loop to make this integer
+    int Pshard_index_1stD = 1;
+    for (p in 1:n_par) {
+      for (r in 1:n_roi) {
+        theta[Pshard_index_1stD][1] = sigma[p,r];
+        theta[Pshard_index_1stD][2] = delta[p,r];
+        theta[Pshard_index_1stD][3] = rho_time[p,r];
+        theta[Pshard_index_1stD][4:(3 + n_beta)] = to_vector(betas[p,r]);
+      
+        // int current_theta_index = 4 + n_beta;
+        // int useable_bold_index = 1;
+        // for (b in 1:n_bold) {
+        //   if (usable_bold_indices_one_is_true[p,b] == 1) {
+        //     theta[Pshard_index_1stD][current_theta_index] = bold_z[useable_bold_index];
+        //     current_theta_index += 1;
+        //     useable_bold_index += 1;
+        //   }
+        // }
+        // if (n_censor[p] > 0) {
+        //   theta[Pshard_index_1stD][current_theta_index:current_theta_index + n_censor[p] - 1] = 
+        //     rep_vector(0, n_censor[p]);
+        // }
+        Pshard_index_1stD = Pshard_index_1stD + 1;
+      }
+    }
+  }
 
-  int theta_start_idx = 1;
-  int theta_stop_idx = n_roi;
+
+//   theta[1] = to_vector(sigma_z);
+
+//   int theta_start_idx = 1;
+//   int theta_stop_idx = n_roi;
   
   
 
@@ -449,22 +460,44 @@ model {
   int rho_idx = 1;
   for (i in 1:(n_roi-1)) {
     for (j in (i + 1):n_roi) {
+      // group
       Corr_mu_sigma_raw[i,j] = tanh(rho_z_mu_sigma_raw[rho_idx]);
+      Corr_mu_sigma_raw[j,i] = tanh(rho_z_mu_sigma_raw[rho_idx]);
+
       Corr_tau_sigma_raw[i,j] = tanh(rho_z_tau_sigma_raw[rho_idx]);
+      Corr_tau_sigma_raw[j,i] = tanh(rho_z_tau_sigma_raw[rho_idx]);
+      
       Corr_mu_delta_raw[i,j] = tanh(rho_z_mu_delta_raw[rho_idx]);
+      Corr_mu_delta_raw[j,i] = tanh(rho_z_mu_delta_raw[rho_idx]);
+
       Corr_tau_delta_raw[i,j] = tanh(rho_z_tau_delta_raw[rho_idx]);
+      Corr_tau_delta_raw[j,i] = tanh(rho_z_tau_delta_raw[rho_idx]);
+
       Corr_mu_rho_time_raw[i,j] = tanh(rho_z_mu_rho_time_raw[rho_idx]);
+      Corr_mu_rho_time_raw[j,i] = tanh(rho_z_mu_rho_time_raw[rho_idx]);
+      
       Corr_tau_rho_time_raw[i,j] = tanh(rho_z_tau_delta_raw[rho_idx]);
+      Corr_tau_rho_time_raw[j,i] = tanh(rho_z_tau_delta_raw[rho_idx]);
       
-      
+      // local
       Corr_sigma_z_raw[i,j] = tanh(rho_z_sigma_z_raw[rho_idx]);
+      Corr_sigma_z_raw[j,i] = tanh(rho_z_sigma_z_raw[rho_idx]);
+
       Corr_delta_z_raw[i,j] = tanh(rho_z_delta_z_raw[rho_idx]);
+      Corr_delta_z_raw[j,i] = tanh(rho_z_delta_z_raw[rho_idx]);
+
       Corr_rho_time_z_raw[i,j] = tanh(rho_z_rho_time_z_raw[rho_idx]);
+      Corr_rho_time_z_raw[j,i] = tanh(rho_z_rho_time_z_raw[rho_idx]);
       for (b in 1:n_beta) {
+        // group
         Corr_mu_betas[b][i,j] = tanh(rho_z_mu_betas[b][rho_idx]);
-        Corr_tau_betas_raw[b][i,j] = tanh(rho_z_tau_betas_raw[b][rho_idx]);
+        Corr_mu_betas[b][j,i] = tanh(rho_z_mu_betas[b][rho_idx]);
         
+        Corr_tau_betas_raw[b][i,j] = tanh(rho_z_tau_betas_raw[b][rho_idx]);
+        Corr_tau_betas_raw[b][j,i] = tanh(rho_z_tau_betas_raw[b][rho_idx]);
+        //local
         Corr_betas_z[b][i,j] = tanh(rho_z_betas_z[b][rho_idx]);
+        Corr_betas_z[b][j,i] = tanh(rho_z_betas_z[b][rho_idx]);
       }
       rho_idx += 1;
     }
@@ -494,27 +527,17 @@ model {
   }    
 
   // The ROI correlational structure is used for better priors
+  // shared group parameters
   mu_sigma_raw ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_mu_sigma);
-  // tau_sigma_raw
-  phi_start_idx += phi_stop_idx;
-  phi_stop_idx += n_roi;
-  phi[phi_start_idx:phi_stop_idx] ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_tau_sigma);
-  // mu_delta_raw
-  phi_start_idx += phi_stop_idx;
-  phi_stop_idx += n_roi;
-  phi[phi_start_idx:phi_stop_idx] ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_mu_delta_raw);
-  // tau_delta_raw
-  phi_start_idx += phi_stop_idx;
-  phi_stop_idx += n_roi;
-  phi[phi_start_idx:phi_stop_idx] ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_tau_delta_raw);
-  // mu_rho_time_raw
-  phi_start_idx += phi_stop_idx;
-  phi_stop_idx += n_roi;
-  phi[phi_start_idx:phi_stop_idx] ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_mu_rho_time_raw);
-  // tau_rho_time_raw
-  phi_start_idx += phi_stop_idx;
-  phi_stop_idx += n_roi;
-  phi[phi_start_idx:phi_stop_idx] ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_tau_rho_time_raw);
+  tau_sigma_raw ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_tau_sigma);
+  mu_delta_raw ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_mu_delta_raw);
+  tau_delta_raw ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_tau_delta_raw);
+  mu_rho_time_raw ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_mu_rho_time_raw);
+  tau_rho_time_raw ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_tau_rho_time_raw);
+  for (b in 1:n_beta) {
+    mu_betas[b] ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_mu_betas[b]);
+    tau_betas[b] ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_tau_betas_raw[b]);
+  }
 
   // Theta local participant and ROI parameters
   // The noncentered parameterization is used, thus z-scores get sampled, but this is still multilevel
@@ -524,7 +547,7 @@ model {
     delta_z_raw[p] ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_delta_z_raw);
     rho_time_z_raw[p] ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_rho_time_z_raw);
     for (b in 1:n_beta) {
-      betas_z[p,b] ~ multi_normal_cholesky(rep_vector(0,n_roi), Corr_betas_z[b]);
+      betas_z[p,b] ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_betas_z[b]);
     }
   }
 
@@ -549,24 +572,25 @@ generated quantities {
   //   mu_rho_time[r] = inv_logit(mu_rho_time_raw[r] * 1.75);
   // }
 
-  vector[total_usable_TRs] log_lik;
+  vector[total_usable_TRs_all] log_lik;
   int shard_index = 1;
   int log_lik_start = 1;
   int log_lik_stop = n_bold - n_censor[1];
-  for (p in 1:n_par){
-    for (r in 1:n_roi){
-      if (shard_index > 1) {
-        log_lik_start += n_bold - n_censor[p-1];
-        log_lik_stop += n_bold - n_censor[p];
+  for(s in 1:n_shards) {
+      if (s > 1) {
+        int current_par = data_shard_int[s  ][4];
+        int last_par    = data_shard_int[s-1][4];
+        int current_n_censor = n_censor[current_par];
+        int last_n_censor = n_censor[last_par];
+        log_lik_start += n_bold - last_n_censor; 
+        log_lik_stop += n_bold - current_n_censor;
       }
       log_lik[log_lik_start:log_lik_stop] = 
         multi_normal_elementwise_log_lik(phi, 
-                                         theta[shard_index], 
-                                         data_shard_real[shard_index], 
-                                         data_shard_int[shard_index]);
-      shard_index += 1;
+                                         theta[s], 
+                                         data_shard_real[s], 
+                                         data_shard_int[s]);
     }
-  }
 
   // log_lik = map_rect(participant_ll, phi, theta, data_shard_real, data_shard_int);
 

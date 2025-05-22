@@ -384,7 +384,7 @@ generated quantities {
   for (p in 1:n_par){
     for (r in 1:n_roi){
       if (shard_index > 1) {
-        log_lik_start += n_bold - n_censor[p-1];
+        log_lik_start += n_bold - n_censor[p-1]; // this doesn't make sense once more rois are added
         log_lik_stop += n_bold - n_censor[p];
       }
       log_lik[log_lik_start:log_lik_stop] = 
