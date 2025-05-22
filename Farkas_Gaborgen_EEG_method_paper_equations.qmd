@@ -39,138 +39,12 @@ Oz_fft_df %>%
     "Extinction"
   ))) %>% 
   ggplot() + 
-  geom_line(aes(x=cue, y = avg_ar, group = cue, position = ggbeeswarm::geom_quasirandom())) +
   geom_quasirandom(aes(x = cue, y = avg_ar, color = cue)) +
   facet_wrap(
     ~block_named, nrow = 1) +
   scale_color_manual(values = cue_color) +
   scale_y_continuous(name = "Arousal Rating") +
   ggtitle("Participant Arousal Ratings per Cue by Block") +
-  theme_bw() +
-  theme(text = element_text(size = rating_text_size))
-
-Oz_fft_df %>% 
-  group_by(participant, block, cue) %>% 
-  reframe(avg_ar = mean(ar)) %>% 
-  mutate("block_named" = case_when(
-    block == 1 ~ "Habituation",
-    block == 2 ~ "Acquisition #1",
-    block == 3 ~ "Acquisition #2",
-    block == 4 ~ "Extinction")) %>% 
-  mutate(block_named = factor(block_named, 
-  levels = c(
-    "Habituation",
-    "Acquisition #1",
-    "Acquisition #2",
-    "Extinction"
-  ))) %>% 
-  ggplot(aes(x = cue, y = avg_ar)) + 
-  geom_line(aes(group = participant), 
-    position = ggbeeswarm::position_quasirandom(width = 0.4)) +
-  geom_quasirandom(aes(color = cue),
-    position = ggbeeswarm::position_quasirandom(width = 0.4)) +
-  facet_wrap(
-    ~block_named, nrow = 1) +
-  scale_color_manual(values = cue_color) +
-  scale_y_continuous(name = "Arousal Rating") +
-  ggtitle("Participant Arousal Ratings per Cue by Block") +
-  theme_bw() +
-  theme(text = element_text(size = rating_text_size))
-
-Oz_fft_df %>% 
-  group_by(stan_par_id, block, cue) %>% 
-  reframe(avg_ar = mean(ar)) %>% 
-  mutate("block_named" = case_when(
-    block == 1 ~ "Habituation",
-    block == 2 ~ "Acquisition #1",
-    block == 3 ~ "Acquisition #2",
-    block == 4 ~ "Extinction")) %>% 
-  mutate(block_named = factor(block_named, 
-  levels = c(
-    "Habituation",
-    "Acquisition #1",
-    "Acquisition #2",
-    "Extinction"
-  ))) %>% 
-  ggplot() + 
-  geom_label(aes(x = cue, y = avg_ar, color = cue, label = stan_par_id),
-  # check_overlap = TRUE,
-  #  position = position_jitter()
-   position = position_quasirandom(groupOnX = T,width = .5)
-   ) +
-  facet_wrap(
-    ~block_named, ncol = 1) +
-  scale_color_manual(values = cue_color) +
-  scale_y_continuous(name = "Arousal Rating") +
-  ggtitle("Participant Arousal Ratings per Cue by Block") +
-  theme_bw() +
-  theme(text = element_text(size = rating_text_size))
-
-Oz_fft_df %>% 
-  group_by(stan_par_id, block, cue) %>% 
-  reframe(avg_val = mean(val)) %>% 
-  mutate("block_named" = case_when(
-    block == 1 ~ "Habituation",
-    block == 2 ~ "Acquisition #1",
-    block == 3 ~ "Acquisition #2",
-    block == 4 ~ "Extinction")) %>% 
-  mutate(block_named = factor(block_named, 
-  levels = c(
-    "Habituation",
-    "Acquisition #1",
-    "Acquisition #2",
-    "Extinction"
-  ))) %>% 
-  ggplot() + 
-  geom_label(aes(x = cue, y = avg_val, color = cue, label = stan_par_id),
-  # check_overlap = TRUE,
-  #  position = position_jitter()
-   position = position_quasirandom(groupOnX = T,width = .5)
-   ) +
-  # geom_label(aes(x = cue, y = avg_val, color = cue, label = stan_par_id),
-  # # check_overlap = TRUE,
-  #  position = position_jitter()
-  # #  position = position_quasirandom(groupOnX = F,width = 1.5,bandwidth = .75)
-  #  ) +
-  facet_wrap(
-    ~block_named, ncol = 1) +
-  scale_color_manual(values = cue_color) +
-  scale_y_continuous(name = "Valence Rating") +
-  ggtitle("Participant Valence Ratings per Cue by Block") +
-  theme_bw() +
-  theme(text = element_text(size = rating_text_size))
-
-Oz_fft_df %>% 
-  group_by(stan_par_id, block, cue) %>% 
-  reframe(avg_exp = mean(exp)) %>% 
-  mutate("block_named" = case_when(
-    block == 1 ~ "Habituation",
-    block == 2 ~ "Acquisition #1",
-    block == 3 ~ "Acquisition #2",
-    block == 4 ~ "Extinction")) %>% 
-  mutate(block_named = factor(block_named, 
-  levels = c(
-    "Habituation",
-    "Acquisition #1",
-    "Acquisition #2",
-    "Extinction"
-  ))) %>% 
-  ggplot() + 
-    geom_label(aes(x = cue, y = avg_exp, color = cue, label = stan_par_id),
-  # check_overlap = TRUE,
-  #  position = position_jitter()
-   position = position_quasirandom(groupOnX = T,width = .5)
-   ) +
-  # geom_text(aes(x = cue, y = avg_exp, color = cue, label = stan_par_id),
-  # # check_overlap = TRUE,
-  #  position = position_dodge2(width = 1)
-  # #  position = position_quasirandom(groupOnX = F,width = 1.5,bandwidth = .75)
-  #  ) +
-  facet_wrap(
-    ~block_named, ncol = 1) +
-  scale_color_manual(values = cue_color) +
-  scale_y_continuous(name = "Shock Expectancy (% chance) Rating") +
-  ggtitle("Participant Shock Expectancy Ratings per Cue by Block") +
   theme_bw() +
   theme(text = element_text(size = rating_text_size))
 
@@ -223,6 +97,7 @@ Oz_fft_df %>%
   ggtitle("Participant Shock Expectancy Ratings per Cue by Block") +
   theme_bw() +
   theme(text = element_text(size = rating_text_size))
+
 ```
 
 # Shared by all models

@@ -2069,6 +2069,40 @@ save(
   file = paste0(parent_folder, "/gaborgen_eeg_manuscript_all_models.RData")
 )
 
+save(
+  # fft_df,
+  Oz_fft_df,
+  gaborgen_stan_list,
+  model001_rev_fit,
+  model001_rev_fit_summary,
+  model001_rev_fit_loo,
+  model002_rev_fit,
+  model002_rev_fit_summary,
+  model002_rev_fit_loo,
+  model003_rev_fit,
+  model003_rev_fit_summary,
+  model003_rev_fit_loo,
+  model004_rev_fit,
+  model004_rev_fit_summary,
+  model004_rev_fit_loo,
+  model005_rev_fit,
+  model005_rev_fit_summary,
+  model005_rev_fit_loo,
+  model006_rev_fit,
+  model006_rev_fit_summary,
+  model006_rev_fit_loo,
+  model007_rev_fit,
+  model007_rev_fit_summary,
+  model007_rev_fit_loo,
+  model008_rev_fit,
+  model008_rev_fit_summary,
+  model008_rev_fit_loo,
+  file = paste0(
+    parent_folder,
+    "/gaborgen_eeg_manuscript_all_models_revision.RData"
+  )
+)
+
 # Load to create manuscript stats and figures ####
 library(tidyverse)
 library(cmdstanr)
