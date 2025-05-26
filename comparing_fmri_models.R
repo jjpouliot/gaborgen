@@ -5,88 +5,150 @@ library(patchwork)
 # we recommend running this in a fresh R session or restarting your current session
 # install.packages("cmdstanr", repos = c('https://stan-dev.r-universe.dev', getOption("repos")))
 
-model018_fit_no_mot <- as_cmdstan_fit(
+cue_color <- c("red1", "green1", "purple1", "blue1", "black")
+
+model024_fit_mpi <- as_cmdstan_fit(
   files = c(
-    "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains/model018_chain_66662361_1.csv",
-    "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains/model018_chain_66662361_2.csv" #,
-    # "/home/andrewf/Downloads/model022_chain_66382183_3.csv"
+    "/home/andrewfarkas/Downloads/model024_chain_3294503_1.csv",
+    "/home/andrewfarkas/Downloads/model024_chain_3294503_2.csv",
+    "/home/andrewfarkas/Downloads/model024_chain_3294503_4.csv",
+    "/home/andrewfarkas/Downloads/model024_chain_3294503_5.csv"
   )
 )
 
-model018_fit_no_mot_meta_data <- model018_fit_no_mot$metadata()
+model024_fit_mpi_meta_data <- model024_fit_mpi$metadata()
 
-model018_fit_no_mot_relevant_parameters <- model018_fit_no_mot_meta_data$model_params[
+model024_fit_mpi_relevant_parameters <- model024_fit_mpi_meta_data$model_params[
   !str_detect(
-    model018_fit_no_mot_meta_data$model_params,
+    model024_fit_mpi_meta_data$model_params,
     "log_lik|mu_pred|amplitude|S|theta"
   )
 ]
 
 
-model018_fit_no_mot_summary <- model018_fit_no_mot$summary(
-  variables = model018_fit_no_mot_relevant_parameters
-)
-
-model022_fit_mpi <- as_cmdstan_fit(
-  files = c(
-    "/home/andrewf/Downloads/model022_chain_66382183_1.csv",
-    "/home/andrewf/Downloads/model022_chain_66382183_2.csv" #,
-    # "/home/andrewf/Downloads/model022_chain_66382183_3.csv"
-  )
-)
-
-model022_fit_mpi_meta_data <- model022_fit_mpi$metadata()
-
-model022_fit_mpi_relevant_parameters <- model022_fit_mpi_meta_data$model_params[
-  !str_detect(
-    model022_fit_mpi_meta_data$model_params,
-    "log_lik|mu_pred|amplitude|S|theta"
-  )
-]
-
-
-model022_fit_mpi_summary <- model022_fit_mpi$summary(
-  variables = model022_fit_mpi_relevant_parameters
+model024_fit_mpi_summary <- model024_fit_mpi$summary(
+  variables = model024_fit_mpi_relevant_parameters
 )
 
 
-model021_fit_mpi <- as_cmdstan_fit(
-  files = c(
-    "/home/andrewf/Downloads/model021_chain_66466225_1.csv",
-    "/home/andrewf/Downloads/model021_chain_66466225_2.csv" #,
-    # "/home/andrewf/Downloads/model021_chain_66466225_3.csv"
-  )
+model024_fit_loo <- model024_fit_mpi$loo()
+
+
+model024_fit_draws <- model024_fit_mpi$draws(
+  variables = model024_fit_mpi_relevant_parameters
 )
 
-model021_fit_mpi_meta_data <- model021_fit_mpi$metadata()
+# tau_betas should have had a lower bound, because it didn't it could reach a negative or postive value and reach the same results
+# so some beta_zs are reversed, but the betas are the same, so most parameters are interpretable
+bayesplot::mcmc_trace(model024_fit_draws[,, "betas_z[1,1,1]"])
+bayesplot::mcmc_trace(model024_fit_draws[,, "betas_z[2,1,1]"])
+bayesplot::mcmc_trace(model024_fit_draws[,, "betas_z[4,1,1]"])
+bayesplot::mcmc_trace(model024_fit_draws[,, "betas[4,1,1]"])
+bayesplot::mcmc_trace(model024_fit_draws[,, "betas_z[5,1,1]"])
+bayesplot::mcmc_trace(model024_fit_draws[,, "betas[5,1,1]"])
+bayesplot::mcmc_trace(model024_fit_draws[,, "betas_z[7,1,1]"])
+bayesplot::mcmc_trace(model024_fit_draws[,, "betas[7,1,1]"])
+bayesplot::mcmc_trace(model024_fit_draws[,, "betas_z[4,3,1]"])
+bayesplot::mcmc_trace(model024_fit_draws[,, "mu_betas[1,1]"])
+bayesplot::mcmc_trace(model024_fit_draws[,, "mu_betas[1,2]"])
+bayesplot::mcmc_trace(model024_fit_draws[,, "mu_betas[5,1]"])
+bayesplot::mcmc_trace(model024_fit_draws[,, "mu_betas[6,1]"])
+bayesplot::mcmc_trace(model024_fit_draws[,, "mu_betas[7,1]"])
+bayesplot::mcmc_trace(model024_fit_draws[,, "mu_betas[8,1]"])
+bayesplot::mcmc_trace(model024_fit_draws[,, "mu_betas[9,1]"])
+bayesplot::mcmc_trace(model024_fit_draws[,, "mu_betas[10,1]"])
+bayesplot::mcmc_trace(model024_fit_draws[,, "mu_betas[12,1]"])
+bayesplot::mcmc_trace(model024_fit_draws[,, "mu_betas[13,1]"])
+bayesplot::mcmc_trace(model024_fit_draws[,, "mu_betas[5,2]"])
+bayesplot::mcmc_trace(model024_fit_draws[,, "tau_betas[1,1]"])
 
-model021_fit_mpi_relevant_parameters <- model021_fit_mpi_meta_data$model_params[
-  !str_detect(
-    model021_fit_mpi_meta_data$model_params,
-    "log_lik|mu_pred|amplitude|S|theta"
-  )
-]
 
-
-model021_fit_mpi_summary <- model021_fit_mpi$summary(
-  variables = model021_fit_mpi_relevant_parameters
+model024_fit_draws <- model024_fit_mpi$draws(
+  variables = model024_fit_mpi_relevant_parameters,
+  format = "df"
 )
 
 
-# model018_fit_mpi <- as_cmdstan_fit(
-#   files = c(
-#     "/home/andrewf/Downloads/model018_chain_66251546_1.csv",
-#     "/home/andrewf/Downloads/model018_chain_66251546_2.csv",
-#     "/home/andrewf/Downloads/model018_chain_66251546_3.csv"
-#   )
-# )
+# assume your tibble is called `draws_df`
+model024_fit_draws %>%
+  # 1. select the .draw column plus all the mu_betas[...] cols
+  dplyr::select(
+    .draw,
+    tidyselect::matches("^mu_betas\\[")
+  ) %>%
+  # 2. pivot them longer, extracting the numbers inside the brackets
+  tidyr::pivot_longer(
+    cols = -.draw,
+    names_to = c("parameter", "condition", "ROI"),
+    # regex:
+    #   ([^[]+)   → everything before the “[”  (we call that “parameter”)
+    #   \\[       → literal “[”
+    #   (\\d+)    → one or more digits  (we call that condition)
+    #   ,         → literal comma
+    #   (\\d+)    → one or more digits  (we call that ROI)
+    #   \\]       → literal “]”
+    names_pattern = "([^\\[]+)\\[(\\d+),(\\d+)\\]",
+    values_to = "mu_beta"
+  ) %>%
+  # 3. drop the now-redundant “parameter” column if you like
+  select(-parameter) %>%
+  filter(condition %in% c(1:13)) %>%
+  mutate(condition = factor(condition, levels = 1:13)) %>%
+  mutate(
+    phase = case_when(
+      condition %in% c(1:4) ~ "habituation",
+      condition %in% c(5:8, 13) ~ "acquisition",
+      condition %in% c(9:12) ~ "extinction"
+    )
+  ) %>%
+  mutate(
+    phase = factor(
+      phase,
+      levels = c(
+        "habituation",
+        "acquisition",
+        "extinction"
+      )
+    )
+  ) %>%
+  mutate(
+    cue = factor(
+      case_when(
+        condition %in% c(1, 5, 9) ~ "CS+",
+        condition %in% c(2, 6, 10) ~ "GS1",
+        condition %in% c(3, 7, 11) ~ "GS2",
+        condition %in% c(4, 8, 12) ~ "GS3",
+        condition %in% c(13) ~ "shock",
+      ),
+      levels = c("CS+", "GS1", "GS2", "GS3", "shock")
+    )
+  ) %>%
+  mutate(
+    roi_name = factor(
+      case_when(
+        ROI == 1 ~ "V1",
+        ROI == 2 ~ "V2",
+      ),
+      levels = c("V1", "V2")
+    )
+  ) %>%
+  ggplot() +
+  geom_vline(aes(xintercept = 0), linewidth = 1.5) +
+  geom_density(aes(x = mu_beta, color = cue), linewidth = 1.5) +
+  scale_color_manual(values = cue_color) +
+  scale_x_continuous(name = "% BOLD Change") +
+  facet_wrap(~ phase * roi_name, ncol = 2) +
+  theme_bw() +
+  theme(text = element_text(size = 20))
+
+
 model018_fit_mpi <- as_cmdstan_fit(
   files = c(
     "/home/andrewfarkas/Downloads/model018_chain_66251546_1.csv",
     "/home/andrewfarkas/Downloads/model018_chain_66251546_2.csv",
     "/home/andrewfarkas/Downloads/model018_chain_66251546_3.csv",
-    "/home/andrewfarkas/Downloads/model018_chain_66251546_4.csv",
-    "/home/andrewfarkas/Downloads/model018_chain_66251546_5.csv"
+    "/home/andrewfarkas/Downloads/model018_chain_66251546_4.csv"
+    # "/home/andrewfarkas/Downloads/model018_chain_66251546_5.csv"
   )
 )
 
@@ -103,6 +165,10 @@ model018_fit_mpi_relevant_parameters <- model018_fit_mpi_meta_data$model_params[
 model018_fit_mpi_summary <- model018_fit_mpi$summary(
   variables = model018_fit_mpi_relevant_parameters
 )
+
+
+model018_fit_loo <- model018_fit_mpi$loo()
+
 
 model018_fit_betas_names <- (model018_fit_mpi_meta_data$model_params[
   str_detect(
@@ -236,6 +302,82 @@ model018_beta_csp_hab_draws %>%
   theme_classic() +
   theme(text = element_text(size = 25))
 
+
+model018_fit_no_mot <- as_cmdstan_fit(
+  files = c(
+    "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains/model018_chain_66662361_1.csv",
+    "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains/model018_chain_66662361_2.csv" #,
+    # "/home/andrewf/Downloads/model022_chain_66382183_3.csv"
+  )
+)
+
+model018_fit_no_mot_meta_data <- model018_fit_no_mot$metadata()
+
+model018_fit_no_mot_relevant_parameters <- model018_fit_no_mot_meta_data$model_params[
+  !str_detect(
+    model018_fit_no_mot_meta_data$model_params,
+    "log_lik|mu_pred|amplitude|S|theta"
+  )
+]
+
+
+model018_fit_no_mot_summary <- model018_fit_no_mot$summary(
+  variables = model018_fit_no_mot_relevant_parameters
+)
+
+model022_fit_mpi <- as_cmdstan_fit(
+  files = c(
+    "/home/andrewf/Downloads/model022_chain_66382183_1.csv",
+    "/home/andrewf/Downloads/model022_chain_66382183_2.csv" #,
+    # "/home/andrewf/Downloads/model022_chain_66382183_3.csv"
+  )
+)
+
+model022_fit_mpi_meta_data <- model022_fit_mpi$metadata()
+
+model022_fit_mpi_relevant_parameters <- model022_fit_mpi_meta_data$model_params[
+  !str_detect(
+    model022_fit_mpi_meta_data$model_params,
+    "log_lik|mu_pred|amplitude|S|theta"
+  )
+]
+
+
+model022_fit_mpi_summary <- model022_fit_mpi$summary(
+  variables = model022_fit_mpi_relevant_parameters
+)
+
+
+model021_fit_mpi <- as_cmdstan_fit(
+  files = c(
+    "/home/andrewf/Downloads/model021_chain_66466225_1.csv",
+    "/home/andrewf/Downloads/model021_chain_66466225_2.csv" #,
+    # "/home/andrewf/Downloads/model021_chain_66466225_3.csv"
+  )
+)
+
+model021_fit_mpi_meta_data <- model021_fit_mpi$metadata()
+
+model021_fit_mpi_relevant_parameters <- model021_fit_mpi_meta_data$model_params[
+  !str_detect(
+    model021_fit_mpi_meta_data$model_params,
+    "log_lik|mu_pred|amplitude|S|theta"
+  )
+]
+
+
+model021_fit_mpi_summary <- model021_fit_mpi$summary(
+  variables = model021_fit_mpi_relevant_parameters
+)
+
+
+# model018_fit_mpi <- as_cmdstan_fit(
+#   files = c(
+#     "/home/andrewf/Downloads/model018_chain_66251546_1.csv",
+#     "/home/andrewf/Downloads/model018_chain_66251546_2.csv",
+#     "/home/andrewf/Downloads/model018_chain_66251546_3.csv"
+#   )
+# )
 
 model022_loo <- model022_fit_mpi$loo()
 # model021_loo <- model021_fit_mpi$loo()

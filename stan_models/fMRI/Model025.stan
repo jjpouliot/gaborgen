@@ -295,7 +295,7 @@ parameters {
   vector[n_roi] mu_rho_time_raw;
   vector <lower=0> [n_roi] tau_rho_time_raw;
   array[n_beta] vector[n_roi] mu_betas;
-  array[n_beta] vector[n_roi] tau_betas;
+  array[n_beta] vector <lower=0> [n_roi] tau_betas;
 
   // old used to be packed into theta, now done in map rect
   // array[n_par, n_roi] real sigma_z;

@@ -256,7 +256,8 @@ for (i in 1:length(useable_participants)) {
 
 # create stan list ####
 used_df <- bold_per_roi_df %>%
-  filter(roi_id %in% c(69)) #
+  filter(roi_id %in% c(1, 2)) #
+# filter(roi_id %in% c(69)) #
 # filter(roi_id %in% c(1:3, 181:183)) # visual
 
 fmri_stan_list <- list()
@@ -367,15 +368,15 @@ fmri_stan_list$n_beta_stim <- 13
 #   fmri_stan_list,
 #   file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_no_shock.json"
 # )
-# cmdstanr::write_stan_json(
-#   fmri_stan_list,
-#   file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_visual.json")
-
 cmdstanr::write_stan_json(
   fmri_stan_list,
-  file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_no_mot_betas.json"
+  file = "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_visual.json"
 )
 
+# cmdstanr::write_stan_json(
+#   fmri_stan_list,
+#   file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_no_mot_betas.json"
+# )
 
 # Stan settings ####
 number_of_chains <- 1
@@ -392,14 +393,14 @@ where_to_save_chains <- '/home/andrewfarkas/tmp/restore3/home/andrewf/Research_d
 # model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model019.stan'
 # model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model021.stan'
 # model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model018.stan'
-model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model023.stan'
+model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model025.stan'
 
 # Fit models
 model <- cmdstanr::cmdstan_model(
   stan_file = model_path,
   force_recompile = T,
-  # cpp_options = list(stan_threads = TRUE)
-  cpp_options = list(stan_threads = TRUE, stan_opencl = TRUE)
+  cpp_options = list(stan_threads = TRUE)
+  # cpp_options = list(stan_threads = TRUE, stan_opencl = TRUE)
 )
 
 
@@ -421,13 +422,13 @@ model_fit <- model$sample(
   data = fmri_stan_list,
   refresh = 50,
   seed = 3,
-  threads_per_chain = 1,
+  threads_per_chain = 20,
   init = .1,
   iter_warmup = warmup_samples_per_chain,
   iter_sampling = posterior_samples_per_chain,
   save_warmup = T,
   show_messages = T,
-  opencl_ids = c(0, 0),
+  # opencl_ids = c(0, 0),
   output_dir = where_to_save_chains,
   chains = number_of_chains,
   parallel_chains = number_of_chains
