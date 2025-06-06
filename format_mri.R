@@ -17,7 +17,7 @@ for (directory_index in 1:length(participant_directories)) {
     args = c(
       '-c',
       shQuote(paste(
-        'dcm2niix -w 0',
+        'dcm2niix -w 1 -f "%f_%p_%d_%t_%s"', #-w 1 overwrites, -f says what is in name had to add %d to make MoCoSeries apparent for filtering
         paste0(participant_directories[directory_index], "/fMRI")
       ))
     )
@@ -63,13 +63,22 @@ for (directory_index in 1:length(participant_directories)) {
       ))
     ]
 
-  ## For participants where the last function is not the correct one
+  ## For participants where the last EPI is not the correct one
   if (
     basename(participant_directories[directory_index]) == "GABORGEN24_DAY1_146"
   ) {
     current_functional_volumes <- paste0(
       participant_directories[directory_index],
       "/fMRI/fMRI_BOLD-EPI-cmrr-2s_20250224110209_10.nii"
+    )
+  }
+  if (
+    # last scan is shorted micro series, which should have been filtered in title, since software update we get microseries that cannot be removed, this will need to be checked that microseries does not make functional for some people
+    basename(participant_directories[directory_index]) == "GABORGEN24_DAY1_148"
+  ) {
+    current_functional_volumes <- paste0(
+      participant_directories[directory_index],
+      "/fMRI/fMRI_BOLD-EPI-cmrr-2s_20250303141825_35.nii"
     )
   }
 
