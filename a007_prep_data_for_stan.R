@@ -6,6 +6,8 @@ library(cmdstanr)
 # install.packages("cmdstanr", repos = c('https://stan-dev.r-universe.dev', getOption("repos")))
 
 # Filter used, same notation as matlab
+# fifth order (n = 5)
+# cut off frequency = 0.026 * .25 (nyquist) = .0065 Hz
 highpass <- signal::butter(n = 5, W = 0.026, type = "high")
 
 
@@ -22,24 +24,25 @@ roi_key <- read_delim(paste0(data_dir, '/HCPex_SUIT_labels.txt'))
 colnames(roi_key) <- c("roi_id", "roi")
 
 # useable_participants <- c("145")
-useable_participants <- c(
-  "116",
-  "117",
-  "119",
-  #"120", no ROI?
-  "121",
-  "122",
-  "125",
-  "126",
-  "127",
-  "128",
-  "129",
-  "131",
-  "132",
-  "133",
-  "145",
-  "149"
-)
+# used for a lot of the early testing
+# useable_participants <- c(
+#   "116",
+#   "117",
+#   "119",
+#   #"120", no ROI?
+#   "121",
+#   "122",
+#   "125",
+#   "126",
+#   "127",
+#   "128",
+#   "129",
+#   "131",
+#   "132",
+#   "133",
+#   "145",
+#   "149"
+# )
 
 # useable_participants <- c(
 #   "101",
@@ -82,6 +85,49 @@ useable_participants <- c(
 #   "145",
 #   "149"
 # )
+
+# participants used for HBM tech report
+useable_participants <- c(
+  "101",
+  "102", # 22% censored
+  "103",
+  "106",
+  "107",
+  "108",
+  "109",
+  "113",
+  #"114", alot censored
+  "115",
+  "116",
+  "117",
+  "119",
+  #"120", no ROI? # lots censored
+  "121",
+  "122",
+  "123",
+  #"124", # lots censored
+  "125",
+  "126",
+  "127",
+  "128",
+  "129",
+  #"131", excess movement
+  "132",
+  "133",
+  #"134",#asleep?
+  "135",
+  #"136",#lots censored
+  #"137", make roi
+  #"138", make roi
+  #"139", #lots censored
+  #"140", #lots censored
+  "141"
+  #"142", #probably asleep
+  #"143", #probably asleep
+  #"144", #lots censored
+  # "145",
+  # "149"
+)
 
 add_shock <- T
 
@@ -256,8 +302,8 @@ for (i in 1:length(useable_participants)) {
 
 # create stan list ####
 used_df <- bold_per_roi_df %>%
-  filter(roi_id %in% c(1, 2)) #
-# filter(roi_id %in% c(69)) #
+  # filter(roi_id %in% c(1, 2)) #
+  filter(roi_id %in% c(69)) #
 # filter(roi_id %in% c(1:3, 181:183)) # visual
 
 fmri_stan_list <- list()
@@ -368,9 +414,22 @@ fmri_stan_list$n_beta_stim <- 13
 #   fmri_stan_list,
 #   file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_no_shock.json"
 # )
+# cmdstanr::write_stan_json(
+#   fmri_stan_list,
+#   file = "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_visual.json"
+# )
+
+# model 18 doesn't need the roi dimension... only works for 1 roi
+fmri_stan_list$bold <- fmri_stan_list$bold[, 1, ]
+
+save(
+  fmri_stan_list,
+  file = "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_HBM.RData"
+)
+
 cmdstanr::write_stan_json(
   fmri_stan_list,
-  file = "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_visual.json"
+  file = "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_HBM.json"
 )
 
 # cmdstanr::write_stan_json(
@@ -393,7 +452,9 @@ where_to_save_chains <- '/home/andrewfarkas/tmp/restore3/home/andrewf/Research_d
 # model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model019.stan'
 # model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model021.stan'
 # model_path <- '/home/andrewf/Repositories/gaborgen/stan_models/fMRI/Model018.stan'
-model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model025.stan'
+model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model018.stan'
+# model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model018_no_ML.stan'
+# model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model025.stan'
 
 # Fit models
 model <- cmdstanr::cmdstan_model(
@@ -407,13 +468,28 @@ model <- cmdstanr::cmdstan_model(
 model_opt <- model$optimize(
   data = fmri_stan_list,
   iter = 1e6,
-  jacobian = F,
-  threads = 7
+  jacobian = T,
+  init = .1,
+  threads = 10
 )
 
 model_opt$metadata()
 
 model_opt_summary <- model_opt$summary()
+
+model$variables()$parameters
+
+model_opt_2 <- model$optimize(
+  data = fmri_stan_list,
+  iter = 1e6,
+  jacobian = T,
+  init = .1,
+  threads = 10
+)
+
+model_opt_2$metadata()
+
+model_opt_summary_2 <- model_opt_2$summary()
 
 model$variables()$parameters
 

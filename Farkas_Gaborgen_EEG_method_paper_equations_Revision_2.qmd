@@ -1,0 +1,295 @@
+---
+title: "Equations from Farkas et al., 2025 HBM"
+format: html
+---
+
+# Main Text Equations
+
+$$
+\begin{gather}
+Amplitude[1 : all \ possible \ trials]\tag{1}\\
+Amplitude[indicesObserved]=AmplitudeObserved\tag{2}\\
+Amplitude[indicesMissing]=AmplitudeMissing\tag{3}
+\end{gather}
+$$
+
+$$
+\begin{gather}
+Amplitude{[i]} \sim Normal(\mu{[i]},\sigma[participant[i]])\tag{4}\\
+\end{gather}
+$$
+
+## Multilevel distributions use Student-T, including participant error estimation
+
+$$
+\begin{gather}
+\sigma[1:nParticipants] \sim StudentT(df = (nParticipants - 1), \ \sigma Average, \ \tau),  \ \sigma \geq 0\tag{5}\\
+\sigma Average \sim Normal(1,0.5), \ \sigma Average \geq 0\tag{6}\\
+\end{gather}
+$$
+
+## Deviations that can be close to zero are exponetiated
+
+$$
+\begin{gather}
+\tau = exp(\tau Raw)\tag{7}\\
+\tau Raw \sim Normal(-3, 1)\tag{8}\\
+\end{gather}
+$$
+
+## Modeling adaptation trend over trials (Model 1)
+
+$$
+\begin{gather}
+\mu[i] = intercept[participant[i]] \ + \ adaptation[participant[i]]\cdot trialCentered[i] \ + \ ... \tag{9}\\
+\end{gather}
+$$
+
+$$
+\begin{gather}
+\begin{bmatrix}
+  intercept[1:nParticipants] \\
+  adaptation[1:nParticipants]
+\end{bmatrix} \sim MVStudentT \left(
+df = (nParticipants - 1),
+\begin{bmatrix}
+  interceptAverage \\
+  adaptationAverage
+\end{bmatrix},
+\begin{array}{c}
+{\huge \Sigma}
+\end{array}
+\right) \tag{10}\\
+\\
+\begin{array}{c}
+{\huge \Sigma}
+\end{array} = 
+\begin{bmatrix}
+\sigma Intercept^2 & \rho \cdot \sigma Intercept \cdot \sigma Adaptation \\
+\rho \cdot \sigma Intercept \cdot \sigma Adaptation & \sigma Adaptation^2
+\end{bmatrix} \tag{11} \\
+\\
+interceptAverage \sim Normal(0,0.2)\tag{12} \\
+adaptationAverage \sim Normal(0,0.01)\tag{13} \\ 
+\\
+\sigma Intercept = exp(\sigma Intercept Raw)\tag{14} \\
+\sigma Adaptation = exp(\sigma Adaptation Raw)\tag{15} \\
+\rho = tanh(\rho Raw)\tag{16} \\
+\\
+\sigma Intercept Raw \sim Normal(-1, 1)\tag{17} \\
+\sigma Adaptation Raw \sim Normal(-4.5, 0.75)\tag{18} \\
+\rho Raw \sim Normal(0, 1)\tag{19} \\
+\end{gather}
+$$
+
+# Model 2: Cue by Block
+
+$$
+\begin{gather}
+\mu[i] = intercept[participant[i]] \ + \ adaptation[participant[i]]\cdot trial[i] \ + \ \beta Cue[cue[i],block[i]] \tag{20}\\
+\beta Cue \sim StudentT(df = (nCues\cdot nBlocks)-1, \ 0, \ \sigma Cue) \tag{21}\\
+\sigma Cue = exp(\sigma CueRaw) \tag{22}\\
+\sigma CueRaw \sim Normal(-0.5, \ 1.5) \tag{23}\\
+\end{gather}
+$$
+
+# Model 3
+
+$$
+\begin{gather}
+\Delta CSPStrength[i] = LearningRate \cdot (paired[i] - CSPStrength[i]) \tag{24} \\
+CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{25} \\
+\end{gather}
+$$
+
+$$
+\begin{gather}
+\huge \text{Likelihood Function} \\
+\\
+\mu{[i]} = intercept{[participant[i]]} + adaptation[participant[i]] \cdot trial[i] + \beta Scaling[cue[i]] \cdot CSPStrength[i] \tag{26} \\
+\\
+\Large \text{if phase[i] is habituation:}\\
+CSPStrength[i] = 0 \tag{27} \\
+\Delta CSPStrength[i] = 0 \tag{28} \\
+CSPStrength[i + 1] = 0 \tag{29} \\
+\\
+\Large \text{else if cue[i] is CS+ and paired[i] is 1 (US):}\\
+\Delta CSPStrength[i] = LearningPaired[participant[i]] \cdot (paired[i] - CSPStrength[i]) \tag{30} \\
+CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{31} \\
+\\
+\Large \text{else if cue[i] is CS+ and paired[i] is 0 (no US):}\\
+\Delta CSPStrength[i] = LearningUnpaired[participant[i]] \cdot (paired[i] - CSPStrength[i]) \tag{32} \\
+CSPStrength[i + 1] =  CSPStrength[i] + \Delta CSPStrength[i] \tag{33} \\
+\\
+\Large \text{else:}\\
+\Delta CSPStrength[i] = 0 \tag{34} \\
+CSPStrength[i + 1] =  CSPStrength[i] \tag{35} \\
+\end{gather}
+$$
+
+$$
+\begin{gather}
+\huge \text{Priors} \\
+\\
+\beta Scaling[1:nCues] \sim StudentT(df = nCues - 1, \ \beta Scaling Average, \sigma \beta Scaling) \tag{36} \\
+\beta Scaling Average \sim Normal(0, 1) \tag{37} \\
+\sigma \beta Scaling = exp(\sigma \beta Scaling Raw) \tag{38} \\
+\sigma \beta Scaling Raw \sim Normal(-0.5,1.5) \tag{39} \\
+\\
+LearningPaired[1:nParticipants] = invLogit(LearningPairedRaw[1:nParticipants]) \tag{40} \\
+LearningUnpaired[1:nParticipants] = invLogit(LearningUnpairedRaw[1:nParticipants]) \tag{41} \\
+LearningPairedRaw[1:nParticipants] \sim StudentT(df = nParticipants-1, \ LearningPairedAverageRaw, \ \sigma LearningPaired)  \tag{42} \\
+LearningUnpairedRaw[1:nParticipants] \sim StudentT(df = nParticipants-1, \ LearningUnpairedAverageRaw, \ \sigma LearningUnpaired)  \tag{43} \\
+LearningPairedAverageRaw \sim Normal(0,1.75) \tag{44} \\
+LearningUnpairedAverageRaw \sim Normal(0,1.75) \tag{45} \\
+\sigma LearningPaired = exp(\sigma LearningPairedRaw) \tag{46} \\
+\sigma LearningUnpaired = exp(\sigma LearningUnpairedRaw) \tag{47} \\
+\sigma LearningPairedRaw \sim Normal(-0.5,1.5) \tag{48} \\
+\sigma LearningUnPairedRaw \sim Normal(-0.5,1.5) \tag{49} \\
+\end{gather}
+$$
+
+## main text numbered tag
+
+$$
+\begin{gather}
+\sqrt{N\cdot variance(PSIS\text{-}LOO)} \tag{27} \\
+\end{gather}
+$$
+
+## supplemental tag
+
+$$
+\begin{gather}
+\sqrt{N\cdot variance(PSIS\text{-}LOO)} \tag{50} \\
+\end{gather}
+$$
+
+## main text numbered tag
+
+$$
+\begin{gather}
+LOO\text{-}R^2 = 1 - \frac{variance (LOO \ residuals)}{variance (data)} \tag{28} \\
+\end{gather}
+$$
+
+## supplemental tag
+
+$$
+\begin{gather}
+LOO\text{-}R^2 = 1 - \frac{variance (LOO \ residuals)}{variance (data)} \tag{51} \\
+\end{gather}
+$$
+
+# Supplemental Equations
+
+## fMRI model
+
+$$
+\begin{gather}
+\overrightarrow{BOLD[p, \ 1:NCensoredVolumes[p]]} \sim MVNormal \left(
+\overrightarrow{\mu[p]} , \
+\begin{array}{c}
+{\huge \Sigma}
+\end{array}[p]
+\right)\\
+\\
+\overrightarrow{\mu[p]} = \mathbf{CensoredDesignMatrix}[p] \cdot \overrightarrow{Betas[p]} \\
+\\
+{\huge \Sigma}[p] = {\huge \Sigma}Uncensored[UseableVolumeIndices[p]][p] \\
+\\
+\begin{array}{c}
+{\huge \Sigma}Uncensored[p]
+\end{array} =
+\mathrm{\sigma}_{}^{2}[p] \cdot 
+\begin{bmatrix}
+1 & \delta \rho & \delta \rho ^2 & \delta \rho ^3 & ... & \delta \rho ^k \\
+\delta \rho & 1 & \delta \rho & \delta \rho ^2 \\
+\delta \rho ^2 & \delta \rho & 1 & \delta \rho\\
+\delta \rho ^3 & \delta \rho ^2 & \delta \rho &  1 \\
+...\\
+\delta \rho ^j\\
+\end{bmatrix}[p]\\
+\\
+\sigma[1:nPar] \ge 0; \ \delta[1:nPar] \in [0,1]; \ \rho[1:NPar] \in [0,1]\\
+\end{gather}
+$$
+
+## fMRI nonmultilevel model priors
+
+Noncentered and scaled parameterization was used to create an easier topography to estimate. For example:
+
+$$
+\begin{gather}
+\sigma[p] = 0.5 \cdot \sigma Z [p]\\
+\sigma Z [p] \sim HalfNormal(0, 1) \\
+\end{gather}
+$$
+
+Is equivalent to:
+
+$$
+\begin{gather}
+\sigma[p] \sim HalfNormal(0, 0.5) 
+\end{gather}
+$$
+
+The rest of the priors:
+
+$$
+\begin{gather}
+\delta [p] = invLogit(1.75 \cdot delta Z [p])\\
+\rho [p] = invLogit(1.75 \cdot rho Z [p]) \\
+\\
+\delta Z [p] \sim Normal(0,1)\\
+\rho Z [p] \sim Normal(0,1)\\
+Betas [p, \ b] \sim Normal(0,1)\\
+\end{gather}
+$$
+
+## fMRI multilevel model priors
+
+Noncentered and scaled parameterization was used to create an easier topography to estimate. For example:
+
+$$
+\begin{gather}
+\sigma[p] = \mu \sigma \cdot 0.5 \cdot \tau \sigma \cdot \sigma Z [p]\\
+\sigma Z [p] \sim Normal(0, 1) \\
+\mu \sigma [p] \sim HalfNormal(0, 1) \\
+\tau \sigma [p] \sim Normal(0, 1) \\
+\end{gather}
+$$
+
+Is equivalent to:
+
+$$
+\begin{gather}
+\sigma[p] \sim Normal ( \mu \sigma, \tau \sigma) \\
+\mu \sigma \sim Half Normal(0, 0.5)\\  
+\tau \sigma \sim Half Normal(0, 1)\\  
+\end{gather}
+$$
+
+The rest of the priors:
+
+
+$$
+\begin{gather}
+\delta [p] = invLogit((\mu \delta \cdot 1.75) + \tau \delta \cdot \delta Z[p]) \\
+\rho [p] = invLogit((\mu \rho \cdot 1.75) + \tau \rho \cdot \rho Z[p]) \\
+Betas [p,b] = \mu Betas [b] + \tau Betas [b] \cdot Betas Z [p,b] \\
+\\
+\mu \delta \sim Normal(0, 1)\\
+\mu \rho \sim Normal(0, 1)\\
+\mu Betas[b] \sim Normal(0, 1)\\
+\\
+\tau \delta \sim HalfNormal(0,1)\\
+\tau \rho \sim HalfNormal(0,1)\\
+\tau Betas [b] \sim HalfNormal(0,1)\\
+\\
+\delta Z [p] \sim Normal(0,1)\\
+\rho Z [p] \sim Normal(0,1)\\
+Betas Z [p, \ b] \sim Normal(0,1)\\
+\end{gather}
+$$
+

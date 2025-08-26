@@ -1,0 +1,62 @@
+# how to do per trial regressions
+
+# After you process someone, you have a stats.REML_cmd file 
+# that states the initial regression, and its REML form
+# (REML states the error is autocorrelated in time and is
+# the prefered version). This is what is in the file:
+
+# 3dDeconvolve -input pb05.GABORGEN24_DAY1_155.r01.scale+tlrc.HEAD -censor censor_GABORGEN24_DAY1_155_combined_2.1D -ortvec mot_demean.r01.1D mot_demean_r01 -polort 15 -num_stimts 12 -stim_times 1 stimuli/phase_1_stim_1_stim_times.1D 'BLOCK(2,1)' -stim_label 1 phase_1_stim_1 -stim_times 2 stimuli/phase_1_stim_2_stim_times.1D 'BLOCK(2,1)' -stim_label 2 phase_1_stim_2 -stim_times 3 stimuli/phase_1_stim_3_stim_times.1D 'BLOCK(2,1)' -stim_label 3 phase_1_stim_3 -stim_times 4 stimuli/phase_1_stim_4_stim_times.1D 'BLOCK(2,1)' -stim_label 4 phase_1_stim_4 -stim_times 5 stimuli/phase_2_stim_1_stim_times.1D 'BLOCK(2,1)' -stim_label 5 phase_2_stim_1 -stim_times 6 stimuli/phase_2_stim_2_stim_times.1D 'BLOCK(2,1)' -stim_label 6 phase_2_stim_2 -stim_times 7 stimuli/phase_2_stim_3_stim_times.1D 'BLOCK(2,1)' -stim_label 7 phase_2_stim_3 -stim_times 8 stimuli/phase_2_stim_4_stim_times.1D 'BLOCK(2,1)' -stim_label 8 phase_2_stim_4 -stim_times 9 stimuli/phase_3_stim_1_stim_times.1D 'BLOCK(2,1)' -stim_label 9 phase_3_stim_1 -stim_times 10 stimuli/phase_3_stim_2_stim_times.1D 'BLOCK(2,1)' -stim_label 10 phase_3_stim_2 -stim_times 11 stimuli/phase_3_stim_3_stim_times.1D 'BLOCK(2,1)' -stim_label 11 phase_3_stim_3 -stim_times 12 stimuli/phase_3_stim_4_stim_times.1D 'BLOCK(2,1)' -stim_label 12 phase_3_stim_4 -fout -tout -x1D X.xmat.1D -xjpeg X.jpg -x1D_uncensored X.nocensor.xmat.1D -errts errts.GABORGEN24_DAY1_155 -bucket stats.GABORGEN24_DAY1_155
+
+
+3dREMLfit -matrix X.xmat.1D -input pb05.GABORGEN24_DAY1_155.r01.scale+tlrc.HEAD \
+ -fout -tout -Rbuck stats.GABORGEN24_DAY1_155_REML -Rvar stats.GABORGEN24_DAY1_155_REMLvar \
+ -Rerrts errts.GABORGEN24_DAY1_155_REML -verb $*
+
+
+3dDeconvolve -input pb05.GABORGEN24_DAY1_155.r01.scale+tlrc.HEAD -censor censor_GABORGEN24_DAY1_155_combined_2.1D -ortvec mot_demean.r01.1D mot_demean_r01 -polort 15 -num_stimts 12 -stim_times_IM 1 stimuli/phase_1_stim_1_stim_times.1D 'BLOCK(2,1)' -stim_label 1 phase_1_stim_1 -stim_times_IM  2 stimuli/phase_1_stim_2_stim_times.1D 'BLOCK(2,1)' -stim_label 2 phase_1_stim_2 -stim_times_IM  3 stimuli/phase_1_stim_3_stim_times.1D 'BLOCK(2,1)' -stim_label 3 phase_1_stim_3 -stim_times_IM  4 stimuli/phase_1_stim_4_stim_times.1D 'BLOCK(2,1)' -stim_label 4 phase_1_stim_4 -stim_times_IM  5 stimuli/phase_2_stim_1_stim_times.1D 'BLOCK(2,1)' -stim_label 5 phase_2_stim_1 -stim_times_IM  6 stimuli/phase_2_stim_2_stim_times.1D 'BLOCK(2,1)' -stim_label 6 phase_2_stim_2 -stim_times_IM  7 stimuli/phase_2_stim_3_stim_times.1D 'BLOCK(2,1)' -stim_label 7 phase_2_stim_3 -stim_times_IM  8 stimuli/phase_2_stim_4_stim_times.1D 'BLOCK(2,1)' -stim_label 8 phase_2_stim_4 -stim_times_IM  9 stimuli/phase_3_stim_1_stim_times.1D 'BLOCK(2,1)' -stim_label 9 phase_3_stim_1 -stim_times_IM  10 stimuli/phase_3_stim_2_stim_times.1D 'BLOCK(2,1)' -stim_label 10 phase_3_stim_2 -stim_times_IM  11 stimuli/phase_3_stim_3_stim_times.1D 'BLOCK(2,1)' -stim_label 11 phase_3_stim_3 -stim_times_IM  12 stimuli/phase_3_stim_4_stim_times.1D 'BLOCK(2,1)' -stim_label 12 phase_3_stim_4 -fout -tout -x1D X.xmat.1D -xjpeg X.jpg -x1D_uncensored X.nocensor.xmat.1D -errts errts.GABORGEN24_DAY1_155 -bucket stats.GABORGEN24_DAY1_155
+
+#ricker fit
+3dDeconvolve -input pb05.GABORGEN24_DAY1_155.r01.scale+tlrc.HEAD -censor censor_GABORGEN24_DAY1_155_combined_2.1D -ortvec mot_demean.r01.1D mot_demean_r01 -polort 15 -num_stimts 12 -stim_times_AM2 1 stimuli/phase_1_stim_1_stim_times_ricker.1D 'BLOCK(2,1)' -stim_label 1 phase_1_stim_1 -stim_times_AM2 2 stimuli/phase_1_stim_2_stim_times_ricker.1D 'BLOCK(2,1)' -stim_label 2 phase_1_stim_2 -stim_times_AM2 3 stimuli/phase_1_stim_3_stim_times_ricker.1D 'BLOCK(2,1)' -stim_label 3 phase_1_stim_3 -stim_times_AM2 4 stimuli/phase_1_stim_4_stim_times_ricker.1D 'BLOCK(2,1)' -stim_label 4 phase_1_stim_4 -stim_times_AM2 5 stimuli/phase_2_stim_1_stim_times_ricker.1D 'BLOCK(2,1)' -stim_label 5 phase_2_stim_1 -stim_times_AM2 6 stimuli/phase_2_stim_2_stim_times_ricker.1D 'BLOCK(2,1)' -stim_label 6 phase_2_stim_2 -stim_times_AM2 7 stimuli/phase_2_stim_3_stim_times_ricker.1D 'BLOCK(2,1)' -stim_label 7 phase_2_stim_3 -stim_times_AM2 8 stimuli/phase_2_stim_4_stim_times_ricker.1D 'BLOCK(2,1)' -stim_label 8 phase_2_stim_4 -stim_times_AM2 9 stimuli/phase_3_stim_1_stim_times_ricker.1D 'BLOCK(2,1)' -stim_label 9 phase_3_stim_1 -stim_times_AM2 10 stimuli/phase_3_stim_2_stim_times_ricker.1D 'BLOCK(2,1)' -stim_label 10 phase_3_stim_2 -stim_times_AM2 11 stimuli/phase_3_stim_3_stim_times_ricker.1D 'BLOCK(2,1)' -stim_label 11 phase_3_stim_3 -stim_times_AM2 12 stimuli/phase_3_stim_4_stim_times_ricker.1D 'BLOCK(2,1)' -stim_label 12 phase_3_stim_4 -fout -tout -x1D X_ricker.xmat.1D -xjpeg X_ricker.jpg -x1D_uncensored X_ricker.nocensor.xmat.1D -errts errts_ricker.GABORGEN24_DAY1_155 -bucket stats_ricker.GABORGEN24_DAY1_155
+
+3dREMLfit -matrix X_ricker.xmat.1D -input pb05.GABORGEN24_DAY1_155.r01.scale+tlrc.HEAD \
+ -fout -tout -Rbuck stats_ricker.GABORGEN24_DAY1_155_REML -Rvar stats_ricker.GABORGEN24_DAY1_155_REMLvar \
+ -Rerrts errts_ricker.GABORGEN24_DAY1_155_REML -verb $*
+ 
+# ricker fit collapse phase
+3dDeconvolve -input pb05.GABORGEN24_DAY1_155.r01.scale+tlrc.HEAD -censor censor_GABORGEN24_DAY1_155_combined_2.1D -ortvec mot_demean.r01.1D mot_demean_r01 -polort 15 -num_stimts 4 -stim_times_AM2 1 stimuli/stim_1_stim_times_ricker.1D 'BLOCK(2,1)' -stim_label 1 stim_1 -stim_times_AM2 2 stimuli/stim_2_stim_times_ricker.1D 'BLOCK(2,1)' -stim_label 2 stim_2 -stim_times_AM2 3 stimuli/stim_3_stim_times_ricker.1D 'BLOCK(2,1)' -stim_label 3 stim_3 -stim_times_AM2 4 stimuli/stim_4_stim_times_ricker.1D 'BLOCK(2,1)' -stim_label 4 stim_4 -fout -tout -x1D X_ricker_no_phase.xmat.1D -xjpeg X_ricker_no_phase.jpg -x1D_uncensored X_ricker_no_phase.nocensor.xmat.1D -errts errts_ricker_no_phase.GABORGEN24_DAY1_155 -bucket stats_ricker_no_phase.GABORGEN24_DAY1_155
+
+3dREMLfit -matrix X_ricker_no_phase.xmat.1D -input pb05.GABORGEN24_DAY1_155.r01.scale+tlrc.HEAD \
+ -fout -tout -Rbuck stats_ricker_no_phase.GABORGEN24_DAY1_155_REML -Rvar stats_ricker_no_phase.GABORGEN24_DAY1_155_REMLvar \
+ -Rerrts errts_ricker_no_phase.GABORGEN24_DAY1_155_REML -verb $*
+
+# From this you can edit the 3dDeconvolve with -stim_times_IM _IM and some other book keeping elements
+3dDeconvolve -input pb05.GABORGEN24_DAY1_155.r01.scale+tlrc.HEAD -censor censor_GABORGEN24_DAY1_155_combined_2.1D -ortvec mot_demean.r01.1D mot_demean_r01 -polort 15 -num_stimts 1 -stim_times_IM 1 stim_times.1D 'BLOCK(2,1)' -stim_label 1 cue -fout -tout -x1D X_IM.xmat.1D -xjpeg X_IM.jpg -x1D_uncensored X_IM.nocensor.xmat.1D -errts errts_IM.GABORGEN24_DAY1_155 -bucket stats_IM.GABORGEN24_DAY1_155 -GOFORIT 3
+
+
+# this works, but afni will give many warnings so had to add -GOFORIT 3
+# this would then be extended to reml my using the matrix (X_IM.xmat.1D)
+# created above.
+
+# the preferred option seems to be running a normal regression with our usual categories
+# and then using different type of regression with 3dLSS. Look at the paper 
+# in the documentation if you want to know more. But the main trade off is that 
+# it makes some statistical assumptions like the error being symetrical which
+# may not be valid.
+# the documentation offers some solutions for deciding if it is a problem or not.
+# Since we only want the LSS output, -input could be replaced by: -nodata [number_volumes TR]
+# which would just generate just the design matrix saving a tremendous amount of time.
+3dDeconvolve -nodata 1070 2 -censor censor_GABORGEN24_DAY1_155_combined_2.1D -ortvec mot_demean.r01.1D mot_demean_r01 -polort 15 -num_stimts 1 -stim_times_IM 1 stim_times.1D 'BLOCK(2,1)' -stim_label 1 cue -fout -tout -x1D X_IM2.xmat.1D -xjpeg X_IM2.jpg -x1D_uncensored X_IM2.nocensor.xmat.1D -errts errts_IM2.GABORGEN24_DAY1_155 -bucket stats_IM2.GABORGEN24_DAY1_155 -GOFORIT 3
+
+3dLSS -matrix X_IM2.xmat.1D -input pb05.GABORGEN24_DAY1_155.r01.scale+tlrc.HEAD
+
+# now you have a beta coefficient per voxel in the lss stat output file
+# The per voxel can be useful for MPVA, but likely one would then want an average per
+# some regions of interest. You could use a significant cluster from the 
+# group analysis as the ROI you would then want to average all voxels for
+# or you can use an atlas to average across predefined ROIs
+
+3dROIstats -mask HCPex_SUIT_func_mask.nii.gz -nzmean -median lss2+tlrc > par155_roi_stats.txt
+
+
+3dROIstats -mask HCPex_SUIT_func_mask.nii.gz -nzmean -median stats_IM.GABORGEN24_DAY1_155+tlrc > par155_roi_stats_deconvolve.txt
+    

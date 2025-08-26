@@ -603,7 +603,18 @@ fft_df$participant %>% unique() %>% length()
 
 Oz_fft_df <- fft_df %>%
   filter(channel == "Oz") %>%
-  filter(!participant %in% c("111", "112", "117", "123", "124", "134", "136"))
+  filter(
+    !participant %in%
+      c(
+        "111", # data qualitiy
+        "112", # data qualitiy
+        "117", # could not see patterns
+        "123", # missing first 10 minutes of EEG
+        "124", # No TR trigger, lots of movement
+        "134", # fell asleep
+        "136" # lots of movement
+      )
+  )
 
 # need to sort df, then find trials missing
 Oz_fft_df <- Oz_fft_df %>%

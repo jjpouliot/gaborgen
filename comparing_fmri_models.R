@@ -5,7 +5,1671 @@ library(patchwork)
 # we recommend running this in a fresh R session or restarting your current session
 # install.packages("cmdstanr", repos = c('https://stan-dev.r-universe.dev', getOption("repos")))
 
+load(
+  "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_HBM.RData"
+)
+
 cue_color <- c("red1", "green1", "purple1", "blue1", "black")
+
+data_dir <- "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains"
+
+
+## work that goes into tech report manuscript
+
+# left anterior insula full multilevel priors
+model018_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model018_chain_8872315_1.csv"),
+    paste0(data_dir, "/model018_chain_8872315_2.csv"),
+    paste0(data_dir, "/model018_chain_8872315_3.csv"),
+    paste0(data_dir, "/model018_chain_8872315_4.csv"),
+    paste0(data_dir, "/model018_chain_8872315_5.csv")
+  )
+)
+
+model018_fit_meta_data <- model018_fit$metadata()
+
+model018_fit_relevant_parameters <- model018_fit_meta_data$model_params[
+  !str_detect(
+    model018_fit_meta_data$model_params,
+    "log_lik|mu_pred|amplitude|S|theta|shard_ind"
+  )
+]
+
+model018_summary <- model018_fit$summary(
+  variables = model018_fit_relevant_parameters
+)
+
+model018_draws <- model018_fit$draws(
+  variables = model018_fit_relevant_parameters,
+  format = "df"
+)
+
+model018_loo <- model018_fit$loo()
+
+model018_no_ml_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model018_no_ML_chain_8955138_1.csv"),
+    paste0(data_dir, "/model018_no_ML_chain_8955138_2.csv"),
+    paste0(data_dir, "/model018_no_ML_chain_8955138_3.csv"),
+    paste0(data_dir, "/model018_no_ML_chain_8955138_4.csv"),
+    paste0(data_dir, "/model018_no_ML_chain_8955138_5.csv")
+  )
+)
+
+model018_no_ml_fit_meta_data <- model018_no_ml_fit$metadata()
+
+model018_no_ml_fit_relevant_parameters <- model018_no_ml_fit_meta_data$model_params[
+  !str_detect(
+    model018_no_ml_fit_meta_data$model_params,
+    "log_lik|mu_pred|amplitude|S|theta|shard_ind"
+  )
+]
+
+model018_no_ml_summary <- model018_no_ml_fit$summary(
+  variables = model018_no_ml_fit_relevant_parameters
+)
+
+model018_no_ml_draws <- model018_no_ml_fit$draws(
+  variables = model018_no_ml_fit_relevant_parameters,
+  format = "df"
+)
+
+model018_no_ml_loo <- model018_no_ml_fit$loo()
+
+loo::loo_compare(
+  model018_loo,
+  model018_no_ml_loo
+)
+
+loo::loo_model_weights(list(
+  model018_loo,
+  model018_no_ml_loo
+))
+
+bad_ks <- model018_no_ml_loo$pointwise[, 5] > .7
+
+model018_no_ml_loo$pointwise[bad_ks, ] %>% sum()
+
+model018_loo$pointwise[bad_ks, ] %>% sum()
+
+fmri_stan_list$par[bad_ks]
+
+
+model018_mu_beta_df <- model018_draws %>%
+  # 1. select the .draw column plus all the mu_betas[...] cols
+  dplyr::select(
+    .draw,
+    tidyselect::matches("^mu_betas\\[")
+  ) %>%
+  # 2. pivot them longer, extracting the numbers inside the brackets
+  tidyr::pivot_longer(
+    cols = -.draw,
+    names_to = c("parameter", "ROI", "condition"),
+    # regex:
+    #   ([^[]+)   → everything before the “[”  (we call that “parameter”)
+    #   \\[       → literal “[”
+    #   (\\d+)    → one or more digits  (we call that condition)
+    #   ,         → literal comma
+    #   (\\d+)    → one or more digits  (we call that ROI)
+    #   \\]       → literal “]”
+    names_pattern = "([^\\[]+)\\[(\\d+),(\\d+)\\]",
+    values_to = "mu_beta"
+  ) %>%
+  # 3. drop the now-redundant “parameter” column if you like
+  select(-parameter) %>%
+  filter(condition %in% c(1:13)) %>%
+  mutate(condition = factor(condition, levels = 1:13)) %>%
+  mutate(
+    phase = case_when(
+      condition %in% c(1:4) ~ "habituation",
+      condition %in% c(5:8, 13) ~ "acquisition",
+      condition %in% c(9:12) ~ "extinction"
+    )
+  ) %>%
+  mutate(
+    phase = factor(
+      phase,
+      levels = c(
+        "habituation",
+        "acquisition",
+        "extinction"
+      )
+    )
+  ) %>%
+  mutate(
+    cue = factor(
+      case_when(
+        condition %in% c(1, 5, 9) ~ "CS+",
+        condition %in% c(2, 6, 10) ~ "GS1",
+        condition %in% c(3, 7, 11) ~ "GS2",
+        condition %in% c(4, 8, 12) ~ "GS3",
+        condition %in% c(13) ~ "shock",
+      ),
+      levels = c("CS+", "GS1", "GS2", "GS3", "shock")
+    )
+  )
+
+# there are no mu beatas for this model
+# model018_no_ml_mu_beta_df <- model018_no_ml_draws %>%
+#   # 1. select the .draw column plus all the mu_betas[...] cols
+#   dplyr::select(
+#     .draw,
+#     tidyselect::matches("^mu_betas\\[")
+#   ) %>%
+#   # 2. pivot them longer, extracting the numbers inside the brackets
+#   tidyr::pivot_longer(
+#     cols = -.draw,
+#     names_to = c("parameter", "ROI", "condition"),
+#     # regex:
+#     #   ([^[]+)   → everything before the “[”  (we call that “parameter”)
+#     #   \\[       → literal “[”
+#     #   (\\d+)    → one or more digits  (we call that condition)
+#     #   ,         → literal comma
+#     #   (\\d+)    → one or more digits  (we call that ROI)
+#     #   \\]       → literal “]”
+#     names_pattern = "([^\\[]+)\\[(\\d+),(\\d+)\\]",
+#     values_to = "mu_beta"
+#   ) %>%
+#   # 3. drop the now-redundant “parameter” column if you like
+#   select(-parameter) %>%
+#   filter(condition %in% c(1:13)) %>%
+#   mutate(condition = factor(condition, levels = 1:13)) %>%
+#   mutate(
+#     phase = case_when(
+#       condition %in% c(1:4) ~ "habituation",
+#       condition %in% c(5:8, 13) ~ "acquisition",
+#       condition %in% c(9:12) ~ "extinction"
+#     )
+#   ) %>%
+#   mutate(
+#     phase = factor(
+#       phase,
+#       levels = c(
+#         "habituation",
+#         "acquisition",
+#         "extinction"
+#       )
+#     )
+#   ) %>%
+#   mutate(
+#     cue = factor(
+#       case_when(
+#         condition %in% c(1, 5, 9) ~ "CS+",
+#         condition %in% c(2, 6, 10) ~ "GS1",
+#         condition %in% c(3, 7, 11) ~ "GS2",
+#         condition %in% c(4, 8, 12) ~ "GS3",
+#         condition %in% c(13) ~ "shock",
+#       ),
+#       levels = c("CS+", "GS1", "GS2", "GS3", "shock")
+#     )
+#   )
+
+(model018_mu_beta_df %>%
+  ggplot() +
+  geom_vline(xintercept = 0) +
+  geom_density(aes(x = mu_beta, color = cue)) +
+  scale_color_manual(values = cue_color) +
+  facet_wrap(~phase, ncol = 1) +
+  coord_cartesian(xlim = c(-.175, .35)) +
+  ggtitle("Motion Multilevel Prior") +
+  theme_bw())
+
+model018_beta_df <- model018_draws %>%
+  # 1. select the .draw column plus all the mu_betas[...] cols
+  dplyr::select(
+    .draw,
+    tidyselect::matches("^betas\\[")
+  ) %>%
+  # 2. pivot them longer, extracting the numbers inside the brackets
+  tidyr::pivot_longer(
+    cols = -.draw,
+    names_to = c("parameter", "par", "ROI", "coef"),
+    # regex:
+    #   ([^[]+)   → everything before the “[”  (we call that “parameter”)
+    #   \\[       → literal “[”
+    #   (\\d+)    → one or more digits  (we call that condition)
+    #   ,         → literal comma
+    #   (\\d+)    → one or more digits  (we call that ROI)
+    #   \\]       → literal “]”
+    names_pattern = "([^\\[]+)\\[(\\d+),(\\d+),(\\d+)\\]",
+    values_to = "beta"
+  ) %>%
+  # 3. drop the now-redundant “parameter” column if you like
+  select(-parameter) %>%
+  filter(coef %in% c(1:13)) %>%
+  mutate(coef = factor(coef, levels = 1:13)) %>%
+  mutate(
+    phase = case_when(
+      coef %in% c(1:4) ~ "Habituation",
+      coef %in% c(5:8, 13) ~ "Acquisition",
+      coef %in% c(9:12) ~ "Extinction"
+    )
+  ) %>%
+  mutate(
+    phase = factor(
+      phase,
+      levels = c(
+        "Habituation",
+        "Acquisition",
+        "Extinction"
+      )
+    )
+  ) %>%
+  mutate(par = factor(par)) %>%
+  mutate(
+    cue = factor(
+      case_when(
+        coef %in% c(1, 5, 9) ~ "CS+",
+        coef %in% c(2, 6, 10) ~ "GS1",
+        coef %in% c(3, 7, 11) ~ "GS2",
+        coef %in% c(4, 8, 12) ~ "GS3",
+        coef %in% c(13) ~ "shock",
+      ),
+      levels = c("CS+", "GS1", "GS2", "GS3", "shock")
+    )
+  )
+
+model018_no_ml_beta_df <- model018_no_ml_draws %>%
+  # 1. select the .draw column plus all the mu_betas[...] cols
+  dplyr::select(
+    .draw,
+    tidyselect::matches("^betas\\[")
+  ) %>%
+  # 2. pivot them longer, extracting the numbers inside the brackets
+  tidyr::pivot_longer(
+    cols = -.draw,
+    names_to = c("parameter", "par", "ROI", "coef"),
+    # regex:
+    #   ([^[]+)   → everything before the “[”  (we call that “parameter”)
+    #   \\[       → literal “[”
+    #   (\\d+)    → one or more digits  (we call that condition)
+    #   ,         → literal comma
+    #   (\\d+)    → one or more digits  (we call that ROI)
+    #   \\]       → literal “]”
+    names_pattern = "([^\\[]+)\\[(\\d+),(\\d+),(\\d+)\\]",
+    values_to = "beta"
+  ) %>%
+  # 3. drop the now-redundant “parameter” column if you like
+  select(-parameter) %>%
+  filter(coef %in% c(1:13)) %>%
+  mutate(coef = factor(coef, levels = 1:13)) %>%
+  mutate(
+    phase = case_when(
+      coef %in% c(1:4) ~ "Habituation",
+      coef %in% c(5:8, 13) ~ "Acquisition",
+      coef %in% c(9:12) ~ "Extinction"
+    )
+  ) %>%
+  mutate(
+    phase = factor(
+      phase,
+      levels = c(
+        "Habituation",
+        "Acquisition",
+        "Extinction"
+      )
+    )
+  ) %>%
+  mutate(par = factor(par)) %>%
+  mutate(
+    cue = factor(
+      case_when(
+        coef %in% c(1, 5, 9) ~ "CS+",
+        coef %in% c(2, 6, 10) ~ "GS1",
+        coef %in% c(3, 7, 11) ~ "GS2",
+        coef %in% c(4, 8, 12) ~ "GS3",
+        coef %in% c(13) ~ "shock",
+      ),
+      levels = c("CS+", "GS1", "GS2", "GS3", "shock")
+    )
+  )
+
+# figure settings
+text_font <- "Arial"
+text_size <- 15
+axis_line_thickness <- 1
+participant_line_thickness <- .5
+participant_line_alpha <- .5
+xaxis_limits <- c(-.8, 1.5)
+# yaxis_limits <- c(.0575, 1)
+yaxis_limits <- c(0, 15)
+vertical_line_thickness <- 1.25
+
+
+fmri_multilevel_participant_posteriors_fig <-
+  ggplot() +
+  stat_density(
+    data = model018_beta_df,
+    aes(
+      x = beta,
+      # y = after_stat(scaled),
+      color = cue,
+      group = interaction(par, cue)
+    ),
+    geom = "line",
+    # linetype = "dashed",
+    position = "identity",
+    alpha = participant_line_alpha,
+    linewidth = participant_line_thickness,
+  ) +
+  # stat_density(
+  #   data = model018_mu_beta_df,
+  #   aes(x = mu_beta, y = after_stat(scaled), group = cue),
+  #   geom = "line",
+  #   position = "identity",
+  #   alpha = 1,
+  #   linewidth = 2,
+  # ) +
+  # stat_density(
+  #   data = model018_mu_beta_df,
+  #   aes(x = mu_beta, y = after_stat(scaled), color = cue),
+  #   geom = "line",
+  #   position = "identity",
+  #   alpha = 1,
+  #   linewidth = 1.5,
+  # ) +
+  geom_vline(
+    xintercept = 0,
+    linetype = "dashed",
+    linewidth = vertical_line_thickness
+  ) +
+  scale_color_manual(values = cue_color) +
+  scale_y_continuous(name = "Density", breaks = c(5, 10, 15)) +
+  scale_x_continuous(
+    name = "fMRI BOLD Percent Change",
+    breaks = c(-.5, 0, 0.5, 1)
+  ) +
+  facet_wrap(~phase, ncol = 1) +
+  coord_cartesian(
+    xlim = xaxis_limits,
+    expand = F,
+    ylim = yaxis_limits
+  ) +
+  ggtitle("Multilevel Priors:\nParticipant Cue Effects by Phase") +
+  theme_bw() +
+  theme(
+    text = element_text(family = text_font, size = text_size, color = "black"),
+    strip.background = element_blank(),
+    strip.text = element_text(size = text_size),
+    panel.spacing = unit(0.15, "lines"),
+    legend.position = "none",
+    axis.line = element_blank(),
+    plot.title = element_text(hjust = .5, face = "bold"),
+    # panel.border = element_rect(
+    #   color = "black",
+    #   fill = NA,
+    #   linewidth = axis_line_thickness
+    # ), # Add a border
+    # axis.line = element_line(linewidth = axis_line_thickness,
+    #                          lineend = "square"),
+    axis.ticks = element_blank(),
+    axis.text = element_text(face = "bold")
+  )
+
+fmri_multilevel_participant_posteriors_fig
+
+
+ggsave(
+  filename = "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/fMRI_multilevel_post.png",
+  dpi = 300,
+  units = "in",
+  height = 1.5,
+  width = 1.5,
+  scale = 3.5
+)
+
+fmri_nonmultilevel_participant_posteriors_fig <-
+  ggplot() +
+  stat_density(
+    data = model018_no_ml_beta_df,
+    aes(
+      x = beta,
+      # y = after_stat(scaled),
+      color = cue,
+      group = interaction(par, cue)
+    ),
+    geom = "line",
+    # linetype = "dashed",
+    position = "identity",
+    alpha = participant_line_alpha,
+    linewidth = participant_line_thickness,
+  ) +
+  geom_vline(
+    xintercept = 0,
+    linetype = "dashed",
+    linewidth = vertical_line_thickness
+  ) +
+  scale_color_manual(values = cue_color) +
+  scale_y_continuous(name = "Density", breaks = c(5, 10, 15)) +
+  scale_x_continuous(
+    name = "fMRI BOLD Percent Change",
+    breaks = c(-.5, 0, .5, 1)
+  ) +
+  facet_wrap(~phase, ncol = 1) +
+  coord_cartesian(
+    xlim = xaxis_limits,
+    expand = F,
+    ylim = yaxis_limits
+  ) +
+  ggtitle("Uninformative Priors:\nParticipant Cue Effects by Phase") +
+  theme_bw() +
+  theme(
+    text = element_text(family = text_font, size = text_size, color = "black"),
+    strip.background = element_blank(),
+    strip.text = element_text(size = text_size),
+    panel.spacing = unit(0.15, "lines"),
+    legend.position = "none",
+    axis.line = element_blank(),
+    plot.title = element_text(hjust = .5, face = "bold"),
+    # panel.border = element_rect(
+    #   color = "black",
+    #   fill = NA,
+    #   linewidth = axis_line_thickness
+    # ), # Add a border
+    # axis.line = element_line(linewidth = axis_line_thickness,
+    #                          lineend = "square"),
+    axis.ticks = element_blank(),
+    axis.text = element_text(face = "bold")
+  )
+
+fmri_nonmultilevel_participant_posteriors_fig
+
+ggsave(
+  filename = "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/fMRI_nonmultilevel_post.png",
+  dpi = 300,
+  units = "in",
+  height = 1.5,
+  width = 1.5,
+  scale = 3.5
+)
+
+
+# timeseries plot
+
+par_index <- 1
+posterior_indices <- sample(1:5000, 100)
+beta_names <- paste0('betas[', par_index, ',1,', c(1:19), ']')
+
+model018_beta_draws_1 <- model018_fit$draws(
+  format = "df",
+  variables = beta_names
+) %>%
+  select(starts_with("betas")) %>%
+  as.matrix()
+
+model018_no_ml_beta_draws_1 <- model018_no_ml_fit$draws(
+  format = "df",
+  variables = beta_names
+) %>%
+  select(starts_with("betas")) %>%
+  as.matrix()
+
+uncensored_1 <- fmri_stan_list$usable_bold_indices_one_is_true[par_index, ] == 1
+
+current_par_design_matrix_1 <- fmri_stan_list$design_array[
+  par_index,
+  ,
+  # beta
+]
+
+mod18_posterior_mu_1 <- (current_par_design_matrix_1 %*%
+  t(model018_beta_draws_1[posterior_indices, ])) %>%
+  as_tibble() %>%
+  mutate(time_seconds = seq(0, 1069 * 2, by = 2)) %>%
+  pivot_longer(starts_with("V")) %>%
+  mutate(
+    value = if_else(
+      time_seconds %in% seq(0, 1069 * 2, by = 2)[uncensored_1],
+      value,
+      NA
+    )
+  )
+
+mod18_posterior_mu_CI_1 <- mod18_posterior_mu_1 %>%
+  group_by(time_seconds) %>%
+  reframe(
+    avg_value = mean(value),
+    lb_value = quantile(value, probs = .025, na.rm = T),
+    ub_value = quantile(value, probs = .975, na.rm = T)
+  )
+
+mod18_no_ml_posterior_mu_1 <- (current_par_design_matrix_1 %*%
+  t(model018_no_ml_beta_draws_1[posterior_indices, ])) %>%
+  as_tibble() %>%
+  mutate(time_seconds = seq(0, 1069 * 2, by = 2)) %>%
+  pivot_longer(starts_with("V")) %>%
+  mutate(
+    value = if_else(
+      time_seconds %in% seq(0, 1069 * 2, by = 2)[uncensored_1],
+      value,
+      NA
+    )
+  )
+
+mod18_no_ml_posterior_mu_CI_1 <- mod18_no_ml_posterior_mu_1 %>%
+  group_by(time_seconds) %>%
+  reframe(
+    avg_value = mean(value),
+    lb_value = quantile(value, probs = .025, na.rm = T),
+    ub_value = quantile(value, probs = .975, na.rm = T)
+  )
+
+
+bold_plot_df_1 <- data.frame(
+  time_seconds = seq(0, 1069 * 2, by = 2),
+  bold = fmri_stan_list$bold[par_index, ]
+) %>%
+  mutate(
+    bold = if_else(
+      time_seconds %in% seq(0, 1069 * 2, by = 2)[uncensored_1],
+      bold,
+      NA
+    )
+  )
+
+fmri_plot_1 <- ggplot() +
+  geom_line(
+    data = bold_plot_df_1,
+    aes(
+      x = time_seconds,
+      y = bold
+    ),
+    linewidth = .5,
+    alpha = .5
+  ) +
+  geom_ribbon(
+    data = mod18_no_ml_posterior_mu_CI_1,
+    aes(
+      x = time_seconds,
+      y = avg_value,
+      ymin = lb_value,
+      ymax = ub_value
+    ),
+    linewidth = .5,
+    fill = "blue",
+    color = NA,
+    alpha = .5
+  ) +
+  geom_ribbon(
+    data = mod18_posterior_mu_CI_1,
+    aes(
+      x = time_seconds,
+      y = avg_value,
+      ymin = lb_value,
+      ymax = ub_value
+    ),
+    linewidth = .5,
+    fill = "red",
+    color = NA,
+    alpha = .5
+  ) +
+  scale_y_continuous(name = "fMRI BOLD Percent Change") +
+  scale_x_continuous(
+    name = "Time (seconds)",
+    breaks = seq(0, 2000, by = 250)
+  ) +
+  coord_cartesian(
+    xlim = c(-50, 2190),
+    # ylim = c(-1.25, 1.25),
+    expand = F
+  ) +
+  ggtitle(paste0("Participant ", par_index)) +
+  theme_bw() +
+  theme(
+    text = element_text(family = text_font, size = text_size, color = "black"),
+    # strip.background = element_blank(),
+    # strip.text = element_text(size = text_size),
+    panel.spacing = unit(0.15, "lines"),
+    legend.position = "none",
+    axis.line = element_blank(),
+    # panel.border = element_rect(
+    #   color = "black",
+    #   fill = NA,
+    #   linewidth = axis_line_thickness
+    # ), # Add a border
+    # axis.line = element_line(linewidth = axis_line_thickness,
+    #                          lineend = "square"),
+    axis.ticks = element_blank(),
+    axis.text = element_text(face = "bold"),
+    axis.title = element_blank()
+  )
+
+fmri_plot_1
+
+par_index <- 5
+posterior_indices <- sample(1:5000, 100)
+beta_names <- paste0('betas[', par_index, ',1,', c(1:19), ']')
+
+model018_beta_draws_2 <- model018_fit$draws(
+  format = "df",
+  variables = beta_names
+) %>%
+  select(starts_with("betas")) %>%
+  as.matrix()
+
+model018_no_ml_beta_draws_2 <- model018_no_ml_fit$draws(
+  format = "df",
+  variables = beta_names
+) %>%
+  select(starts_with("betas")) %>%
+  as.matrix()
+
+uncensored_2 <- fmri_stan_list$usable_bold_indices_one_is_true[par_index, ] == 1
+
+current_par_design_matrix_2 <- fmri_stan_list$design_array[
+  par_index,
+  ,
+  # beta
+]
+
+mod18_posterior_mu_2 <- (current_par_design_matrix_2 %*%
+  t(model018_beta_draws_2[posterior_indices, ])) %>%
+  as_tibble() %>%
+  mutate(time_seconds = seq(0, 1069 * 2, by = 2)) %>%
+  pivot_longer(starts_with("V")) %>%
+  mutate(
+    value = if_else(
+      time_seconds %in% seq(0, 1069 * 2, by = 2)[uncensored_2],
+      value,
+      NA
+    )
+  )
+
+mod18_posterior_mu_CI_2 <- mod18_posterior_mu_2 %>%
+  group_by(time_seconds) %>%
+  reframe(
+    avg_value = mean(value),
+    lb_value = quantile(value, probs = .025, na.rm = T),
+    ub_value = quantile(value, probs = .975, na.rm = T)
+  )
+
+mod18_no_ml_posterior_mu_2 <- (current_par_design_matrix_2 %*%
+  t(model018_no_ml_beta_draws_2[posterior_indices, ])) %>%
+  as_tibble() %>%
+  mutate(time_seconds = seq(0, 1069 * 2, by = 2)) %>%
+  pivot_longer(starts_with("V")) %>%
+  mutate(
+    value = if_else(
+      time_seconds %in% seq(0, 1069 * 2, by = 2)[uncensored_2],
+      value,
+      NA
+    )
+  )
+
+mod18_no_ml_posterior_mu_CI_2 <- mod18_no_ml_posterior_mu_2 %>%
+  group_by(time_seconds) %>%
+  reframe(
+    avg_value = mean(value),
+    lb_value = quantile(value, probs = .025, na.rm = T),
+    ub_value = quantile(value, probs = .975, na.rm = T)
+  )
+
+
+bold_plot_df_2 <- data.frame(
+  time_seconds = seq(0, 1069 * 2, by = 2),
+  bold = fmri_stan_list$bold[par_index, ]
+) %>%
+  mutate(
+    bold = if_else(
+      time_seconds %in% seq(0, 1069 * 2, by = 2)[uncensored_2],
+      bold,
+      NA
+    )
+  )
+
+fmri_plot_2 <- ggplot() +
+  geom_line(
+    data = bold_plot_df_2,
+    aes(
+      x = time_seconds,
+      y = bold
+    ),
+    linewidth = .5,
+    alpha = .5
+  ) +
+  geom_ribbon(
+    data = mod18_no_ml_posterior_mu_CI_2,
+    aes(
+      x = time_seconds,
+      y = avg_value,
+      ymin = lb_value,
+      ymax = ub_value
+    ),
+    linewidth = .5,
+    fill = "blue",
+    color = NA,
+    alpha = .5
+  ) +
+  geom_ribbon(
+    data = mod18_posterior_mu_CI_2,
+    aes(
+      x = time_seconds,
+      y = avg_value,
+      ymin = lb_value,
+      ymax = ub_value
+    ),
+    linewidth = .5,
+    fill = "red",
+    color = NA,
+    alpha = .5
+  ) +
+  scale_y_continuous(name = "fMRI BOLD Percent Change") +
+  scale_x_continuous(
+    name = "Time (seconds)",
+    breaks = seq(0, 2000, by = 250)
+  ) +
+  coord_cartesian(
+    xlim = c(-50, 2190),
+    # ylim = c(-1.25, 1.25),
+    expand = F
+  ) +
+  ggtitle(paste0("Participant ", par_index)) +
+  theme_bw() +
+  theme(
+    text = element_text(family = text_font, size = text_size, color = "black"),
+    # strip.background = element_blank(),
+    # strip.text = element_text(size = text_size),
+    panel.spacing = unit(0.15, "lines"),
+    legend.position = "none",
+    axis.line = element_blank(),
+    # panel.border = element_rect(
+    #   color = "black",
+    #   fill = NA,
+    #   linewidth = axis_line_thickness
+    # ), # Add a border
+    # axis.line = element_line(linewidth = axis_line_thickness,
+    #                          lineend = "square"),
+    axis.ticks = element_blank(),
+    axis.text = element_text(face = "bold"),
+    axis.title.x = element_blank()
+  )
+
+fmri_plot_2
+
+
+par_index <- 10
+posterior_indices <- sample(1:5000, 100)
+beta_names <- paste0('betas[', par_index, ',1,', c(1:19), ']')
+
+model018_beta_draws_3 <- model018_fit$draws(
+  format = "df",
+  variables = beta_names
+) %>%
+  select(starts_with("betas")) %>%
+  as.matrix()
+
+model018_no_ml_beta_draws_3 <- model018_no_ml_fit$draws(
+  format = "df",
+  variables = beta_names
+) %>%
+  select(starts_with("betas")) %>%
+  as.matrix()
+
+uncensored_3 <- fmri_stan_list$usable_bold_indices_one_is_true[par_index, ] == 1
+
+current_par_design_matrix_3 <- fmri_stan_list$design_array[
+  par_index,
+  ,
+  # beta
+]
+
+mod18_posterior_mu_3 <- (current_par_design_matrix_3 %*%
+  t(model018_beta_draws_3[posterior_indices, ])) %>%
+  as_tibble() %>%
+  mutate(time_seconds = seq(0, 1069 * 2, by = 2)) %>%
+  pivot_longer(starts_with("V")) %>%
+  mutate(
+    value = if_else(
+      time_seconds %in% seq(0, 1069 * 2, by = 2)[uncensored_3],
+      value,
+      NA
+    )
+  )
+
+mod18_posterior_mu_CI_3 <- mod18_posterior_mu_3 %>%
+  group_by(time_seconds) %>%
+  reframe(
+    avg_value = mean(value),
+    lb_value = quantile(value, probs = .025, na.rm = T),
+    ub_value = quantile(value, probs = .975, na.rm = T)
+  )
+
+mod18_no_ml_posterior_mu_3 <- (current_par_design_matrix_3 %*%
+  t(model018_no_ml_beta_draws_3[posterior_indices, ])) %>%
+  as_tibble() %>%
+  mutate(time_seconds = seq(0, 1069 * 2, by = 2)) %>%
+  pivot_longer(starts_with("V")) %>%
+  mutate(
+    value = if_else(
+      time_seconds %in% seq(0, 1069 * 2, by = 2)[uncensored_3],
+      value,
+      NA
+    )
+  )
+
+mod18_no_ml_posterior_mu_CI_3 <- mod18_no_ml_posterior_mu_3 %>%
+  group_by(time_seconds) %>%
+  reframe(
+    avg_value = mean(value),
+    lb_value = quantile(value, probs = .025, na.rm = T),
+    ub_value = quantile(value, probs = .975, na.rm = T)
+  )
+
+
+bold_plot_df_3 <- data.frame(
+  time_seconds = seq(0, 1069 * 2, by = 2),
+  bold = fmri_stan_list$bold[par_index, ]
+) %>%
+  mutate(
+    bold = if_else(
+      time_seconds %in% seq(0, 1069 * 2, by = 2)[uncensored_3],
+      bold,
+      NA
+    )
+  )
+
+fmri_plot_3 <- ggplot() +
+  geom_line(
+    data = bold_plot_df_3,
+    aes(
+      x = time_seconds,
+      y = bold
+    ),
+    linewidth = .5,
+    alpha = .5
+  ) +
+  geom_ribbon(
+    data = mod18_no_ml_posterior_mu_CI_3,
+    aes(
+      x = time_seconds,
+      y = avg_value,
+      ymin = lb_value,
+      ymax = ub_value
+    ),
+    linewidth = .5,
+    fill = "blue",
+    color = NA,
+    alpha = .5
+  ) +
+  geom_ribbon(
+    data = mod18_posterior_mu_CI_3,
+    aes(
+      x = time_seconds,
+      y = avg_value,
+      ymin = lb_value,
+      ymax = ub_value
+    ),
+    linewidth = .5,
+    fill = "red",
+    color = NA,
+    alpha = .5
+  ) +
+  scale_y_continuous(name = "fMRI BOLD Percent Change") +
+  scale_x_continuous(
+    name = "Time (seconds)",
+    breaks = seq(0, 2000, by = 250)
+  ) +
+  coord_cartesian(
+    xlim = c(-50, 2190),
+    # ylim = c(-1.25, 1.25),
+    expand = F
+  ) +
+  ggtitle(paste0("Participant ", par_index)) +
+  theme_bw() +
+  theme(
+    text = element_text(family = text_font, size = text_size, color = "black"),
+    # strip.background = element_blank(),
+    # strip.text = element_text(size = text_size),
+    panel.spacing = unit(0.15, "lines"),
+    legend.position = "none",
+    axis.line = element_blank(),
+    # panel.border = element_rect(
+    #   color = "black",
+    #   fill = NA,
+    #   linewidth = axis_line_thickness
+    # ), # Add a border
+    # axis.line = element_line(linewidth = axis_line_thickness,
+    #                          lineend = "square"),
+    axis.ticks = element_blank(),
+    axis.text = element_text(face = "bold"),
+    axis.title.y = element_blank()
+  )
+
+fmri_plot_3
+
+
+((fmri_plot_1) /
+  (fmri_plot_2) /
+  (fmri_plot_3)) +
+  patchwork::plot_annotation(
+    title = "Multilevel (Red) vs Non-Multilevel (Blue) Regression Mean",
+    theme = theme(
+      plot.title = element_text(
+        hjust = .5,
+        face = "bold",
+        family = "Arial",
+        size = 17.5,
+      )
+    )
+  )
+
+ggsave(
+  filename = "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/fMRI_multilevel_2.png",
+  dpi = 300,
+  units = "in",
+  height = 1.5 * 3,
+  width = 3.75,
+  scale = 2
+)
+
+layout_grid <- c(
+  '
+AB
+AB
+AB
+AC
+AC
+AC
+'
+)
+
+layout_grid <- c(
+  '
+AD
+AD
+BD
+BE
+CE
+CE
+'
+)
+
+fmri_timeseries_plot +
+  fmri_multilevel_participant_posteriors_fig +
+  fmri_nonmultilevel_participant_posteriors_fig +
+  plot_annotation(
+    title = "Effects of Multilevel Structure on Per Participant fMRI Deconvolution",
+    theme = theme(
+      plot.title = element_text(
+        family = "Arial",
+        size = 27,
+        color = "black",
+        hjust = 0.5,
+        face = "bold"
+      )
+    )
+  ) +
+  plot_layout(design = layout_grid)
+
+
+# old below
+# left anterior insula full multilevel priors
+model018_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model018_chain_66251546_1.csv"),
+    paste0(data_dir, "/model018_chain_66251546_2.csv"),
+    paste0(data_dir, "/model018_chain_66251546_3.csv"),
+    paste0(data_dir, "/model018_chain_66251546_4.csv"),
+    paste0(data_dir, "/model018_chain_66251546_5.csv")
+  )
+)
+
+model018_fit_meta_data <- model018_fit$metadata()
+
+model018_fit_relevant_parameters <- model018_fit_meta_data$model_params[
+  !str_detect(
+    model018_fit_meta_data$model_params,
+    "log_lik|mu_pred|amplitude|S|theta|shard_ind"
+  )
+]
+
+model018_summary <- model018_fit$summary(
+  variables = model018_fit_relevant_parameters
+)
+
+model018_draws <- model018_fit$draws(
+  variables = model018_fit_relevant_parameters,
+  format = "df"
+)
+
+model018_loo <- model018_fit$loo()
+
+
+model018_mu_beta_df <- model018_draws %>%
+  # 1. select the .draw column plus all the mu_betas[...] cols
+  dplyr::select(
+    .draw,
+    tidyselect::matches("^mu_betas\\[")
+  ) %>%
+  # 2. pivot them longer, extracting the numbers inside the brackets
+  tidyr::pivot_longer(
+    cols = -.draw,
+    names_to = c("parameter", "ROI", "condition"),
+    # regex:
+    #   ([^[]+)   → everything before the “[”  (we call that “parameter”)
+    #   \\[       → literal “[”
+    #   (\\d+)    → one or more digits  (we call that condition)
+    #   ,         → literal comma
+    #   (\\d+)    → one or more digits  (we call that ROI)
+    #   \\]       → literal “]”
+    names_pattern = "([^\\[]+)\\[(\\d+),(\\d+)\\]",
+    values_to = "mu_beta"
+  ) %>%
+  # 3. drop the now-redundant “parameter” column if you like
+  select(-parameter) %>%
+  filter(condition %in% c(1:13)) %>%
+  mutate(condition = factor(condition, levels = 1:13)) %>%
+  mutate(
+    phase = case_when(
+      condition %in% c(1:4) ~ "habituation",
+      condition %in% c(5:8, 13) ~ "acquisition",
+      condition %in% c(9:12) ~ "extinction"
+    )
+  ) %>%
+  mutate(
+    phase = factor(
+      phase,
+      levels = c(
+        "habituation",
+        "acquisition",
+        "extinction"
+      )
+    )
+  ) %>%
+  mutate(
+    cue = factor(
+      case_when(
+        condition %in% c(1, 5, 9) ~ "CS+",
+        condition %in% c(2, 6, 10) ~ "GS1",
+        condition %in% c(3, 7, 11) ~ "GS2",
+        condition %in% c(4, 8, 12) ~ "GS3",
+        condition %in% c(13) ~ "shock",
+      ),
+      levels = c("CS+", "GS1", "GS2", "GS3", "shock")
+    )
+  )
+
+
+# anterior insula no multilevel on motion
+model022_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model022_chain_66382183_1.csv"),
+    paste0(data_dir, "/model022_chain_66382183_2.csv"),
+    paste0(data_dir, "/model022_chain_66382183_3.csv"),
+    paste0(data_dir, "/model022_chain_66382183_4.csv"),
+    paste0(data_dir, "/model022_chain_66382183_5.csv")
+  )
+)
+
+model022_fit_meta_data <- model022_fit$metadata()
+
+model022_fit_relevant_parameters <- model022_fit_meta_data$model_params[
+  !str_detect(
+    model022_fit_meta_data$model_params,
+    "log_lik|mu_pred|amplitude|S|theta|shard_ind"
+  )
+]
+
+model022_summary <- model022_fit$summary(
+  variables = model022_fit_relevant_parameters
+)
+
+model022_loo <- model022_fit$loo()
+
+
+model022_draws <- model022_fit$draws(
+  variables = model022_fit_relevant_parameters,
+  format = "df"
+)
+
+loo::loo_compare(
+  model018_loo,
+  model022_loo
+)
+
+loo::loo_model_weights(list(
+  model018_loo,
+  model022_loo
+))
+
+#
+# save(
+#   fmri_stan_list,
+#   file = '/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/ant_insula_n15_stan_list.RData'
+# )
+
+model018_mu_beta_df <- model018_draws %>%
+  # 1. select the .draw column plus all the mu_betas[...] cols
+  dplyr::select(
+    .draw,
+    tidyselect::matches("^mu_betas\\[")
+  ) %>%
+  # 2. pivot them longer, extracting the numbers inside the brackets
+  tidyr::pivot_longer(
+    cols = -.draw,
+    names_to = c("parameter", "ROI", "condition"),
+    # regex:
+    #   ([^[]+)   → everything before the “[”  (we call that “parameter”)
+    #   \\[       → literal “[”
+    #   (\\d+)    → one or more digits  (we call that condition)
+    #   ,         → literal comma
+    #   (\\d+)    → one or more digits  (we call that ROI)
+    #   \\]       → literal “]”
+    names_pattern = "([^\\[]+)\\[(\\d+),(\\d+)\\]",
+    values_to = "mu_beta"
+  ) %>%
+  # 3. drop the now-redundant “parameter” column if you like
+  select(-parameter) %>%
+  filter(condition %in% c(1:13)) %>%
+  mutate(condition = factor(condition, levels = 1:13)) %>%
+  mutate(
+    phase = case_when(
+      condition %in% c(1:4) ~ "habituation",
+      condition %in% c(5:8, 13) ~ "acquisition",
+      condition %in% c(9:12) ~ "extinction"
+    )
+  ) %>%
+  mutate(
+    phase = factor(
+      phase,
+      levels = c(
+        "habituation",
+        "acquisition",
+        "extinction"
+      )
+    )
+  ) %>%
+  mutate(
+    cue = factor(
+      case_when(
+        condition %in% c(1, 5, 9) ~ "CS+",
+        condition %in% c(2, 6, 10) ~ "GS1",
+        condition %in% c(3, 7, 11) ~ "GS2",
+        condition %in% c(4, 8, 12) ~ "GS3",
+        condition %in% c(13) ~ "shock",
+      ),
+      levels = c("CS+", "GS1", "GS2", "GS3", "shock")
+    )
+  )
+
+model022_mu_beta_df <- model022_draws %>%
+  # 1. select the .draw column plus all the mu_betas[...] cols
+  dplyr::select(
+    .draw,
+    tidyselect::matches("^mu_betas_stim\\[")
+  ) %>%
+  # 2. pivot them longer, extracting the numbers inside the brackets
+  tidyr::pivot_longer(
+    cols = -.draw,
+    names_to = c("parameter", "ROI", "condition"),
+    # regex:
+    #   ([^[]+)   → everything before the “[”  (we call that “parameter”)
+    #   \\[       → literal “[”
+    #   (\\d+)    → one or more digits  (we call that condition)
+    #   ,         → literal comma
+    #   (\\d+)    → one or more digits  (we call that ROI)
+    #   \\]       → literal “]”
+    names_pattern = "([^\\[]+)\\[(\\d+),(\\d+)\\]",
+    values_to = "mu_beta"
+  ) %>%
+  # 3. drop the now-redundant “parameter” column if you like
+  select(-parameter) %>%
+  filter(condition %in% c(1:13)) %>%
+  mutate(condition = factor(condition, levels = 1:13)) %>%
+  mutate(
+    phase = case_when(
+      condition %in% c(1:4) ~ "habituation",
+      condition %in% c(5:8, 13) ~ "acquisition",
+      condition %in% c(9:12) ~ "extinction"
+    )
+  ) %>%
+  mutate(
+    phase = factor(
+      phase,
+      levels = c(
+        "habituation",
+        "acquisition",
+        "extinction"
+      )
+    )
+  ) %>%
+  mutate(
+    cue = factor(
+      case_when(
+        condition %in% c(1, 5, 9) ~ "CS+",
+        condition %in% c(2, 6, 10) ~ "GS1",
+        condition %in% c(3, 7, 11) ~ "GS2",
+        condition %in% c(4, 8, 12) ~ "GS3",
+        condition %in% c(13) ~ "shock",
+      ),
+      levels = c("CS+", "GS1", "GS2", "GS3", "shock")
+    )
+  )
+
+(model018_mu_beta_df %>%
+  ggplot() +
+  geom_vline(xintercept = 0) +
+  geom_density(aes(x = mu_beta, color = cue)) +
+  scale_color_manual(values = cue_color) +
+  facet_wrap(~phase, ncol = 1) +
+  coord_cartesian(xlim = c(-.175, .35)) +
+  ggtitle("Motion Multilevel Prior") +
+  theme_bw()) /
+
+  (model022_mu_beta_df %>%
+    ggplot() +
+    geom_vline(xintercept = 0) +
+    geom_density(aes(x = mu_beta, color = cue)) +
+    scale_color_manual(values = cue_color) +
+    facet_wrap(~phase, ncol = 1) +
+    coord_cartesian(xlim = c(-.175, .35)) +
+    ggtitle("No Motion Multilevel Prior") +
+    theme_bw())
+
+
+par_index <- 1
+posterior_indices <- sample(1:2000, 100)
+beta_names <- paste0('betas[', par_index, ',1,', c(1:19), ']')
+
+model022_beta_draws_1 <- model022_fit$draws(
+  format = "df",
+  variables = beta_names
+) %>%
+  select(starts_with("betas")) %>%
+  as.matrix()
+
+model018_beta_draws_1 <- model018_fit$draws(
+  format = "df",
+  variables = beta_names
+) %>%
+  select(starts_with("betas")) %>%
+  as.matrix()
+
+
+uncensored_1 <- fmri_stan_list$usable_bold_indices_one_is_true[par_index, ] == 1
+
+current_par_design_matrix_1 <- fmri_stan_list$design_array[
+  par_index,
+  uncensored_1,
+  # beta
+]
+
+mod18_posterior_mu_1 <- (current_par_design_matrix_1 %*%
+  t(model018_beta_draws_1[posterior_indices, ])) %>%
+  as_tibble() %>%
+  mutate(time_seconds = seq(0, 1069 * 2, by = 2)[uncensored_1]) %>%
+  pivot_longer(starts_with("V"))
+
+mod18_posterior_mu_CI_1 <- mod18_posterior_mu_1 %>%
+  group_by(time_seconds) %>%
+  reframe(
+    avg_value = mean(value),
+    lb_value = quantile(value, probs = .025),
+    ub_value = quantile(value, probs = .975)
+  )
+
+mod22_posterior_mu_1 <- (current_par_design_matrix_1 %*%
+  t(model022_beta_draws_1[posterior_indices, ])) %>%
+  as_tibble() %>%
+  mutate(time_seconds = seq(0, 1069 * 2, by = 2)[uncensored_1]) %>%
+  pivot_longer(starts_with("V"))
+
+mod22_posterior_mu_CI_1 <- mod22_posterior_mu_1 %>%
+  group_by(time_seconds) %>%
+  reframe(
+    avg_value = mean(value),
+    lb_value = quantile(value, probs = .025),
+    ub_value = quantile(value, probs = .975)
+  )
+
+
+bold_plot_df_1 <- data.frame(
+  time_seconds = seq(0, 1069 * 2, by = 2)[uncensored_1],
+  bold = fmri_stan_list$bold[par_index, 1, uncensored_1]
+)
+
+fmri_plot_1 <- ggplot() +
+  geom_line(
+    data = bold_plot_df_1,
+    aes(
+      x = time_seconds,
+      y = bold
+    ),
+    linewidth = .5,
+    alpha = .5
+  ) +
+  geom_ribbon(
+    data = mod22_posterior_mu_CI_1,
+    aes(
+      x = time_seconds,
+      y = avg_value,
+      ymin = lb_value,
+      ymax = ub_value
+    ),
+    linewidth = .5,
+    fill = "red",
+    color = NA,
+    alpha = .5
+  ) +
+  geom_ribbon(
+    data = mod18_posterior_mu_CI_1,
+    aes(
+      x = time_seconds,
+      y = avg_value,
+      ymin = lb_value,
+      ymax = ub_value
+    ),
+    linewidth = .5,
+    fill = "blue",
+    color = NA,
+    alpha = .5
+  ) +
+  scale_y_continuous(name = "Percent Change fMRI BOLD") +
+  scale_x_continuous(
+    name = "Time (seconds)",
+    breaks = seq(0, 2000, by = 250)
+  ) +
+  coord_cartesian(
+    xlim = c(-50, 2190),
+    # ylim = c(-1.25, 1.25),
+    expand = F
+  ) +
+  ggtitle("Participant 1") +
+  theme_classic() +
+  theme()
+
+par_index <- 4
+posterior_indices <- sample(1:2000, 100)
+beta_names <- paste0('betas[', par_index, ',1,', c(1:19), ']')
+
+model022_beta_draws_2 <- model022_fit$draws(
+  format = "df",
+  variables = beta_names
+) %>%
+  select(starts_with("betas")) %>%
+  as.matrix()
+
+model018_beta_draws_2 <- model018_fit$draws(
+  format = "df",
+  variables = beta_names
+) %>%
+  select(starts_with("betas")) %>%
+  as.matrix()
+
+
+uncensored_2 <- fmri_stan_list$usable_bold_indices_one_is_true[par_index, ] == 1
+
+current_par_design_matrix_2 <- fmri_stan_list$design_array[
+  par_index,
+  uncensored_2,
+  # beta
+]
+
+mod18_posterior_mu_2 <- (current_par_design_matrix_2 %*%
+  t(model018_beta_draws_2[posterior_indices, ])) %>%
+  as_tibble() %>%
+  mutate(time_seconds = seq(0, 1069 * 2, by = 2)[uncensored_2]) %>%
+  pivot_longer(starts_with("V"))
+
+mod18_posterior_mu_CI_2 <- mod18_posterior_mu_2 %>%
+  group_by(time_seconds) %>%
+  reframe(
+    avg_value = mean(value),
+    lb_value = quantile(value, probs = .025),
+    ub_value = quantile(value, probs = .975)
+  )
+
+mod22_posterior_mu_2 <- (current_par_design_matrix_2 %*%
+  t(model022_beta_draws_2[posterior_indices, ])) %>%
+  as_tibble() %>%
+  mutate(time_seconds = seq(0, 1069 * 2, by = 2)[uncensored_2]) %>%
+  pivot_longer(starts_with("V"))
+
+mod22_posterior_mu_CI_2 <- mod22_posterior_mu_2 %>%
+  group_by(time_seconds) %>%
+  reframe(
+    avg_value = mean(value),
+    lb_value = quantile(value, probs = .025),
+    ub_value = quantile(value, probs = .975)
+  )
+
+
+bold_plot_df_2 <- data.frame(
+  time_seconds = seq(0, 1069 * 2, by = 2)[uncensored_2],
+  bold = fmri_stan_list$bold[par_index, 1, uncensored_2]
+)
+
+fmri_plot_2 <- ggplot() +
+  geom_line(
+    data = bold_plot_df_2,
+    aes(
+      x = time_seconds,
+      y = bold
+    ),
+    linewidth = .5,
+    alpha = .5
+  ) +
+  geom_ribbon(
+    data = mod22_posterior_mu_CI_2,
+    aes(
+      x = time_seconds,
+      y = avg_value,
+      ymin = lb_value,
+      ymax = ub_value
+    ),
+    linewidth = .5,
+    fill = "red",
+    color = NA,
+    alpha = .5
+  ) +
+  geom_ribbon(
+    data = mod18_posterior_mu_CI_2,
+    aes(
+      x = time_seconds,
+      y = avg_value,
+      ymin = lb_value,
+      ymax = ub_value
+    ),
+    linewidth = .5,
+    fill = "blue",
+    color = NA,
+    alpha = .5
+  ) +
+  scale_y_continuous(name = "Percent Change fMRI BOLD") +
+  scale_x_continuous(
+    name = "Time (seconds)",
+    breaks = seq(0, 2000, by = 250)
+  ) +
+  coord_cartesian(
+    xlim = c(-50, 2190),
+    # ylim = c(-1.25, 1.25),
+    expand = F
+  ) +
+  ggtitle("Participant 2") +
+  theme_classic() +
+  theme()
+
+((fmri_plot_1) /
+  (fmri_plot_2)) +
+  patchwork::plot_annotation(
+    title = "Multilevel Priors (Blue) Lead to Better fMRI Deconvolution"
+  )
+
+ggsave(
+  filename = "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/fMRI_multilevel.png",
+  dpi = 300,
+  units = "in",
+  height = 1.5 * 2,
+  width = 3.75,
+  scale = 2
+)
+
+# geom_line(
+#   data = mod22_posterior_mu_CI,
+#   aes(x = time_seconds, y = avg_value),
+#   color = "black",
+#   linewidth = 1.1
+# ) +
+# geom_line(
+#   data = mod22_posterior_mu_CI,
+#   aes(x = time_seconds, y = avg_value),
+#   color = "red",
+#   linewidth = 1
+# )
+
+geom_errorbar(
+  data = mod18_posterior_mu_CI,
+  aes(x = time_seconds, y = avg_value, ymin = lb_value, ymax = ub_value),
+  color = "blue",
+  alpha = .4
+) +
+  # theme_bw()
+
+  ggplot() +
+  geom_line(
+    data = bold_plot_df,
+    aes(
+      x = time_seconds,
+      y = bold
+    ),
+    linewidth = .2
+  ) +
+  # geom_line(
+  #   data = mod22_posterior_mu[mod22_posterior_mu$used, ],
+  geom_line(
+    data = mod22_posterior_mu,
+    aes(
+      x = time_seconds,
+      y = value,
+      group = name
+    ),
+    linewidth = .2,
+    alpha = .2,
+    color = "blue"
+  ) +
+  geom_line(
+    data = mod18_posterior_mu,
+    aes(
+      x = time_seconds,
+      y = value,
+      group = name
+    ),
+    linewidth = .2,
+    alpha = .2,
+    color = "red"
+  ) +
+  theme_classic()
+
+
+## old below
+
+model025_fit_mpi <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model025_chain_3729566_1.csv"),
+    paste0(data_dir, "/model025_chain_3729566_2.csv"),
+    paste0(data_dir, "/model025_chain_3729566_3.csv"),
+    paste0(data_dir, "/model025_chain_3729566_4.csv")
+  )
+)
+
+model025_fit_mpi_meta_data <- model025_fit_mpi$metadata()
+
+model025_fit_mpi_relevant_parameters <- model025_fit_mpi_meta_data$model_params[
+  !str_detect(
+    model025_fit_mpi_meta_data$model_params,
+    "log_lik|mu_pred|amplitude|S|theta"
+  )
+]
+
+
+model025_fit_mpi_summary <- model025_fit_mpi$summary(
+  variables = model025_fit_mpi_relevant_parameters
+)
+
+model025_fit_draws <- model025_fit_mpi$draws(
+  variables = model025_fit_mpi_relevant_parameters,
+  format = "df"
+)
+
+
+model025_fit_loo <- model025_fit_mpi$loo()
+
+model025_fit_draws$`rho_z_betas_z[5,1]` %>% tanh() %>% density() %>% plot()
+model025_fit_draws$`rho_z_betas_z[5,1]` %>% tanh() %>% hist()
+
+
+model025_fit_draws %>%
+  # 1. select the .draw column plus all the mu_betas[...] cols
+  dplyr::select(
+    .draw,
+    tidyselect::matches("^mu_betas\\[")
+  ) %>%
+  # 2. pivot them longer, extracting the numbers inside the brackets
+  tidyr::pivot_longer(
+    cols = -.draw,
+    names_to = c("parameter", "condition", "ROI"),
+    # regex:
+    #   ([^[]+)   → everything before the “[”  (we call that “parameter”)
+    #   \\[       → literal “[”
+    #   (\\d+)    → one or more digits  (we call that condition)
+    #   ,         → literal comma
+    #   (\\d+)    → one or more digits  (we call that ROI)
+    #   \\]       → literal “]”
+    names_pattern = "([^\\[]+)\\[(\\d+),(\\d+)\\]",
+    values_to = "mu_beta"
+  ) %>%
+  # 3. drop the now-redundant “parameter” column if you like
+  select(-parameter) %>%
+  filter(condition %in% c(1:13)) %>%
+  mutate(condition = factor(condition, levels = 1:13)) %>%
+  mutate(
+    phase = case_when(
+      condition %in% c(1:4) ~ "habituation",
+      condition %in% c(5:8, 13) ~ "acquisition",
+      condition %in% c(9:12) ~ "extinction"
+    )
+  ) %>%
+  mutate(
+    phase = factor(
+      phase,
+      levels = c(
+        "habituation",
+        "acquisition",
+        "extinction"
+      )
+    )
+  ) %>%
+  mutate(
+    cue = factor(
+      case_when(
+        condition %in% c(1, 5, 9) ~ "CS+",
+        condition %in% c(2, 6, 10) ~ "GS1",
+        condition %in% c(3, 7, 11) ~ "GS2",
+        condition %in% c(4, 8, 12) ~ "GS3",
+        condition %in% c(13) ~ "shock",
+      ),
+      levels = c("CS+", "GS1", "GS2", "GS3", "shock")
+    )
+  ) %>%
+  mutate(
+    roi_name = factor(
+      case_when(
+        ROI == 1 ~ "V1",
+        ROI == 2 ~ "V2",
+      ),
+      levels = c("V1", "V2")
+    )
+  ) %>%
+  ggplot() +
+  geom_vline(aes(xintercept = 0), linewidth = 1.5) +
+  geom_density(aes(x = mu_beta, color = cue), linewidth = 1.5) +
+  scale_color_manual(values = cue_color) +
+  scale_x_continuous(name = "% BOLD Change") +
+  facet_wrap(~ phase * roi_name, ncol = 2) +
+  theme_bw() +
+  theme(text = element_text(size = 20))
+
 
 model024_fit_mpi <- as_cmdstan_fit(
   files = c(
@@ -32,6 +1696,11 @@ model024_fit_mpi_summary <- model024_fit_mpi$summary(
 
 
 model024_fit_loo <- model024_fit_mpi$loo()
+
+loo::loo_compare(
+  model024_fit_loo,
+  model025_fit_loo
+)
 
 
 model024_fit_draws <- model024_fit_mpi$draws(
@@ -305,8 +1974,8 @@ model018_beta_csp_hab_draws %>%
 
 model018_fit_no_mot <- as_cmdstan_fit(
   files = c(
-    "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains/model018_chain_66662361_1.csv",
-    "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains/model018_chain_66662361_2.csv" #,
+    "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains/model018_chain_66662361_1.csv",
+    "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains/model018_chain_66662361_2.csv" #,
     # "/home/andrewf/Downloads/model022_chain_66382183_3.csv"
   )
 )
@@ -320,6 +1989,8 @@ model018_fit_no_mot_relevant_parameters <- model018_fit_no_mot_meta_data$model_p
   )
 ]
 
+model018_fit_no_mot_loo <- model018_fit_no_mot$loo()
+
 
 model018_fit_no_mot_summary <- model018_fit_no_mot$summary(
   variables = model018_fit_no_mot_relevant_parameters
@@ -327,8 +1998,8 @@ model018_fit_no_mot_summary <- model018_fit_no_mot$summary(
 
 model022_fit_mpi <- as_cmdstan_fit(
   files = c(
-    "/home/andrewf/Downloads/model022_chain_66382183_1.csv",
-    "/home/andrewf/Downloads/model022_chain_66382183_2.csv" #,
+    "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains/model022_chain_66382183_1.csv",
+    "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains/model022_chain_66382183_2.csv" #,
     # "/home/andrewf/Downloads/model022_chain_66382183_3.csv"
   )
 )
