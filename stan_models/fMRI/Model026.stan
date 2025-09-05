@@ -156,7 +156,76 @@ data {
 }
 
 transformed data {
+  int n_cue = 4;
   int n_shards = n_par * n_roi;
+  int n_motion_beta = 6;
+  int n_shock_per_run = 15;
+  int n_trials_per_cue = 8 + 12 + 12 + 12;
+  array[n_shock_per_run] int shock_linespace = linspaced_int_array(n_shock_per_run,1,n_shock_per_run);
+  array[n_trials_per_cue] int cue_linespace = linspaced_int_array(n_trials_per_cue,1,n_trials_per_cue);
+
+  array[n_trials_per_cue] int csp_beta_indices;
+  array[n_trials_per_cue] int gs1_beta_indices;
+  array[n_trials_per_cue] int gs2_beta_indices;
+  array[n_trials_per_cue] int gs3_beta_indices;
+  array[n_shock_per_run] int shock_beta_indices;
+
+  //habituation 8 trials
+  int current_start_index = 1;
+  int current_stop_index = 8;
+  csp_beta_indices[1:8] = linspaced_int_array(8, current_start_index, current_stop_index);
+  current_start_index = current_start_index + 8;
+  current_stop_index = current_stop_index + 8;
+  gs1_beta_indices[1:8] = linspaced_int_array(8, current_start_index, current_stop_index);
+  current_start_index = current_start_index + 8;
+  current_stop_index = current_stop_index + 8;
+  gs2_beta_indices[1:8] = linspaced_int_array(8, current_start_index, current_stop_index);
+  current_start_index = current_start_index + 8;
+  current_stop_index = current_stop_index + 8;
+  gs3_beta_indices[1:8] = linspaced_int_array(8, current_start_index, current_stop_index);
+  //acquisition #1 12 trials
+  current_start_index = current_start_index + 8;
+  current_stop_index = current_stop_index + 12;
+  csp_beta_indices[1+8:8+12] = linspaced_int_array(12, current_start_index, current_stop_index);
+  current_start_index = current_start_index + 12;
+  current_stop_index = current_stop_index + 12;
+  gs1_beta_indices[1+8:8+12] = linspaced_int_array(12, current_start_index, current_stop_index);
+  current_start_index = current_start_index + 12;
+  current_stop_index = current_stop_index + 12;
+  gs2_beta_indices[1+8:8+12] = linspaced_int_array(12, current_start_index, current_stop_index);
+  current_start_index = current_start_index + 12;
+  current_stop_index = current_stop_index + 12;
+  gs3_beta_indices[1+8:8+12] = linspaced_int_array(12, current_start_index, current_stop_index);
+  //acquisition #2 12 trials
+  current_start_index = current_start_index + 12;
+  current_stop_index = current_stop_index + 12;
+  csp_beta_indices[1+8+12:8+12+12] = linspaced_int_array(12, current_start_index, current_stop_index);
+  current_start_index = current_start_index + 12;
+  current_stop_index = current_stop_index + 12;
+  gs1_beta_indices[1+8+12:8+12+12] = linspaced_int_array(12, current_start_index, current_stop_index);
+  current_start_index = current_start_index + 12;
+  current_stop_index = current_stop_index + 12;
+  gs2_beta_indices[1+8+12:8+12+12] = linspaced_int_array(12, current_start_index, current_stop_index);
+  current_start_index = current_start_index + 12;
+  current_stop_index = current_stop_index + 12;
+  gs3_beta_indices[1+8+12:8+12+12] = linspaced_int_array(12, current_start_index, current_stop_index);
+  //extinction 12 trials
+  current_start_index = current_start_index + 12;
+  current_stop_index = current_stop_index + 12;
+  csp_beta_indices[1+8+12+12:8+12+12+12] = linspaced_int_array(12, current_start_index, current_stop_index);
+  current_start_index = current_start_index + 12;
+  current_stop_index = current_stop_index + 12;
+  gs1_beta_indices[1+8+12+12:8+12+12+12] = linspaced_int_array(12, current_start_index, current_stop_index);
+  current_start_index = current_start_index + 12;
+  current_stop_index = current_stop_index + 12;
+  gs2_beta_indices[1+8+12+12:8+12+12+12] = linspaced_int_array(12, current_start_index, current_stop_index);
+  current_start_index = current_start_index + 12;
+  current_stop_index = current_stop_index + 12;
+  gs3_beta_indices[1+8+12+12:8+12+12+12] = linspaced_int_array(12, current_start_index, current_stop_index);
+  //shock 15 times
+  current_start_index = current_start_index + 12;
+  current_stop_index = current_stop_index + 15;
+  shock_beta_indices = linspaced_int_array(15, current_start_index, current_stop_index);
 
   // Create a matrix where each row is the index i.
   // v * rep_row_vector(1, n_bold) produces an n_bold x n_bold matrix
@@ -283,7 +352,10 @@ parameters {
   array[n_par] vector[n_roi] sigma_z;
   array[n_par] vector[n_roi] delta_z_raw;
   array[n_par] vector[n_roi] rho_time_z_raw;
-  array[n_par, n_beta] vector[n_roi] betas_z;
+  // array[n_par, n_beta] vector[n_roi] betas_z;
+  array[n_par, n_motion_beta] vector[n_roi] betas_motion_z;
+  // now a shared group parameter
+  vector[n_beta - n_motion_beta] betas_z;
   
   vector <lower=0> [n_roi] mu_sigma_raw; // this still needs to be half normal
   // array[n_roi] real <lower=0> mu_sigma_raw; // this still needs to be half normal
@@ -292,8 +364,10 @@ parameters {
   vector <lower=0> [n_roi]  tau_delta_raw;
   vector[n_roi] mu_rho_time_raw;
   vector <lower=0> [n_roi] tau_rho_time_raw;
-  array[n_beta] vector[n_roi] mu_betas;
-  array[n_beta] vector <lower=0> [n_roi] tau_betas;
+  // array[n_beta] vector[n_roi] mu_betas;
+  // array[n_beta] vector <lower=0> [n_roi] tau_betas;
+  array[n_motion_beta] vector[n_roi] mu_betas_motion;
+  array[n_motion_beta] vector <lower=0> [n_roi] tau_betas_motion;
 
   // old used to be packed into theta, now done in map rect
   // array[n_par, n_roi] real sigma_z;
@@ -314,11 +388,27 @@ parameters {
 //   array[n_beta] vector[(n_roi*(n_roi-1))%/%2] rho_z_mu_betas;
 //   array[n_beta] vector[(n_roi*(n_roi-1))%/%2] rho_z_tau_betas_raw;
 
-  vector[(n_roi*(n_roi-1))%/%2] rho_z_sigma_z_raw;
-  vector[(n_roi*(n_roi-1))%/%2] rho_z_delta_z_raw;
-  vector[(n_roi*(n_roi-1))%/%2] rho_z_rho_time_z_raw; //rho_z_rho is not a typo, it is how rho over time is correlated between ROIs
-  array[n_beta] vector[(n_roi*(n_roi-1))%/%2] rho_z_betas_z;
+  // not going to worry about correlated rois
+  // vector[(n_roi*(n_roi-1))%/%2] rho_z_sigma_z_raw;
+  // vector[(n_roi*(n_roi-1))%/%2] rho_z_delta_z_raw;
+  // vector[(n_roi*(n_roi-1))%/%2] rho_z_rho_time_z_raw; //rho_z_rho is not a typo, it is how rho over time is correlated between ROIs
+  // array[n_beta] vector[(n_roi*(n_roi-1))%/%2] rho_z_betas_z;
 
+  real<lower=0> csp_rho;
+  real<lower=0> gs1_rho;
+  real<lower=0> gs2_rho;
+  real<lower=0> gs3_rho;
+  real<lower=0> shock_rho;
+  real<lower=0> csp_alpha;
+  real<lower=0> gs1_alpha;
+  real<lower=0> gs2_alpha;
+  real<lower=0> gs3_alpha;
+  real<lower=0> shock_alpha;
+  real<lower=0> csp_sigma;
+  real<lower=0> gs1_sigma;
+  real<lower=0> gs2_sigma;
+  real<lower=0> gs3_sigma;
+  real<lower=0> shock_sigma;
 }
 
 transformed parameters {
@@ -329,21 +419,70 @@ transformed parameters {
   array[n_par, n_roi] real <lower=0>  sigma;
   array[n_par, n_roi] real <lower=0>  delta;
   array[n_par, n_roi] real <lower=0>  rho_time;
-  array[n_par, n_roi] vector[n_beta] betas;
+  array[n_par, n_roi] vector[6] betas_motion;
 
   for (p in 1:n_par) {
     for (r in 1:n_roi) {
       sigma[p, r] = mu_sigma_raw[r] * 0.5 + tau_sigma_raw[r] * sigma_z[p][r];
       delta[p, r] = inv_logit((mu_delta_raw[r] * 1.75) + tau_delta_raw[r] * delta_z_raw[p][r]);
       rho_time[p, r] = inv_logit((mu_rho_time_raw[r] * 1.75) + tau_rho_time_raw[r] * rho_time_z_raw[p][r]);
-      for (b in 1:n_beta){
+      for (b in 1:n_motion_beta){
         //notice ordering changes from betas_z to betas
-        betas[p,r][b] = mu_betas[b][r] + tau_betas[b][r] * betas_z[p,b][r];
+        betas_motion[p,r][b] = mu_betas_motion[b][r] + tau_betas_motion[b][r] * betas_motion_z[p,b][r];
       }
     }
   }
 
   
+
+
+  matrix[n_trials_per_cue, n_trials_per_cue] csp_L_K;
+  matrix[n_trials_per_cue, n_trials_per_cue] gs1_L_K;
+  matrix[n_trials_per_cue, n_trials_per_cue] gs2_L_K;
+  matrix[n_trials_per_cue, n_trials_per_cue] gs3_L_K;
+  matrix[n_shock_per_run, n_shock_per_run] shock_L_K;
+
+  matrix[n_trials_per_cue, n_trials_per_cue] csp_K = gp_exp_quad_cov(cue_linespace, csp_alpha, csp_rho);
+  matrix[n_trials_per_cue, n_trials_per_cue] gs1_K = gp_exp_quad_cov(cue_linespace, gs1_alpha, gs1_rho);
+  matrix[n_trials_per_cue, n_trials_per_cue] gs2_K = gp_exp_quad_cov(cue_linespace, gs2_alpha, gs2_rho);
+  matrix[n_trials_per_cue, n_trials_per_cue] gs3_K = gp_exp_quad_cov(cue_linespace, gs3_alpha, gs3_rho);
+  matrix[n_shock_per_run, n_shock_per_run] shock_K = gp_exp_quad_cov(shock_linespace, shock_alpha, shock_rho);
+  
+  // assuming 1 roi lazily
+  vector[n_beta - n_motion_beta] betas;
+  for (t in 1:n_trials_per_cue) {
+    csp_K[t, t] = csp_K[t, t] + square(csp_sigma);
+    gs1_K[t, t] = gs1_K[t, t] + square(gs1_sigma);
+    gs2_K[t, t] = gs2_K[t, t] + square(gs2_sigma);
+    gs3_K[t, t] = gs3_K[t, t] + square(gs3_sigma);
+  }
+  
+  for (t in 1:n_shock_per_run) {
+    shock_K[t, t] = shock_K[t, t] + square(shock_sigma);
+  }
+
+  // csp_L_K = cholesky_decompose(csp_K);
+  // gs1_L_K = cholesky_decompose(gs1_K);
+  // gs2_L_K = cholesky_decompose(gs2_K);
+  // gs3_L_K = cholesky_decompose(gs3_K);
+  // shock_L_K = cholesky_decompose(shock_K);
+  //helps matrix be invertible 
+  csp_L_K  = cholesky_decompose( add_diag(csp_K, 1e-12) );
+  gs1_L_K  = cholesky_decompose( add_diag(gs1_K, 1e-12) );
+  gs2_L_K  = cholesky_decompose( add_diag(gs2_K, 1e-12) );
+  gs3_L_K  = cholesky_decompose( add_diag(gs3_K, 1e-12) );
+  shock_L_K= cholesky_decompose( add_diag(shock_K, 1e-12) );
+
+
+  // just assuming 1 roi for now lazily
+  betas[csp_beta_indices] = csp_L_K * betas_z[csp_beta_indices];
+  betas[gs1_beta_indices] = gs1_L_K * betas_z[gs1_beta_indices];
+  betas[gs2_beta_indices] = gs2_L_K * betas_z[gs2_beta_indices];
+  betas[gs3_beta_indices] = gs3_L_K * betas_z[gs3_beta_indices];
+  betas[shock_beta_indices] = shock_L_K * betas_z[shock_beta_indices];
+
+
+
   // local shard parameters theta for participant by roi
   // sigma_z; 1 
   // delta_z; 2
@@ -360,7 +499,7 @@ transformed parameters {
         theta[Pshard_index_1stD][1] = sigma[p,r];
         theta[Pshard_index_1stD][2] = delta[p,r];
         theta[Pshard_index_1stD][3] = rho_time[p,r];
-        theta[Pshard_index_1stD][4:(3 + n_beta)] = to_vector(betas[p,r]);
+        theta[Pshard_index_1stD][4:(3 + n_beta)] = append_row(betas, to_vector(betas_motion[p,r]));
       
         // int current_theta_index = 4 + n_beta;
         // int useable_bold_index = 1;
@@ -380,12 +519,6 @@ transformed parameters {
     }
   }
 
-
-//   theta[1] = to_vector(sigma_z);
-
-//   int theta_start_idx = 1;
-//   int theta_stop_idx = n_roi;
-  
   
 
 }
@@ -399,9 +532,50 @@ model {
     tau_sigma_raw[r] ~ std_normal();
     tau_delta_raw[r] ~ std_normal();
     tau_rho_time_raw[r] ~ std_normal();
-    mu_betas[r] ~ std_normal();
-    tau_betas[r] ~ std_normal();
   }
+  for(b in 1:n_motion_beta) {
+    mu_betas_motion[b] ~ std_normal();
+    tau_betas_motion[b] ~ std_normal();
+  }
+  
+  // Gaussian process priors
+  csp_rho ~ lognormal(log(8), .5);
+  gs1_rho ~ lognormal(log(8), .5);
+  gs2_rho ~ lognormal(log(8), .5);
+  gs3_rho ~ lognormal(log(8), .5);
+  shock_rho ~ lognormal(log(8), .5);
+  csp_alpha ~ std_normal();
+  gs1_alpha ~ std_normal();
+  gs2_alpha ~ std_normal();
+  gs3_alpha ~ std_normal();
+  shock_alpha ~ std_normal();
+  csp_sigma ~ std_normal();
+  gs1_sigma ~ std_normal();
+  gs2_sigma ~ std_normal();
+  gs3_sigma ~ std_normal();
+  shock_sigma ~ std_normal();
+
+  betas_z[csp_beta_indices] ~ std_normal();
+  betas_z[gs1_beta_indices] ~ std_normal();
+  betas_z[gs2_beta_indices] ~ std_normal();
+  betas_z[gs3_beta_indices] ~ std_normal();
+  betas_z[shock_beta_indices] ~ std_normal();
+
+
+
+
+  // Multilevel priors (or z-score priors for the multilevel)
+  for (p in 1:n_par) {
+    for (r in 1:n_roi) {
+      sigma_z[p, r] ~ std_normal();
+      delta_z_raw[p, r] ~ std_normal();
+      rho_time_z_raw[p, r] ~ std_normal();
+      for (b in 1:n_motion_beta){
+        betas_motion_z[p,b][r] ~ std_normal();
+      }
+    }
+  }
+
 
   // now found through mvn
   // Multilevel priors (or z-score priors for the multilevel)
@@ -422,16 +596,16 @@ model {
 //   rho_z_mu_rho_time_raw ~ std_normal();
 //   rho_z_tau_rho_time ~ std_normal();
 
-  rho_z_sigma_z_raw ~ std_normal();
-  rho_z_delta_z_raw ~ std_normal();
-  rho_z_rho_time_z_raw ~ std_normal();
+  // rho_z_sigma_z_raw ~ std_normal();
+  // rho_z_delta_z_raw ~ std_normal();
+  // rho_z_rho_time_z_raw ~ std_normal();
 
-  for (b in 1:n_beta) {
-    // rho_z_mu_betas[b] ~ std_normal();
-    // rho_z_tau_betas_raw[b] ~ std_normal();
+  // for (b in 1:n_beta) {
+  //   // rho_z_mu_betas[b] ~ std_normal();
+  //   // rho_z_tau_betas_raw[b] ~ std_normal();
 
-    rho_z_betas_z[b] ~ std_normal();
-  }    
+  //   rho_z_betas_z[b] ~ std_normal();
+  // }    
 
   // Use rhos for correlation matrices
 //   matrix[n_roi, n_roi] Corr_mu_sigma_raw = rep_matrix(1, n_roi, n_roi);
@@ -441,60 +615,60 @@ model {
 //   matrix[n_roi, n_roi] Corr_mu_rho_time_raw = rep_matrix(1, n_roi, n_roi);
 //   matrix[n_roi, n_roi] Corr_tau_rho_time_raw = rep_matrix(1, n_roi, n_roi);
   
-  matrix[n_roi, n_roi] Corr_sigma_z_raw = rep_matrix(1, n_roi, n_roi);
-  matrix[n_roi, n_roi] Corr_delta_z_raw = rep_matrix(1, n_roi, n_roi);
-  matrix[n_roi, n_roi] Corr_rho_time_z_raw = rep_matrix(1, n_roi, n_roi);
+  // matrix[n_roi, n_roi] Corr_sigma_z_raw = rep_matrix(1, n_roi, n_roi);
+  // matrix[n_roi, n_roi] Corr_delta_z_raw = rep_matrix(1, n_roi, n_roi);
+  // matrix[n_roi, n_roi] Corr_rho_time_z_raw = rep_matrix(1, n_roi, n_roi);
 
 //   array[n_beta] matrix[n_roi, n_roi] Corr_mu_betas = rep_array(rep_matrix(1, n_roi, n_roi), n_beta);
 //   array[n_beta] matrix[n_roi, n_roi] Corr_tau_betas_raw = rep_array(rep_matrix(1, n_roi, n_roi), n_beta);
   
-  array[n_beta] matrix[n_roi, n_roi] Corr_betas_z = rep_array(rep_matrix(1, n_roi, n_roi), n_beta);
+  // array[n_beta] matrix[n_roi, n_roi] Corr_betas_z = rep_array(rep_matrix(1, n_roi, n_roi), n_beta);
   
-  int rho_idx = 1;
-  for (i in 1:(n_roi-1)) {
-    for (j in (i + 1):n_roi) {
-      // group
-    //   Corr_mu_sigma_raw[i,j] = tanh(rho_z_mu_sigma_raw[rho_idx]);
-    //   Corr_mu_sigma_raw[j,i] = tanh(rho_z_mu_sigma_raw[rho_idx]);
+  // int rho_idx = 1;
+  // for (i in 1:(n_roi-1)) {
+  //   for (j in (i + 1):n_roi) {
+  //     // group
+  //   //   Corr_mu_sigma_raw[i,j] = tanh(rho_z_mu_sigma_raw[rho_idx]);
+  //   //   Corr_mu_sigma_raw[j,i] = tanh(rho_z_mu_sigma_raw[rho_idx]);
 
-    //   Corr_tau_sigma_raw[i,j] = tanh(rho_z_tau_sigma_raw[rho_idx]);
-    //   Corr_tau_sigma_raw[j,i] = tanh(rho_z_tau_sigma_raw[rho_idx]);
+  //   //   Corr_tau_sigma_raw[i,j] = tanh(rho_z_tau_sigma_raw[rho_idx]);
+  //   //   Corr_tau_sigma_raw[j,i] = tanh(rho_z_tau_sigma_raw[rho_idx]);
       
-    //   Corr_mu_delta_raw[i,j] = tanh(rho_z_mu_delta_raw[rho_idx]);
-    //   Corr_mu_delta_raw[j,i] = tanh(rho_z_mu_delta_raw[rho_idx]);
+  //   //   Corr_mu_delta_raw[i,j] = tanh(rho_z_mu_delta_raw[rho_idx]);
+  //   //   Corr_mu_delta_raw[j,i] = tanh(rho_z_mu_delta_raw[rho_idx]);
 
-    //   Corr_tau_delta_raw[i,j] = tanh(rho_z_tau_delta_raw[rho_idx]);
-    //   Corr_tau_delta_raw[j,i] = tanh(rho_z_tau_delta_raw[rho_idx]);
+  //   //   Corr_tau_delta_raw[i,j] = tanh(rho_z_tau_delta_raw[rho_idx]);
+  //   //   Corr_tau_delta_raw[j,i] = tanh(rho_z_tau_delta_raw[rho_idx]);
 
-    //   Corr_mu_rho_time_raw[i,j] = tanh(rho_z_mu_rho_time_raw[rho_idx]);
-    //   Corr_mu_rho_time_raw[j,i] = tanh(rho_z_mu_rho_time_raw[rho_idx]);
+  //   //   Corr_mu_rho_time_raw[i,j] = tanh(rho_z_mu_rho_time_raw[rho_idx]);
+  //   //   Corr_mu_rho_time_raw[j,i] = tanh(rho_z_mu_rho_time_raw[rho_idx]);
       
-    //   Corr_tau_rho_time_raw[i,j] = tanh(rho_z_tau_delta_raw[rho_idx]);
-    //   Corr_tau_rho_time_raw[j,i] = tanh(rho_z_tau_delta_raw[rho_idx]);
+  //   //   Corr_tau_rho_time_raw[i,j] = tanh(rho_z_tau_delta_raw[rho_idx]);
+  //   //   Corr_tau_rho_time_raw[j,i] = tanh(rho_z_tau_delta_raw[rho_idx]);
       
-      // local
-      Corr_sigma_z_raw[i,j] = tanh(rho_z_sigma_z_raw[rho_idx]);
-      Corr_sigma_z_raw[j,i] = tanh(rho_z_sigma_z_raw[rho_idx]);
+  //     // local
+  //     Corr_sigma_z_raw[i,j] = tanh(rho_z_sigma_z_raw[rho_idx]);
+  //     Corr_sigma_z_raw[j,i] = tanh(rho_z_sigma_z_raw[rho_idx]);
 
-      Corr_delta_z_raw[i,j] = tanh(rho_z_delta_z_raw[rho_idx]);
-      Corr_delta_z_raw[j,i] = tanh(rho_z_delta_z_raw[rho_idx]);
+  //     Corr_delta_z_raw[i,j] = tanh(rho_z_delta_z_raw[rho_idx]);
+  //     Corr_delta_z_raw[j,i] = tanh(rho_z_delta_z_raw[rho_idx]);
 
-      Corr_rho_time_z_raw[i,j] = tanh(rho_z_rho_time_z_raw[rho_idx]);
-      Corr_rho_time_z_raw[j,i] = tanh(rho_z_rho_time_z_raw[rho_idx]);
-      for (b in 1:n_beta) {
-        // group
-        // Corr_mu_betas[b][i,j] = tanh(rho_z_mu_betas[b][rho_idx]);
-        // Corr_mu_betas[b][j,i] = tanh(rho_z_mu_betas[b][rho_idx]);
+  //     Corr_rho_time_z_raw[i,j] = tanh(rho_z_rho_time_z_raw[rho_idx]);
+  //     Corr_rho_time_z_raw[j,i] = tanh(rho_z_rho_time_z_raw[rho_idx]);
+  //     for (b in 1:n_beta) {
+  //       // group
+  //       // Corr_mu_betas[b][i,j] = tanh(rho_z_mu_betas[b][rho_idx]);
+  //       // Corr_mu_betas[b][j,i] = tanh(rho_z_mu_betas[b][rho_idx]);
         
-        // Corr_tau_betas_raw[b][i,j] = tanh(rho_z_tau_betas_raw[b][rho_idx]);
-        // Corr_tau_betas_raw[b][j,i] = tanh(rho_z_tau_betas_raw[b][rho_idx]);
-        //local
-        Corr_betas_z[b][i,j] = tanh(rho_z_betas_z[b][rho_idx]);
-        Corr_betas_z[b][j,i] = tanh(rho_z_betas_z[b][rho_idx]);
-      }
-      rho_idx += 1;
-    }
-  }
+  //       // Corr_tau_betas_raw[b][i,j] = tanh(rho_z_tau_betas_raw[b][rho_idx]);
+  //       // Corr_tau_betas_raw[b][j,i] = tanh(rho_z_tau_betas_raw[b][rho_idx]);
+  //       //local
+  //       Corr_betas_z[b][i,j] = tanh(rho_z_betas_z[b][rho_idx]);
+  //       Corr_betas_z[b][j,i] = tanh(rho_z_betas_z[b][rho_idx]);
+  //     }
+  //     rho_idx += 1;
+  //   }
+  // }
 
 //   matrix[n_roi, n_roi] L_Corr_mu_sigma = cholesky_decompose(Corr_mu_sigma_raw);
 //   matrix[n_roi, n_roi] L_Corr_tau_sigma = cholesky_decompose(Corr_tau_sigma_raw);
@@ -503,21 +677,21 @@ model {
 //   matrix[n_roi, n_roi] L_Corr_mu_rho_time_raw = cholesky_decompose(Corr_mu_rho_time_raw);
 //   matrix[n_roi, n_roi] L_Corr_tau_rho_time_raw = cholesky_decompose(Corr_tau_rho_time_raw);
   
-  matrix[n_roi, n_roi] L_Corr_sigma_z = cholesky_decompose(Corr_sigma_z_raw);
-  matrix[n_roi, n_roi] L_Corr_delta_z_raw = cholesky_decompose(Corr_delta_z_raw);
-  matrix[n_roi, n_roi] L_Corr_rho_time_z_raw = cholesky_decompose(Corr_rho_time_z_raw);
+  // matrix[n_roi, n_roi] L_Corr_sigma_z = cholesky_decompose(Corr_sigma_z_raw);
+  // matrix[n_roi, n_roi] L_Corr_delta_z_raw = cholesky_decompose(Corr_delta_z_raw);
+  // matrix[n_roi, n_roi] L_Corr_rho_time_z_raw = cholesky_decompose(Corr_rho_time_z_raw);
   
 //   array[n_beta] matrix[n_roi, n_roi] L_Corr_mu_betas;
 //   array[n_beta] matrix[n_roi, n_roi] L_Corr_tau_betas_raw;
   
-  array[n_beta] matrix[n_roi, n_roi] L_Corr_betas_z;
+  // array[n_beta] matrix[n_roi, n_roi] L_Corr_betas_z;
 
-  for (b in 1:n_beta) {
-    // L_Corr_mu_betas[b] = cholesky_decompose(Corr_mu_betas[b]);
-    // L_Corr_tau_betas_raw[b] = cholesky_decompose(Corr_tau_betas_raw[b]);
+  // for (b in 1:n_beta) {
+  //   // L_Corr_mu_betas[b] = cholesky_decompose(Corr_mu_betas[b]);
+  //   // L_Corr_tau_betas_raw[b] = cholesky_decompose(Corr_tau_betas_raw[b]);
     
-    L_Corr_betas_z[b] = cholesky_decompose(Corr_betas_z[b]);
-  }    
+  //   L_Corr_betas_z[b] = cholesky_decompose(Corr_betas_z[b]);
+  // }    
 
   // The ROI correlational structure is used for better priors
   // shared group parameters
@@ -535,14 +709,14 @@ model {
   // Theta local participant and ROI parameters
   // The noncentered parameterization is used, thus z-scores get sampled, but this is still multilevel
 
-  for(p in 1:n_par){
-    sigma_z[p] ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_sigma_z);
-    delta_z_raw[p] ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_delta_z_raw);
-    rho_time_z_raw[p] ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_rho_time_z_raw);
-    for (b in 1:n_beta) {
-      betas_z[p,b] ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_betas_z[b]);
-    }
-  }
+  // for(p in 1:n_par){
+  //   sigma_z[p] ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_sigma_z);
+  //   delta_z_raw[p] ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_delta_z_raw);
+  //   rho_time_z_raw[p] ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_rho_time_z_raw);
+  //   for (b in 1:n_beta) {
+  //     betas_z[p,b] ~ multi_normal_cholesky(rep_vector(0,n_roi), L_Corr_betas_z[b]);
+  //   }
+  // }
 
 
 

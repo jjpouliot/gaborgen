@@ -14,12 +14,14 @@ known_gaborgen_local_gits <- c(
 known_data_locations <- c(
   '~/research_data/gaborgen/raw_data',
   '/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/raw_data',
-  '/blue/akeil/andrew.farkas/gaborgen24_eeg_fmri/raw_data'
+  '/blue/akeil/andrew.farkas/gaborgen24_eeg_fmri/raw_data',
+  '/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/raw_data'
 )
 
 ## Where the results should be saved
 # Andrew Farkas Mac
-where_results_should_be_saved <- "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/fmri_preprocessed"
+where_results_should_be_saved <- "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/fmri_preprocessed"
+# where_results_should_be_saved <- "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/fmri_preprocessed"
 # where_results_should_be_saved <- "/Users/andrewfarkas/research_data/gaborgen/results"
 # Andrew Farkas hipergator
 # where_results_should_be_saved <- "/blue/akeil/andrew.farkas/gaborgen24_eeg_fmri/results"
@@ -30,7 +32,8 @@ if (!file.exists(where_results_should_be_saved)) {
 
 ## Put the participant ID numbers that you would like to preprocess (eg c(118,119))
 # participants_to_preprocess <- c(101:103,106:130, 135:136)
-participants_to_preprocess <- c(155)
+participants_to_preprocess <- c(101:155)
+participants_to_preprocess <- c(101:103, 105:158)
 
 ## Which days should be processed
 days_to_preprocess <- c(1)
@@ -115,6 +118,10 @@ for (participant_index in 1:length(participants_to_preprocess)) {
 
 
 if (!all(file.exists(participant_directories))) {
+  paste0(
+    "Directories that don't exist: ",
+    participant_directories[!file.exists(participant_directories)]
+  )
   stop('Not all the participant directories exist in the correct format')
 }
 
