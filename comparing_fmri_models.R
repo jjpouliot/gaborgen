@@ -1,17 +1,309 @@
 library(tidyverse)
 library(cmdstanr)
 library(patchwork)
+library(ggridges)
 
 # we recommend running this in a fresh R session or restarting your current session
 # install.packages("cmdstanr", repos = c('https://stan-dev.r-universe.dev', getOption("repos")))
 
 load(
-  "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_HBM.RData"
+  "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_HBM.RData"
 )
 
 cue_color <- c("red1", "green1", "purple1", "blue1", "black")
 
-data_dir <- "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains"
+# data_dir <- "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains"
+data_dir <- "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains"
+
+# first GP model
+model026_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model026_chain_11922182_1.csv"),
+    paste0(data_dir, "/model026_chain_11922182_2.csv"),
+    paste0(data_dir, "/model026_chain_11922182_3.csv"),
+    paste0(data_dir, "/model026_chain_11922182_4.csv"),
+    paste0(data_dir, "/model026_chain_11922182_5.csv")
+  )
+)
+# faster model 26?
+model027_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model027_chain_12183289_1.csv"),
+    paste0(data_dir, "/model027_chain_12183289_2.csv"),
+    paste0(data_dir, "/model027_chain_12183289_3.csv"),
+    paste0(data_dir, "/model027_chain_12183289_5.csv")
+  )
+)
+
+
+model026_fit_meta_data <- model026_fit$metadata()
+
+model026_fit_relevant_parameters <- model026_fit_meta_data$model_params[
+  str_detect(
+    model026_fit_meta_data$model_params,
+    "betas\\["
+    # "betas\\[|lp_"
+  )
+]
+
+model026_fit_relevant_parameters <- model026_fit_meta_data$model_params[
+  !str_detect(
+    model026_fit_meta_data$model_params,
+    "betas\\["
+    # "log_lik|L_|K_"
+  )
+]
+
+model027_fit_meta_data <- model027_fit$metadata()
+
+model027_fit_relevant_parameters <- model027_fit_meta_data$model_params[
+  str_detect(
+    model027_fit_meta_data$model_params,
+    "betas\\["
+    # "betas\\[|lp_"
+  )
+]
+
+model027_fit_relevant_parameters <- model027_fit_meta_data$model_params[
+  !str_detect(
+    model027_fit_meta_data$model_params,
+    "log_lik|L|K|delta_z|betas_motion|betas_z|rho_time_z|theta"
+  )
+]
+
+model026_loo <- model026_fit$loo()
+
+model027_loo <- model027_fit$loo()
+
+loo::loo_compare(
+  model018_loo,
+  model026_loo
+)
+loo::loo_compare(
+  model026_loo,
+  model027_loo
+)
+
+model026_summary <- model026_fit$summary(
+  variables = model026_fit_relevant_parameters
+)
+
+model026_draws <- model026_fit$draws(
+  variables = model026_fit_relevant_parameters,
+  format = "df"
+)
+
+model027_summary <- model027_fit$summary(
+  variables = model027_fit_relevant_parameters
+)
+
+model027_draws <- model027_fit$draws(
+  variables = model027_fit_relevant_parameters,
+  format = "df"
+)
+
+
+start_index <- 1
+stop_index <- 8
+csp_indices <- c(start_index:stop_index)
+start_index <- start_index + 8
+stop_index <- stop_index + 8
+gs1_indices <- c(start_index:stop_index)
+start_index <- start_index + 8
+stop_index <- stop_index + 8
+gs2_indices <- c(start_index:stop_index)
+start_index <- start_index + 8
+stop_index <- stop_index + 8
+gs3_indices <- c(start_index:stop_index)
+start_index <- start_index + 8
+stop_index <- stop_index + 12
+csp_indices <- c(csp_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+gs1_indices <- c(gs1_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+gs2_indices <- c(gs2_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+gs3_indices <- c(gs3_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+csp_indices <- c(csp_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+gs1_indices <- c(gs1_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+gs2_indices <- c(gs2_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+gs3_indices <- c(gs3_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+csp_indices <- c(csp_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+gs1_indices <- c(gs1_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+gs2_indices <- c(gs2_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+gs3_indices <- c(gs3_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 15
+shock_indices <- c(start_index:stop_index)
+
+
+model026_draws_betas_long <- model026_draws %>% # your tibble
+  pivot_longer(
+    cols = matches("^betas\\[\\d+\\]$"), # only the betas[*] columns
+    names_to = "beta_index",
+    values_to = "beta_value",
+    names_pattern = "betas\\[(\\d+)\\]" # capture the digits inside []
+  ) %>%
+  mutate(beta_index = as.integer(beta_index))
+model026_draws_betas_long <- model027_draws %>% # your tibble
+  pivot_longer(
+    cols = matches("^betas\\[\\d+\\]$"), # only the betas[*] columns
+    names_to = "beta_index",
+    values_to = "beta_value",
+    names_pattern = "betas\\[(\\d+)\\]" # capture the digits inside []
+  ) %>%
+  mutate(beta_index = as.integer(beta_index))
+
+beta_key <- data.frame(
+  beta_index = 1:176,
+  trial_per_cue = c(
+    rep(1:8, 4),
+    rep(9:20, 4),
+    rep(21:32, 4),
+    rep(33:44, 4)
+  )
+)
+
+model026_draws_betas_long <- model026_draws_betas_long %>%
+  mutate(
+    cue = case_when(
+      beta_index %in% csp_indices ~ "csp",
+      beta_index %in% gs1_indices ~ "gs1",
+      beta_index %in% gs2_indices ~ "gs2",
+      beta_index %in% gs3_indices ~ "gs3",
+      beta_index %in% shock_indices ~ "shock"
+    )
+  ) %>%
+  mutate(
+    block = case_when(
+      beta_index %in% c(1:32) ~ "habituation",
+      beta_index %in% c(33:80) ~ "acquisition #1",
+      beta_index %in% c(81:128) ~ "acquisition #2",
+      beta_index %in% c(129:176) ~ "extinction"
+    )
+  )
+
+model026_draws_betas_long <- merge(
+  x = model026_draws_betas_long,
+  y = beta_key,
+  by.x = "beta_index",
+  by.y = "beta_index",
+  all.x = T
+)
+
+
+model026_draws_betas_long %>%
+  filter(cue != "shock") %>%
+  group_by(
+    trial_per_cue,
+    cue,
+    beta_index
+  ) %>%
+  summarise(
+    median_posterior = median(beta_value),
+    lower_2_5 = quantile(beta_value, .3),
+    lower_97_5 = quantile(beta_value, .7)
+    # lower_2_5 = quantile(beta_value, .5+.341),
+    # lower_97_5 = quantile(beta_value, .5-.341)
+  ) %>%
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 8) +
+  geom_vline(xintercept = 8 + 12) +
+  geom_vline(xintercept = 8 + 12 + 12) +
+  geom_ribbon(
+    aes(
+      x = trial_per_cue,
+      y = median_posterior,
+      ymin = lower_2_5,
+      ymax = lower_97_5,
+      fill = cue
+    ),
+    linewidth = .5,
+    color = NA,
+    alpha = .5
+  ) +
+  scale_fill_manual(values = cue_color) +
+  ggtitle("Change in Left Anterior Insula Over Trials (N =24)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+
+model026_draws_betas_long %>%
+  filter(beta_index %in% csp_indices) %>%
+  mutate(beta_index = factor(beta_index, levels = unique(beta_index))) %>%
+  ggplot() +
+  geom_density(aes(x = beta_value))
+
+model026_draws_betas_long %>%
+  filter(beta_index %in% csp_indices) %>%
+  mutate(beta_index = factor(beta_index, levels = unique(beta_index))) %>%
+  ggplot() +
+  geom_vline(aes(xintercept = 0)) +
+  geom_density_ridges(aes(x = beta_value, y = beta_index)) +
+  coord_cartesian(xlim = c(-.2, .4)) +
+  theme_bw() +
+  ggtitle("Full CS+ Posteriors (N=24") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+model026_draws_betas_long %>%
+  filter(beta_index %in% gs1_indices) %>%
+  mutate(beta_index = factor(beta_index, levels = unique(beta_index))) %>%
+  ggplot() +
+  geom_vline(aes(xintercept = 0)) +
+  geom_density_ridges(aes(x = beta_value, y = beta_index)) +
+  # coord_cartesian(xlim = c(-.2, .4)) +
+  theme_bw() +
+  ggtitle("Full GS1 Posteriors (N=24") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+model026_draws_betas_long %>%
+  filter(beta_index %in% gs2_indices) %>%
+  mutate(beta_index = factor(beta_index, levels = unique(beta_index))) %>%
+  ggplot() +
+  geom_vline(aes(xintercept = 0)) +
+  geom_density_ridges(aes(x = beta_value, y = beta_index)) +
+  theme_bw()
+
+model026_draws_betas_long %>%
+  filter(beta_index %in% gs3_indices) %>%
+  mutate(beta_index = factor(beta_index, levels = unique(beta_index))) %>%
+  ggplot() +
+  geom_vline(aes(xintercept = 0)) +
+  geom_density_ridges(aes(x = beta_value, y = beta_index)) +
+  theme_bw()
+
+
+model026_draws_betas_long %>%
+  filter(beta_index %in% shock_indices) %>%
+  mutate(beta_index = factor(beta_index, levels = unique(beta_index))) %>%
+  ggplot() +
+  geom_vline(aes(xintercept = 0)) +
+  geom_density_ridges(aes(x = beta_value, y = beta_index)) +
+  theme_bw() +
+  ggtitle("Shock Posteriors (N=24)") +
+  theme(text = element_text(family = "Arial", size = 20))
 
 
 ## work that goes into tech report manuscript

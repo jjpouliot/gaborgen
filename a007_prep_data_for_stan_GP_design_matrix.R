@@ -489,7 +489,9 @@ where_to_save_chains <- '/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMR
 # model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model018.stan'
 # model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model018_no_ML.stan'
 # model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model025.stan'
-model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model026.stan'
+# model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model026.stan'
+# model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model027.stan'
+model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model028.stan'
 
 # Fit models
 model <- cmdstanr::cmdstan_model(
@@ -533,7 +535,7 @@ model_fit <- model$sample(
   data = fmri_stan_list,
   refresh = 50,
   seed = 3,
-  threads_per_chain = 20,
+  threads_per_chain = 16,
   init = .1,
   iter_warmup = warmup_samples_per_chain,
   iter_sampling = posterior_samples_per_chain,
