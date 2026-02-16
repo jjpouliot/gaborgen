@@ -6,14 +6,1254 @@ library(ggridges)
 # we recommend running this in a fresh R session or restarting your current session
 # install.packages("cmdstanr", repos = c('https://stan-dev.r-universe.dev', getOption("repos")))
 
-load(
-  "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_HBM.RData"
-)
+# load(
+#   "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_HBM.RData"
+# )
+# load(
+#   "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_HBM.RData"
+# )
 
 cue_color <- c("red1", "green1", "purple1", "blue1", "black")
 
 # data_dir <- "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains"
 data_dir <- "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains"
+
+# 41 participants
+
+#left right anterior insula rois: 68, 69, 73, 248, 249, 253
+
+# Model 35: For overlapping CS+/US just uses shock coefficent no CS+ cue there
+# The model actually still estimates that CS+ betas that are paired, but those
+# betas don't get used for prediction. They the get created from the ML-structure
+# based on the correlation of trial unpaired around them.
+
+model35_V5_fit <- as_cmdstan_fit(
+  files = c(
+    # paste0(data_dir, "/model035_V5_chain_14588605_1.csv")
+    paste0(data_dir, "/model035_V5_chain_14599422_1.csv")
+  )
+)
+
+model35_V1_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model035_V1_chain_14588657_1.csv")
+  )
+)
+
+model35_AntIns_fit <- as_cmdstan_fit(
+  files = c(
+    # paste0(data_dir, "/model035_V5_chain_14588605_1.csv")
+    paste0(data_dir, "/model035_AntIns_chain_14598819_1.csv")
+  )
+)
+
+
+# Model 30: tries to deconvolve overlapping CS+ and US
+model30_V1_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model030V1_chain_14415120_1.csv")
+  )
+)
+
+model30_V4_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model030V4_chain_14448457_1.csv")
+  )
+)
+
+model30_V5_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model030V5_chain_14415685_1.csv")
+  )
+)
+
+model30_V6_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model030V6_chain_14448485_1.csv")
+  )
+)
+
+model30_TE_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model030TE_chain_14448524_1.csv")
+  )
+)
+
+model30_TPJ_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model030TPJ_chain_14448526_1.csv")
+  )
+)
+
+model30_HIP_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model030HIP_chain_14448581_1.csv")
+  )
+)
+
+model30_amyg_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model030amyg_chain_14428904_1.csv")
+  )
+)
+
+model30_NA_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model030NA_chain_14448709_1.csv")
+  )
+)
+
+model30_ant_ins_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model030_chain_14414680_1.csv")
+  )
+)
+
+model30_ACC_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model030ACC_chain_14448724_1.csv")
+  )
+)
+
+model30_ORB_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model030ORB_chain_14448730_1.csv")
+  )
+)
+
+prepare_data_and_plot_cue_per_trial <- function(model_fit, ROI_name_string) {
+  model_fit_meta_data <- model_fit$metadata()
+  model_fit_beta_parameters <- model_fit_meta_data$model_params[
+    str_detect(
+      model_fit_meta_data$model_params,
+      "betas\\["
+      # "log_lik|L_|K_"
+    )
+  ]
+
+  model_fit_beta_draws <- model_fit$draws(
+    variables = model_fit_beta_parameters,
+    format = "df"
+  )
+
+  start_index <- 1
+  stop_index <- 8
+  csp_indices <- c(start_index:stop_index)
+  start_index <- start_index + 8
+  stop_index <- stop_index + 8
+  gs1_indices <- c(start_index:stop_index)
+  start_index <- start_index + 8
+  stop_index <- stop_index + 8
+  gs2_indices <- c(start_index:stop_index)
+  start_index <- start_index + 8
+  stop_index <- stop_index + 8
+  gs3_indices <- c(start_index:stop_index)
+  start_index <- start_index + 8
+  stop_index <- stop_index + 12
+  csp_indices <- c(csp_indices, start_index:stop_index)
+  start_index <- start_index + 12
+  stop_index <- stop_index + 12
+  gs1_indices <- c(gs1_indices, start_index:stop_index)
+  start_index <- start_index + 12
+  stop_index <- stop_index + 12
+  gs2_indices <- c(gs2_indices, start_index:stop_index)
+  start_index <- start_index + 12
+  stop_index <- stop_index + 12
+  gs3_indices <- c(gs3_indices, start_index:stop_index)
+  start_index <- start_index + 12
+  stop_index <- stop_index + 12
+  csp_indices <- c(csp_indices, start_index:stop_index)
+  start_index <- start_index + 12
+  stop_index <- stop_index + 12
+  gs1_indices <- c(gs1_indices, start_index:stop_index)
+  start_index <- start_index + 12
+  stop_index <- stop_index + 12
+  gs2_indices <- c(gs2_indices, start_index:stop_index)
+  start_index <- start_index + 12
+  stop_index <- stop_index + 12
+  gs3_indices <- c(gs3_indices, start_index:stop_index)
+  start_index <- start_index + 12
+  stop_index <- stop_index + 12
+  csp_indices <- c(csp_indices, start_index:stop_index)
+  start_index <- start_index + 12
+  stop_index <- stop_index + 12
+  gs1_indices <- c(gs1_indices, start_index:stop_index)
+  start_index <- start_index + 12
+  stop_index <- stop_index + 12
+  gs2_indices <- c(gs2_indices, start_index:stop_index)
+  start_index <- start_index + 12
+  stop_index <- stop_index + 12
+  gs3_indices <- c(gs3_indices, start_index:stop_index)
+  start_index <- start_index + 12
+  stop_index <- stop_index + 15
+  shock_indices <- c(start_index:stop_index)
+
+  beta_key <- data.frame(
+    beta_index = 1:176,
+    trial_per_cue = c(
+      rep(1:8, 4),
+      rep(9:20, 4),
+      rep(21:32, 4),
+      rep(33:44, 4)
+    )
+  )
+
+  model_fit_beta_draws_long <- model_fit_beta_draws %>%
+    pivot_longer(
+      cols = starts_with("betas["),
+      names_to = c(".unused", "roi", "trial_index"),
+      names_sep = "\\[|,|\\]",
+      values_to = "beta_value"
+    ) %>%
+    select(-.unused) %>%
+    mutate(
+      roi = as.integer(roi),
+      trial_index = as.integer(trial_index)
+    ) %>%
+    mutate(
+      cue = case_when(
+        trial_index %in% csp_indices ~ "csp",
+        trial_index %in% gs1_indices ~ "gs1",
+        trial_index %in% gs2_indices ~ "gs2",
+        trial_index %in% gs3_indices ~ "gs3",
+        trial_index %in% shock_indices ~ "shock"
+      )
+    ) %>%
+    mutate(
+      block = case_when(
+        trial_index %in% c(1:32) ~ "habituation",
+        trial_index %in% c(33:80) ~ "acquisition #1",
+        trial_index %in% c(81:128) ~ "acquisition #2",
+        trial_index %in% c(129:176) ~ "extinction"
+      )
+    ) %>%
+    mutate(
+      side = case_when(
+        roi == 1 ~ "left",
+        roi == 2 ~ "right"
+      )
+    )
+
+  model_fit_beta_draws_long <- merge(
+    x = model_fit_beta_draws_long,
+    y = beta_key,
+    by.x = "trial_index",
+    by.y = "beta_index",
+    all.x = T
+  )
+
+  lower_bound <- .17
+  upper_bound <- .83
+
+  left_roi_plot <- model_fit_beta_draws_long %>%
+    filter(cue != "shock", side == "left") %>%
+    group_by(
+      trial_per_cue,
+      cue,
+      trial_index
+    ) %>%
+    reframe(
+      median_posterior = median(beta_value),
+      lower_2_5 = quantile(beta_value, lower_bound),
+      lower_97_5 = quantile(beta_value, upper_bound)
+      # lower_2_5 = quantile(beta_value, .1),
+      # lower_97_5 = quantile(beta_value, .9)
+    ) %>%
+    ggplot() +
+    geom_hline(yintercept = 0) +
+    geom_vline(xintercept = 8) +
+    geom_vline(xintercept = 8 + 12) +
+    geom_vline(xintercept = 8 + 12 + 12) +
+    geom_ribbon(
+      aes(
+        x = trial_per_cue,
+        y = median_posterior,
+        ymin = lower_2_5,
+        ymax = lower_97_5,
+        fill = cue
+      ),
+      linewidth = .5,
+      color = NA,
+      alpha = .5
+    ) +
+    scale_fill_manual(values = cue_color) +
+    ggtitle(paste0("Change in left ", ROI_name_string, " Over Trials")) +
+    theme_bw() +
+    theme(text = element_text(family = "Arial", size = 20))
+
+  right_roi_plot <- model_fit_beta_draws_long %>%
+    filter(cue != "shock", side == "right") %>%
+    group_by(
+      trial_per_cue,
+      cue,
+      trial_index
+    ) %>%
+    reframe(
+      median_posterior = median(beta_value),
+      lower_2_5 = quantile(beta_value, lower_bound),
+      lower_97_5 = quantile(beta_value, upper_bound)
+      # lower_2_5 = quantile(beta_value, .1),
+      # lower_97_5 = quantile(beta_value, .9)
+    ) %>%
+    ggplot() +
+    geom_hline(yintercept = 0) +
+    geom_vline(xintercept = 8) +
+    geom_vline(xintercept = 8 + 12) +
+    geom_vline(xintercept = 8 + 12 + 12) +
+    geom_ribbon(
+      aes(
+        x = trial_per_cue,
+        y = median_posterior,
+        ymin = lower_2_5,
+        ymax = lower_97_5,
+        fill = cue
+      ),
+      linewidth = .5,
+      color = NA,
+      alpha = .5
+    ) +
+    scale_fill_manual(values = cue_color) +
+    ggtitle(paste0("Change in right ", ROI_name_string, " Over Trials")) +
+    theme_bw() +
+    theme(text = element_text(family = "Arial", size = 20))
+
+  avg_roi_plot <- model_fit_beta_draws_long %>%
+    filter(
+      cue != "shock",
+    ) %>%
+    group_by(.draw, cue, trial_per_cue) %>%
+    reframe(
+      avg_roi_draw = mean(beta_value)
+    ) %>%
+    group_by(cue, trial_per_cue) %>%
+    reframe(
+      median_posterior = median(avg_roi_draw),
+      lower_2_5 = quantile(avg_roi_draw, lower_bound),
+      lower_97_5 = quantile(avg_roi_draw, upper_bound)
+      # lower_2_5 = quantile(beta_value, .1),
+      # lower_97_5 = quantile(beta_value, .9)
+    ) %>%
+    ggplot() +
+    geom_hline(yintercept = 0) +
+    geom_vline(xintercept = 8) +
+    geom_vline(xintercept = 8 + 12) +
+    geom_vline(xintercept = 8 + 12 + 12) +
+    geom_ribbon(
+      aes(
+        x = trial_per_cue,
+        y = median_posterior,
+        ymin = lower_2_5,
+        ymax = lower_97_5,
+        fill = cue
+      ),
+      linewidth = .5,
+      color = NA,
+      alpha = .5
+    ) +
+    scale_fill_manual(values = cue_color) +
+    ggtitle(paste0("Change in average ", ROI_name_string, " Over Trials")) +
+    theme_bw() +
+    theme(text = element_text(family = "Arial", size = 20))
+
+  shock_posteriors_plot <- model_fit_beta_draws_long %>%
+    filter(
+      cue == "shock",
+      trial_index %in% shock_indices
+    ) %>%
+    group_by(.draw, trial_index) %>%
+    mutate(
+      avg_roi_draw = mean(beta_value),
+      trial_index = factor(trial_index, levels = unique(trial_index))
+    ) %>%
+    ggplot() +
+    geom_vline(aes(xintercept = 0)) +
+    geom_density_ridges(aes(x = avg_roi_draw, y = trial_index)) +
+    # coord_cartesian(xlim = c(-.2, .4)) +
+    theme_bw() +
+    ggtitle("Bold Change to Shocks") +
+    theme_bw() +
+    theme(text = element_text(family = "Arial", size = 20))
+
+  ((left_roi_plot / right_roi_plot / avg_roi_plot) | shock_posteriors_plot) +
+    patchwork::plot_annotation(
+      title = paste0(ROI_name_string, " (N = 41)"),
+      theme = theme(plot.title = element_text(face = "bold", size = 30))
+    )
+}
+
+
+prepare_data_and_plot_cue_per_trial(model30_V1_fit, "Primary Visual 1")
+
+prepare_data_and_plot_cue_per_trial(model35_V1_fit, "Primary Visual 1")
+
+prepare_data_and_plot_cue_per_trial(model30_V4_fit, "Visual 4")
+
+prepare_data_and_plot_cue_per_trial(model30_V5_fit, "V5/MT")
+
+prepare_data_and_plot_cue_per_trial(model35_V5_fit, "V5/MT")
+
+prepare_data_and_plot_cue_per_trial(model30_V6_fit, "Visual 6")
+
+prepare_data_and_plot_cue_per_trial(model30_TE_fit, "Temporal (TE)")
+
+prepare_data_and_plot_cue_per_trial(
+  model30_TPJ_fit,
+  "Temporal Parietal Junction"
+)
+
+prepare_data_and_plot_cue_per_trial(model30_HIP_fit, "Hippocampus")
+
+prepare_data_and_plot_cue_per_trial(model30_amyg_fit, "Amygdala")
+
+prepare_data_and_plot_cue_per_trial(model30_NA_fit, "Nucleus Accumbens")
+
+prepare_data_and_plot_cue_per_trial(model30_ant_ins_fit, "Anterior Insula")
+
+prepare_data_and_plot_cue_per_trial(model35_AntIns_fit, "Anterior Insula")
+
+prepare_data_and_plot_cue_per_trial(model30_NA_fit, "Anterior Cingulate")
+
+prepare_data_and_plot_cue_per_trial(model30_ORB_fit, "Orbital")
+
+
+model30_ant_ins_fit_meta_data <- model30_ant_ins_fit$metadata()
+
+model30_ant_ins_fit_relevant_parameters <- model30_ant_ins_fit_meta_data$model_params[
+  !str_detect(
+    model30_ant_ins_fit_meta_data$model_params,
+    "log_lik|L|K|delta_z|betas_motion|betas_z|rho_time_z|theta|sigma_z|sigma\\[|delta\\[|rho_time|raw"
+  )
+]
+
+model30_ant_ins_summary <- model30_ant_ins_fit$summary(
+  variables = model30_ant_ins_fit_relevant_parameters
+)
+
+model30_ant_ins_draws <- model30_ant_ins_fit$draws(
+  variables = model30_ant_ins_fit_relevant_parameters,
+  format = "df"
+)
+
+model30_ant_ins_beta_parameters <- model30_ant_ins_fit_meta_data$model_params[
+  str_detect(
+    model30_ant_ins_fit_meta_data$model_params,
+    "betas\\["
+    # "log_lik|L_|K_"
+  )
+]
+
+model30_ant_ins_beta_draws <- model30_ant_ins_fit$draws(
+  variables = model30_ant_ins_beta_parameters,
+  format = "df"
+)
+
+model30_V5_fit_meta_data <- model30_V5_fit$metadata()
+
+model30_V5_fit_relevant_parameters <- model30_V5_fit_meta_data$model_params[
+  !str_detect(
+    model30_V5_fit_meta_data$model_params,
+    "log_lik|L|K|delta_z|betas_motion|betas_z|rho_time_z|theta|sigma_z|sigma\\[|delta\\[|rho_time|raw"
+  )
+]
+
+model30_V5_summary <- model30_V5_fit$summary(
+  variables = model30_V5_fit_relevant_parameters
+)
+
+model30_V5_draws <- model30_V5_fit$draws(
+  variables = model30_V5_fit_relevant_parameters,
+  format = "df"
+)
+
+model30_V5_beta_parameters <- model30_V5_fit_meta_data$model_params[
+  str_detect(
+    model30_V5_fit_meta_data$model_params,
+    "betas\\["
+    # "log_lik|L_|K_"
+  )
+]
+
+model30_V5_beta_draws <- model30_V5_fit$draws(
+  variables = model30_V5_beta_parameters,
+  format = "df"
+)
+
+
+model30_amyg_fit_meta_data <- model30_amyg_fit$metadata()
+
+model30_amyg_fit_relevant_parameters <- model30_amyg_fit_meta_data$model_params[
+  !str_detect(
+    model30_amyg_fit_meta_data$model_params,
+    "log_lik|L|K|delta_z|betas_motion|betas_z|rho_time_z|theta|sigma_z|sigma\\[|delta\\[|rho_time|raw"
+  )
+]
+
+model30_amyg_summary <- model30_amyg_fit$summary(
+  variables = model30_amyg_fit_relevant_parameters
+)
+
+model30_amyg_draws <- model30_amyg_fit$draws(
+  variables = model30_amyg_fit_relevant_parameters,
+  format = "df"
+)
+
+model30_amyg_beta_parameters <- model30_amyg_fit_meta_data$model_params[
+  str_detect(
+    model30_amyg_fit_meta_data$model_params,
+    "betas\\["
+    # "log_lik|L_|K_"
+  )
+]
+
+model30_amyg_beta_draws <- model30_amyg_fit$draws(
+  variables = model30_amyg_beta_parameters,
+  format = "df"
+)
+
+
+start_index <- 1
+stop_index <- 8
+csp_indices <- c(start_index:stop_index)
+start_index <- start_index + 8
+stop_index <- stop_index + 8
+gs1_indices <- c(start_index:stop_index)
+start_index <- start_index + 8
+stop_index <- stop_index + 8
+gs2_indices <- c(start_index:stop_index)
+start_index <- start_index + 8
+stop_index <- stop_index + 8
+gs3_indices <- c(start_index:stop_index)
+start_index <- start_index + 8
+stop_index <- stop_index + 12
+csp_indices <- c(csp_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+gs1_indices <- c(gs1_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+gs2_indices <- c(gs2_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+gs3_indices <- c(gs3_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+csp_indices <- c(csp_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+gs1_indices <- c(gs1_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+gs2_indices <- c(gs2_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+gs3_indices <- c(gs3_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+csp_indices <- c(csp_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+gs1_indices <- c(gs1_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+gs2_indices <- c(gs2_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 12
+gs3_indices <- c(gs3_indices, start_index:stop_index)
+start_index <- start_index + 12
+stop_index <- stop_index + 15
+shock_indices <- c(start_index:stop_index)
+
+
+beta_key <- data.frame(
+  beta_index = 1:176,
+  trial_per_cue = c(
+    rep(1:8, 4),
+    rep(9:20, 4),
+    rep(21:32, 4),
+    rep(33:44, 4)
+  )
+)
+
+
+model30_ant_ins_beta_draws_long <- model30_ant_ins_beta_draws %>% # your tibble
+  pivot_longer(
+    cols = starts_with("betas["),
+    names_to = c(".unused", "roi", "trial_index"),
+    names_sep = "\\[|,|\\]",
+    values_to = "beta_value"
+  ) %>%
+  select(-.unused) %>%
+  mutate(
+    roi = as.integer(roi),
+    trial_index = as.integer(trial_index)
+  ) %>%
+  mutate(
+    cue = case_when(
+      trial_index %in% csp_indices ~ "csp",
+      trial_index %in% gs1_indices ~ "gs1",
+      trial_index %in% gs2_indices ~ "gs2",
+      trial_index %in% gs3_indices ~ "gs3",
+      trial_index %in% shock_indices ~ "shock"
+    )
+  ) %>%
+  mutate(
+    block = case_when(
+      trial_index %in% c(1:32) ~ "habituation",
+      trial_index %in% c(33:80) ~ "acquisition #1",
+      trial_index %in% c(81:128) ~ "acquisition #2",
+      trial_index %in% c(129:176) ~ "extinction"
+    )
+  ) %>%
+  mutate(
+    side = case_when(
+      roi == 1 ~ "left",
+      roi == 2 ~ "right"
+    )
+  )
+
+model30_ant_ins_beta_draws_long <- merge(
+  x = model30_ant_ins_beta_draws_long,
+  y = beta_key,
+  by.x = "trial_index",
+  by.y = "beta_index",
+  all.x = T
+)
+
+lower_bound <- .2
+upper_bound <- .8
+
+model30_ant_ins_beta_draws_long %>%
+  filter(cue != "shock", side == "left") %>%
+  group_by(
+    trial_per_cue,
+    cue,
+    trial_index
+  ) %>%
+  reframe(
+    median_posterior = median(beta_value),
+    lower_2_5 = quantile(beta_value, lower_bound),
+    lower_97_5 = quantile(beta_value, upper_bound)
+    # lower_2_5 = quantile(beta_value, .1),
+    # lower_97_5 = quantile(beta_value, .9)
+  ) %>%
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 8) +
+  geom_vline(xintercept = 8 + 12) +
+  geom_vline(xintercept = 8 + 12 + 12) +
+  geom_ribbon(
+    aes(
+      x = trial_per_cue,
+      y = median_posterior,
+      ymin = lower_2_5,
+      ymax = lower_97_5,
+      fill = cue
+    ),
+    linewidth = .5,
+    color = NA,
+    alpha = .5
+  ) +
+  scale_fill_manual(values = cue_color) +
+  ggtitle("Change in Left Anterior Insula Over Trials (N =41)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+model30_ant_ins_beta_draws_long %>%
+  filter(cue != "shock", side == "right") %>%
+  group_by(
+    trial_per_cue,
+    cue,
+    trial_index
+  ) %>%
+  reframe(
+    median_posterior = median(beta_value),
+    lower_2_5 = quantile(beta_value, lower_bound),
+    lower_97_5 = quantile(beta_value, upper_bound)
+    # lower_2_5 = quantile(beta_value, .1),
+    # lower_97_5 = quantile(beta_value, .9)
+  ) %>%
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 8) +
+  geom_vline(xintercept = 8 + 12) +
+  geom_vline(xintercept = 8 + 12 + 12) +
+  geom_ribbon(
+    aes(
+      x = trial_per_cue,
+      y = median_posterior,
+      ymin = lower_2_5,
+      ymax = lower_97_5,
+      fill = cue
+    ),
+    linewidth = .5,
+    color = NA,
+    alpha = .5
+  ) +
+  scale_fill_manual(values = cue_color) +
+  ggtitle("Change in Right Anterior Insula Over Trials (N =41)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+model30_ant_ins_beta_draws_long %>%
+  filter(
+    cue != "shock",
+  ) %>%
+  group_by(.draw, cue, trial_per_cue) %>%
+  reframe(
+    avg_roi_draw = mean(beta_value)
+  ) %>%
+  group_by(cue, trial_per_cue) %>%
+  reframe(
+    median_posterior = median(avg_roi_draw),
+    lower_2_5 = quantile(avg_roi_draw, lower_bound),
+    lower_97_5 = quantile(avg_roi_draw, upper_bound)
+    # lower_2_5 = quantile(beta_value, .1),
+    # lower_97_5 = quantile(beta_value, .9)
+  ) %>%
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 8) +
+  geom_vline(xintercept = 8 + 12) +
+  geom_vline(xintercept = 8 + 12 + 12) +
+  geom_ribbon(
+    aes(
+      x = trial_per_cue,
+      y = median_posterior,
+      ymin = lower_2_5,
+      ymax = lower_97_5,
+      fill = cue
+    ),
+    linewidth = .5,
+    color = NA,
+    alpha = .5
+  ) +
+  scale_fill_manual(values = cue_color) +
+  ggtitle("Change in Anterior Insula Over Trials (N =41)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+
+model30_ant_ins_beta_draws_long %>%
+  filter(cue != "shock", side == "left") %>%
+  filter(trial_index %in% csp_indices) %>%
+  mutate(
+    trial_per_cue = factor(trial_per_cue, levels = unique(trial_per_cue))
+  ) %>%
+  ggplot() +
+  geom_vline(aes(xintercept = 0)) +
+  geom_density_ridges(aes(x = beta_value, y = trial_per_cue)) +
+  # coord_cartesian(xlim = c(-.2, .4)) +
+  theme_bw() +
+  ggtitle("Full CS+ Posteriors (N=41)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+
+# V5
+model30_V5_beta_draws_long <- model30_V5_beta_draws %>% # your tibble
+  pivot_longer(
+    cols = starts_with("betas["),
+    names_to = c(".unused", "roi", "trial_index"),
+    names_sep = "\\[|,|\\]",
+    values_to = "beta_value"
+  ) %>%
+  select(-.unused) %>%
+  mutate(
+    roi = as.integer(roi),
+    trial_index = as.integer(trial_index)
+  ) %>%
+  mutate(
+    cue = case_when(
+      trial_index %in% csp_indices ~ "csp",
+      trial_index %in% gs1_indices ~ "gs1",
+      trial_index %in% gs2_indices ~ "gs2",
+      trial_index %in% gs3_indices ~ "gs3",
+      trial_index %in% shock_indices ~ "shock"
+    )
+  ) %>%
+  mutate(
+    block = case_when(
+      trial_index %in% c(1:32) ~ "habituation",
+      trial_index %in% c(33:80) ~ "acquisition #1",
+      trial_index %in% c(81:128) ~ "acquisition #2",
+      trial_index %in% c(129:176) ~ "extinction"
+    )
+  ) %>%
+  mutate(
+    side = case_when(
+      roi == 1 ~ "left",
+      roi == 2 ~ "right"
+    )
+  )
+
+model30_V5_beta_draws_long <- merge(
+  x = model30_V5_beta_draws_long,
+  y = beta_key,
+  by.x = "trial_index",
+  by.y = "beta_index",
+  all.x = T
+)
+
+lower_bound <- .2
+upper_bound <- .8
+
+model30_V5_beta_draws_long %>%
+  filter(cue != "shock", side == "left") %>%
+  group_by(
+    trial_per_cue,
+    cue,
+    trial_index
+  ) %>%
+  reframe(
+    median_posterior = median(beta_value),
+    lower_2_5 = quantile(beta_value, lower_bound),
+    lower_97_5 = quantile(beta_value, upper_bound)
+    # lower_2_5 = quantile(beta_value, .1),
+    # lower_97_5 = quantile(beta_value, .9)
+  ) %>%
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 8) +
+  geom_vline(xintercept = 8 + 12) +
+  geom_vline(xintercept = 8 + 12 + 12) +
+  geom_ribbon(
+    aes(
+      x = trial_per_cue,
+      y = median_posterior,
+      ymin = lower_2_5,
+      ymax = lower_97_5,
+      fill = cue
+    ),
+    linewidth = .5,
+    color = NA,
+    alpha = .5
+  ) +
+  scale_fill_manual(values = cue_color) +
+  ggtitle("Change in Left Anterior Insula Over Trials (N =41)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+model30_V5_beta_draws_long %>%
+  filter(cue != "shock", side == "right") %>%
+  group_by(
+    trial_per_cue,
+    cue,
+    trial_index
+  ) %>%
+  reframe(
+    median_posterior = median(beta_value),
+    lower_2_5 = quantile(beta_value, lower_bound),
+    lower_97_5 = quantile(beta_value, upper_bound)
+    # lower_2_5 = quantile(beta_value, .1),
+    # lower_97_5 = quantile(beta_value, .9)
+  ) %>%
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 8) +
+  geom_vline(xintercept = 8 + 12) +
+  geom_vline(xintercept = 8 + 12 + 12) +
+  geom_ribbon(
+    aes(
+      x = trial_per_cue,
+      y = median_posterior,
+      ymin = lower_2_5,
+      ymax = lower_97_5,
+      fill = cue
+    ),
+    linewidth = .5,
+    color = NA,
+    alpha = .5
+  ) +
+  scale_fill_manual(values = cue_color) +
+  ggtitle("Change in Right Anterior Insula Over Trials (N =41)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+model30_V5_beta_draws_long %>%
+  filter(
+    cue != "shock",
+  ) %>%
+  group_by(.draw, cue, trial_per_cue) %>%
+  reframe(
+    avg_roi_draw = mean(beta_value)
+  ) %>%
+  group_by(cue, trial_per_cue) %>%
+  reframe(
+    median_posterior = median(avg_roi_draw),
+    lower_2_5 = quantile(avg_roi_draw, lower_bound),
+    lower_97_5 = quantile(avg_roi_draw, upper_bound)
+    # lower_2_5 = quantile(beta_value, .1),
+    # lower_97_5 = quantile(beta_value, .9)
+  ) %>%
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 8) +
+  geom_vline(xintercept = 8 + 12) +
+  geom_vline(xintercept = 8 + 12 + 12) +
+  geom_ribbon(
+    aes(
+      x = trial_per_cue,
+      y = median_posterior,
+      ymin = lower_2_5,
+      ymax = lower_97_5,
+      fill = cue
+    ),
+    linewidth = .5,
+    color = NA,
+    alpha = .5
+  ) +
+  scale_fill_manual(values = cue_color) +
+  ggtitle("Change in Bilateral V5 Over Trials (N =41)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+
+model30_ant_ins_beta_draws_long %>%
+  filter(cue != "shock", side == "left") %>%
+  filter(trial_index %in% csp_indices) %>%
+  mutate(
+    trial_per_cue = factor(trial_per_cue, levels = unique(trial_per_cue))
+  ) %>%
+  ggplot() +
+  geom_vline(aes(xintercept = 0)) +
+  geom_density_ridges(aes(x = beta_value, y = trial_per_cue)) +
+  # coord_cartesian(xlim = c(-.2, .4)) +
+  theme_bw() +
+  ggtitle("Full CS+ Posteriors (N=41)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+
+# amyg
+model30_amyg_beta_draws_long <- model30_amyg_beta_draws %>% # your tibble
+  pivot_longer(
+    cols = starts_with("betas["),
+    names_to = c(".unused", "roi", "trial_index"),
+    names_sep = "\\[|,|\\]",
+    values_to = "beta_value"
+  ) %>%
+  select(-.unused) %>%
+  mutate(
+    roi = as.integer(roi),
+    trial_index = as.integer(trial_index)
+  ) %>%
+  mutate(
+    cue = case_when(
+      trial_index %in% csp_indices ~ "csp",
+      trial_index %in% gs1_indices ~ "gs1",
+      trial_index %in% gs2_indices ~ "gs2",
+      trial_index %in% gs3_indices ~ "gs3",
+      trial_index %in% shock_indices ~ "shock"
+    )
+  ) %>%
+  mutate(
+    block = case_when(
+      trial_index %in% c(1:32) ~ "habituation",
+      trial_index %in% c(33:80) ~ "acquisition #1",
+      trial_index %in% c(81:128) ~ "acquisition #2",
+      trial_index %in% c(129:176) ~ "extinction"
+    )
+  ) %>%
+  mutate(
+    side = case_when(
+      roi == 1 ~ "left",
+      roi == 2 ~ "right"
+    )
+  )
+
+model30_amyg_beta_draws_long <- merge(
+  x = model30_amyg_beta_draws_long,
+  y = beta_key,
+  by.x = "trial_index",
+  by.y = "beta_index",
+  all.x = T
+)
+
+lower_bound <- .2
+upper_bound <- .8
+
+model30_amyg_beta_draws_long %>%
+  filter(cue != "shock", side == "left") %>%
+  group_by(
+    trial_per_cue,
+    cue,
+    trial_index
+  ) %>%
+  reframe(
+    median_posterior = median(beta_value),
+    lower_2_5 = quantile(beta_value, lower_bound),
+    lower_97_5 = quantile(beta_value, upper_bound)
+    # lower_2_5 = quantile(beta_value, .1),
+    # lower_97_5 = quantile(beta_value, .9)
+  ) %>%
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 8) +
+  geom_vline(xintercept = 8 + 12) +
+  geom_vline(xintercept = 8 + 12 + 12) +
+  geom_ribbon(
+    aes(
+      x = trial_per_cue,
+      y = median_posterior,
+      ymin = lower_2_5,
+      ymax = lower_97_5,
+      fill = cue
+    ),
+    linewidth = .5,
+    color = NA,
+    alpha = .5
+  ) +
+  scale_fill_manual(values = cue_color) +
+  ggtitle("Change in Left Anterior Insula Over Trials (N =41)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+model30_amyg_beta_draws_long %>%
+  filter(cue != "shock", side == "right") %>%
+  group_by(
+    trial_per_cue,
+    cue,
+    trial_index
+  ) %>%
+  reframe(
+    median_posterior = median(beta_value),
+    lower_2_5 = quantile(beta_value, lower_bound),
+    lower_97_5 = quantile(beta_value, upper_bound)
+    # lower_2_5 = quantile(beta_value, .1),
+    # lower_97_5 = quantile(beta_value, .9)
+  ) %>%
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 8) +
+  geom_vline(xintercept = 8 + 12) +
+  geom_vline(xintercept = 8 + 12 + 12) +
+  geom_ribbon(
+    aes(
+      x = trial_per_cue,
+      y = median_posterior,
+      ymin = lower_2_5,
+      ymax = lower_97_5,
+      fill = cue
+    ),
+    linewidth = .5,
+    color = NA,
+    alpha = .5
+  ) +
+  scale_fill_manual(values = cue_color) +
+  ggtitle("Change in Right Anterior Insula Over Trials (N =41)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+model30_amyg_beta_draws_long %>%
+  filter(
+    cue != "shock",
+  ) %>%
+  group_by(.draw, cue, trial_per_cue) %>%
+  reframe(
+    avg_roi_draw = mean(beta_value)
+  ) %>%
+  group_by(cue, trial_per_cue) %>%
+  reframe(
+    median_posterior = median(avg_roi_draw),
+    lower_2_5 = quantile(avg_roi_draw, lower_bound),
+    lower_97_5 = quantile(avg_roi_draw, upper_bound)
+    # lower_2_5 = quantile(beta_value, .1),
+    # lower_97_5 = quantile(beta_value, .9)
+  ) %>%
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 8) +
+  geom_vline(xintercept = 8 + 12) +
+  geom_vline(xintercept = 8 + 12 + 12) +
+  geom_ribbon(
+    aes(
+      x = trial_per_cue,
+      y = median_posterior,
+      ymin = lower_2_5,
+      ymax = lower_97_5,
+      fill = cue
+    ),
+    linewidth = .5,
+    color = NA,
+    alpha = .5
+  ) +
+  scale_fill_manual(values = cue_color) +
+  ggtitle("Change in Bilateral amyg Over Trials (N =41)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+
+model30_amyg_beta_draws_long %>%
+  filter(cue != "shock", side == "left") %>%
+  filter(trial_index %in% csp_indices) %>%
+  mutate(
+    trial_per_cue = factor(trial_per_cue, levels = unique(trial_per_cue))
+  ) %>%
+  ggplot() +
+  geom_vline(aes(xintercept = 0)) +
+  geom_density_ridges(aes(x = beta_value, y = trial_per_cue)) +
+  # coord_cartesian(xlim = c(-.2, .4)) +
+  theme_bw() +
+  ggtitle("Full CS+ Posteriors (N=41)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+model30_amyg_beta_draws_long %>%
+  filter(cue != "shock", side == "right") %>%
+  filter(trial_index %in% csp_indices) %>%
+  mutate(
+    trial_per_cue = factor(trial_per_cue, levels = unique(trial_per_cue))
+  ) %>%
+  ggplot() +
+  geom_vline(aes(xintercept = 0)) +
+  geom_density_ridges(aes(x = beta_value, y = trial_per_cue)) +
+  # coord_cartesian(xlim = c(-.2, .4)) +
+  theme_bw() +
+  ggtitle("Full CS+ Posteriors (N=41)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+model30_ant_ins_beta_draws_long %>%
+  filter(cue != "shock", side == "left") %>%
+  filter(trial_index %in% gs1_indices) %>%
+  mutate(
+    trial_per_cue = factor(trial_per_cue, levels = unique(trial_per_cue))
+  ) %>%
+  ggplot() +
+  geom_vline(aes(xintercept = 0)) +
+  geom_density_ridges(aes(x = beta_value, y = trial_per_cue)) +
+  # coord_cartesian(xlim = c(-.2, .4)) +
+  theme_bw() +
+  ggtitle("Full CS+ Posteriors (N=41)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+model30_ant_ins_beta_draws_long %>%
+  filter(cue != "shock", side == "right") %>%
+  filter(trial_index %in% gs1_indices) %>%
+  mutate(
+    trial_per_cue = factor(trial_per_cue, levels = unique(trial_per_cue))
+  ) %>%
+  ggplot() +
+  geom_vline(aes(xintercept = 0)) +
+  geom_density_ridges(aes(x = beta_value, y = trial_per_cue)) +
+  # coord_cartesian(xlim = c(-.2, .4)) +
+  theme_bw() +
+  ggtitle("Full CS+ Posteriors (N=41)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+model30_ant_ins_beta_draws_long %>%
+  filter(cue != "shock") %>%
+  filter(trial_index %in% gs1_indices) %>%
+  mutate(
+    trial_per_cue = factor(trial_per_cue, levels = unique(trial_per_cue))
+  ) %>%
+  group_by(.draw, trial_per_cue) %>%
+  reframe(
+    avg_roi_draw = mean(beta_value)
+  ) %>%
+  ggplot() +
+  geom_vline(aes(xintercept = 0)) +
+  geom_density_ridges(aes(x = avg_roi_draw, y = trial_per_cue)) +
+  # coord_cartesian(xlim = c(-.2, .4)) +
+  theme_bw() +
+  ggtitle("Full CS+ Posteriors (N=41)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+
+model30_ant_ins_beta_draws_long %>%
+  filter(
+    cue == "shock",
+    trial_index %in% shock_indices,
+    side == "left"
+  ) %>%
+  group_by(.draw, trial_index) %>%
+  mutate(
+    avg_roi_draw = mean(beta_value),
+    trial_index = factor(trial_index, levels = unique(trial_index))
+  ) %>%
+  ggplot() +
+  geom_vline(aes(xintercept = 0)) +
+  geom_density_ridges(aes(x = avg_roi_draw, y = trial_index)) +
+  # coord_cartesian(xlim = c(-.2, .4)) +
+  theme_bw() +
+  ggtitle("Full CS+ Posteriors (N=41)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+model30_ant_ins_beta_draws_long %>%
+  filter(
+    cue == "shock",
+    trial_index %in% shock_indices,
+    side == "right"
+  ) %>%
+  group_by(.draw, trial_index) %>%
+  mutate(
+    avg_roi_draw = mean(beta_value),
+    trial_index = factor(trial_index, levels = unique(trial_index))
+  ) %>%
+  ggplot() +
+  geom_vline(aes(xintercept = 0)) +
+  geom_density_ridges(aes(x = avg_roi_draw, y = trial_index)) +
+  # coord_cartesian(xlim = c(-.2, .4)) +
+  theme_bw() +
+  ggtitle("Full CS+ Posteriors (N=41)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+
+model30_ant_ins_beta_draws_long %>%
+  filter(
+    cue == "shock",
+    trial_index %in% shock_indices
+  ) %>%
+  group_by(.draw, trial_index) %>%
+  mutate(
+    avg_roi_draw = mean(beta_value),
+    trial_index = factor(trial_index, levels = unique(trial_index))
+  ) %>%
+  ggplot() +
+  geom_vline(aes(xintercept = 0)) +
+  geom_density_ridges(aes(x = avg_roi_draw, y = trial_index)) +
+  # coord_cartesian(xlim = c(-.2, .4)) +
+  theme_bw() +
+  ggtitle("Full CS+ Posteriors (N=41)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+
+# old
+
+model030_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model030_chain_13938457_1.csv")
+  )
+)
+
+model030_fit_meta_data <- model030_fit$metadata()
+
+model030_fit_relevant_parameters <- model030_fit_meta_data$model_params[
+  !str_detect(
+    model030_fit_meta_data$model_params,
+    "log_lik|L|K|delta_z|betas_motion|betas_z|rho_time_z|theta|sigma_z|sigma\\[|delta\\[|rho_time|raw"
+  )
+]
+
+model030_summary <- model030_fit$summary(
+  variables = model030_fit_relevant_parameters
+)
+
+model030_draws <- model030_fit$draws(
+  variables = model030_fit_relevant_parameters,
+  format = "df"
+)
+
+# used roi key
+used_df %>%
+  group_by(m)
+
 
 # first GP model
 model026_fit <- as_cmdstan_fit(
@@ -35,8 +1275,22 @@ model027_fit <- as_cmdstan_fit(
   )
 )
 
+model028_fit <- as_cmdstan_fit(
+  files = c(
+    paste0(data_dir, "/model028_chain_12509072_1.csv"),
+    paste0(data_dir, "/model028_chain_12509072_2.csv"),
+    paste0(data_dir, "/model028_chain_12509072_3.csv"),
+    paste0(data_dir, "/model028_chain_12509072_4.csv"),
+    paste0(data_dir, "/model028_chain_12509072_5.csv")
+  )
+)
+
 
 model026_fit_meta_data <- model026_fit$metadata()
+
+model027_fit_meta_data <- model027_fit$metadata()
+
+model028_fit_meta_data <- model028_fit$metadata()
 
 model026_fit_relevant_parameters <- model026_fit_meta_data$model_params[
   str_detect(
@@ -54,7 +1308,6 @@ model026_fit_relevant_parameters <- model026_fit_meta_data$model_params[
   )
 ]
 
-model027_fit_meta_data <- model027_fit$metadata()
 
 model027_fit_relevant_parameters <- model027_fit_meta_data$model_params[
   str_detect(
@@ -71,9 +1324,18 @@ model027_fit_relevant_parameters <- model027_fit_meta_data$model_params[
   )
 ]
 
+model028_fit_relevant_parameters <- model028_fit_meta_data$model_params[
+  !str_detect(
+    model028_fit_meta_data$model_params,
+    "log_lik|L|K|delta_z|betas_motion|betas_z|rho_time_z|theta"
+  )
+]
+
 model026_loo <- model026_fit$loo()
 
 model027_loo <- model027_fit$loo()
+
+model028_loo <- model028_fit$loo()
 
 loo::loo_compare(
   model018_loo,
@@ -81,7 +1343,8 @@ loo::loo_compare(
 )
 loo::loo_compare(
   model026_loo,
-  model027_loo
+  model027_loo,
+  model028_loo
 )
 
 model026_summary <- model026_fit$summary(
@@ -101,6 +1364,77 @@ model027_draws <- model027_fit$draws(
   variables = model027_fit_relevant_parameters,
   format = "df"
 )
+
+model028_summary <- model028_fit$summary(
+  variables = model028_fit_relevant_parameters
+)
+
+model028_draws <- model028_fit$draws(
+  variables = model027_fit_relevant_parameters,
+  format = "df"
+)
+
+exp(-.5 * (1 / model028_draws$csp_rho)^2) %>% hist()
+exp(-.5 * (10 / model028_draws$csp_rho)^2) %>% hist()
+
+# csp median
+exp(-.5 * (1 / 9.02)^2)
+exp(-.5 * (2 / 9.02)^2)
+exp(-.5 * (3 / 9.02)^2)
+exp(-.5 * (4 / 9.02)^2)
+exp(-.5 * (5 / 9.02)^2)
+exp(-.5 * (6 / 9.02)^2)
+exp(-.5 * (7 / 9.02)^2)
+exp(-.5 * (8 / 9.02)^2)
+exp(-.5 * (9 / 9.02)^2)
+exp(-.5 * (10 / 9.02)^2)
+exp(-.5 * (11 / 9.02)^2)
+exp(-.5 * (12 / 9.02)^2)
+exp(-.5 * (13 / 9.02)^2)
+exp(-.5 * (14 / 9.02)^2)
+exp(-.5 * (15 / 9.02)^2)
+exp(-.5 * (16 / 9.02)^2)
+exp(-.5 * (17 / 9.02)^2)
+exp(-.5 * (18 / 9.02)^2)
+# gs1 median
+exp(-.5 * (1 / 8.05)^2)
+exp(-.5 * (2 / 8.05)^2)
+exp(-.5 * (3 / 8.05)^2)
+exp(-.5 * (4 / 8.05)^2)
+exp(-.5 * (5 / 8.05)^2)
+exp(-.5 * (6 / 8.05)^2)
+exp(-.5 * (7 / 8.05)^2)
+exp(-.5 * (8 / 8.05)^2)
+exp(-.5 * (9 / 8.05)^2)
+exp(-.5 * (10 / 8.05)^2)
+exp(-.5 * (11 / 8.05)^2)
+exp(-.5 * (12 / 8.05)^2)
+# gs2 median
+exp(-.5 * (1 / 2.95)^2)
+exp(-.5 * (2 / 2.95)^2)
+exp(-.5 * (3 / 2.95)^2)
+exp(-.5 * (4 / 2.95)^2)
+exp(-.5 * (5 / 2.95)^2)
+exp(-.5 * (6 / 2.95)^2)
+exp(-.5 * (7 / 2.95)^2)
+exp(-.5 * (8 / 2.95)^2)
+exp(-.5 * (9 / 2.95)^2)
+exp(-.5 * (10 / 2.95)^2)
+exp(-.5 * (11 / 2.95)^2)
+exp(-.5 * (12 / 2.95)^2)
+# gs3 median
+exp(-.5 * (1 / 3.09)^2)
+exp(-.5 * (2 / 3.09)^2)
+exp(-.5 * (3 / 3.09)^2)
+exp(-.5 * (4 / 3.09)^2)
+exp(-.5 * (5 / 3.09)^2)
+exp(-.5 * (6 / 3.09)^2)
+exp(-.5 * (7 / 3.09)^2)
+exp(-.5 * (8 / 3.09)^2)
+exp(-.5 * (9 / 3.09)^2)
+exp(-.5 * (10 / 3.09)^2)
+exp(-.5 * (11 / 3.09)^2)
+exp(-.5 * (12 / 3.09)^2)
 
 
 start_index <- 1
@@ -164,7 +1498,17 @@ model026_draws_betas_long <- model026_draws %>% # your tibble
     names_pattern = "betas\\[(\\d+)\\]" # capture the digits inside []
   ) %>%
   mutate(beta_index = as.integer(beta_index))
-model026_draws_betas_long <- model027_draws %>% # your tibble
+
+model027_draws_betas_long <- model027_draws %>% # your tibble
+  pivot_longer(
+    cols = matches("^betas\\[\\d+\\]$"), # only the betas[*] columns
+    names_to = "beta_index",
+    values_to = "beta_value",
+    names_pattern = "betas\\[(\\d+)\\]" # capture the digits inside []
+  ) %>%
+  mutate(beta_index = as.integer(beta_index))
+
+model028_draws_betas_long <- model028_draws %>% # your tibble
   pivot_longer(
     cols = matches("^betas\\[\\d+\\]$"), # only the betas[*] columns
     names_to = "beta_index",
@@ -210,8 +1554,71 @@ model026_draws_betas_long <- merge(
   all.x = T
 )
 
+model028_draws_betas_long <- model028_draws_betas_long %>%
+  mutate(
+    cue = case_when(
+      beta_index %in% csp_indices ~ "csp",
+      beta_index %in% gs1_indices ~ "gs1",
+      beta_index %in% gs2_indices ~ "gs2",
+      beta_index %in% gs3_indices ~ "gs3",
+      beta_index %in% shock_indices ~ "shock"
+    )
+  ) %>%
+  mutate(
+    block = case_when(
+      beta_index %in% c(1:32) ~ "habituation",
+      beta_index %in% c(33:80) ~ "acquisition #1",
+      beta_index %in% c(81:128) ~ "acquisition #2",
+      beta_index %in% c(129:176) ~ "extinction"
+    )
+  )
+
+model028_draws_betas_long <- merge(
+  x = model028_draws_betas_long,
+  y = beta_key,
+  by.x = "beta_index",
+  by.y = "beta_index",
+  all.x = T
+)
+
 
 model026_draws_betas_long %>%
+  filter(cue != "shock") %>%
+  group_by(
+    trial_per_cue,
+    cue,
+    beta_index
+  ) %>%
+  summarise(
+    median_posterior = median(beta_value),
+    lower_2_5 = quantile(beta_value, .3),
+    lower_97_5 = quantile(beta_value, .7)
+    # lower_2_5 = quantile(beta_value, .5+.341),
+    # lower_97_5 = quantile(beta_value, .5-.341)
+  ) %>%
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 8) +
+  geom_vline(xintercept = 8 + 12) +
+  geom_vline(xintercept = 8 + 12 + 12) +
+  geom_ribbon(
+    aes(
+      x = trial_per_cue,
+      y = median_posterior,
+      ymin = lower_2_5,
+      ymax = lower_97_5,
+      fill = cue
+    ),
+    linewidth = .5,
+    color = NA,
+    alpha = .5
+  ) +
+  scale_fill_manual(values = cue_color) +
+  ggtitle("Change in Left Anterior Insula Over Trials (N =24)") +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+model028_draws_betas_long %>%
   filter(cue != "shock") %>%
   group_by(
     trial_per_cue,
@@ -296,6 +1703,16 @@ model026_draws_betas_long %>%
 
 
 model026_draws_betas_long %>%
+  filter(beta_index %in% shock_indices) %>%
+  mutate(beta_index = factor(beta_index, levels = unique(beta_index))) %>%
+  ggplot() +
+  geom_vline(aes(xintercept = 0)) +
+  geom_density_ridges(aes(x = beta_value, y = beta_index)) +
+  theme_bw() +
+  ggtitle("Shock Posteriors (N=24)") +
+  theme(text = element_text(family = "Arial", size = 20))
+
+model028_draws_betas_long %>%
   filter(beta_index %in% shock_indices) %>%
   mutate(beta_index = factor(beta_index, levels = unique(beta_index))) %>%
   ggplot() +

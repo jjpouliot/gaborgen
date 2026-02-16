@@ -127,7 +127,8 @@ library(ggbeeswarm)
 
 # load necessary data and models
 # load(file = "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/supplemental_data.RData")
-load(file = "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/supplemental_data.RData")
+# load(file = "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/supplemental_data.RData")
+load(file = "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/supplemental_data.RData")
 
 ```
 

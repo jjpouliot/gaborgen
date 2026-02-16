@@ -1,5 +1,7 @@
-data_location <- '/Users/andrewfarkas/UFL Dropbox/Andrew Farkas/TwoDayFearConditioning/AFNI_results_andrewf/results'
-where_to_copy <- '/Users/andrewfarkas/research_data/gaborgen/temp_analyses/ROI_folder'
+# data_location <- '/Users/andrewfarkas/UFL Dropbox/Andrew Farkas/TwoDayFearConditioning/AFNI_results_andrewf/results'
+# where_to_copy <- '/Users/andrewfarkas/research_data/gaborgen/temp_analyses/ROI_folder'
+data_location <- '/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/fmri_preprocessed'
+where_to_copy <- '/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/roi_timeseries'
 
 # copy design matrices
 full_design_matrix_paths <- list.files(
@@ -48,7 +50,7 @@ file.copy(
 
 # calculate ROI times series per participant, just day 1 right now
 
-participants_to_process <- c(101:154)
+participants_to_process <- c(120, 137, 138, 139, 144, 145, 151, 153, 155, 158)
 
 for (i in 1:length(participants_to_process)) {
   setwd(where_to_copy) # go to ROI folder
