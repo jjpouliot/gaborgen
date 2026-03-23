@@ -7,8 +7,10 @@ library(ggridges)
 
 # Load data ####
 
-parent_folder <- "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI"
-git_repository <- "/home/andrewf/Repositories/gaborgen"
+# parent_folder <- "/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI"
+# git_repository <- "/home/andrewf/Repositories/gaborgen"
+parent_folder <- "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI"
+git_repository <- "/home/andrewfarkas/Repositories/gaborgen"
 
 participants_without_complete_trial_list_in_dat_file <- c("110")
 
@@ -260,8 +262,141 @@ fft_df <- merge(
   x = raw_fft_df,
   y = sliding_window_fft_df,
   by = c("participant", "channel", "trial", "phase", "cue", "paired")
+) %>%
+  mutate(
+    participant = as.integer(participant),
+    trial = as.integer(trial)
+  ) %>%
+  arrange(participant, trial)
+
+write.csv(
+  fft_df,
+  file = paste0(
+    '/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/fft_df.csv'
+  )
 )
 
+## add in missing trials
+log_file_paths <- list.files(
+  path = "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/raw_data",
+  pattern = "logfile.dat$",
+  recursive = T,
+  full.names = T
+)
+
+log_file_paths <- log_file_paths[!grepl(pattern = "Day2", x = log_file_paths)]
+
+particiapnt_ids <- unique(fft_df$participant)
+
+fft_df_with_missing_trials <- fft_df
+
+for (participant_index in 1:length(particiapnt_ids)) {
+  current_par <- particiapnt_ids[participant_index]
+
+  current_log_file_path <- log_file_paths[grepl(
+    pattern = current_par,
+    log_file_paths
+  )]
+
+  print(participant_index)
+  print(current_log_file_path)
+
+  current_log_file <- read.table(
+    file = current_log_file_path,
+    header = T,
+    sep = ","
+  )
+
+  clean_trials <- fft_df %>%
+    filter(participant == current_par) %>%
+    pull(trial) %>%
+    unique()
+
+  missing_trials <- c(1:176)[!c(1:176) %in% clean_trials]
+
+  missing_trial_log_file <- current_log_file %>%
+    filter(trial %in% missing_trials)
+
+  fft_df_to_add <- expand.grid(
+    participant = unique(missing_trial_log_file$partNo),
+    channel = unique(fft_df$channel),
+    trial = missing_trials
+  )
+
+  fft_df_to_add <- merge(
+    x = fft_df_to_add,
+    y = missing_trial_log_file,
+    by.x = c("participant", "trial"),
+    by.y = c("partNo", "trial"),
+    all.x = T
+  ) %>%
+    mutate(
+      phase_keep = case_when(
+        phase == 1 ~ "habituation",
+        phase == 2 ~ "acquisition",
+        phase == 3 ~ "extinction"
+      ),
+      cue_keep = case_when(
+        stim == 1 ~ "CSP",
+        stim == 2 ~ "GS1",
+        stim == 3 ~ "GS2",
+        stim == 4 ~ "GS3"
+      ),
+      paired_keep = case_when(
+        paired == 1 ~ "shock",
+        paired == 0 ~ "no_shock"
+      ),
+      amplitude_15Hz_fft = NA,
+      raw_amplitude_surrounding_frequencies = NA,
+      amplitude_15Hz_sliding_window_fft_upsampled_600Hz = NA,
+      SNR = NA,
+      SNR_surrounding_frequencies = NA
+    )
+
+  fft_df_to_add <- fft_df_to_add %>%
+    reframe(
+      participant,
+      channel,
+      trial,
+      phase = factor(
+        phase_keep,
+        levels = c("habituation", "acquisition", "extinction"),
+      ),
+      paired = factor(
+        paired_keep,
+        levels = c("shock", "no_shock")
+      ),
+      cue = factor(
+        cue_keep,
+        levels = c(
+          "CSP",
+          "GS1",
+          "GS2",
+          "GS3"
+        )
+      ),
+      amplitude_15Hz_fft,
+      raw_amplitude_surrounding_frequencies,
+      amplitude_15Hz_sliding_window_fft_upsampled_600Hz,
+      SNR,
+      SNR_surrounding_frequencies
+    )
+
+  fft_df_with_missing_trials <- rbind.data.frame(
+    fft_df_with_missing_trials,
+    fft_df_to_add
+  )
+}
+
+fft_df_with_missing_trials <- fft_df_with_missing_trials %>%
+  arrange(participant, trial)
+
+write.csv(
+  fft_df_with_missing_trials,
+  file = paste0(
+    '/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/fft_df.csv'
+  )
+)
 
 #csPerm1 is when 15 degrees is CSP (most vertical), 35, 55, 75. csPerm2 is opposite order
 csPerm1 <- c(

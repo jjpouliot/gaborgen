@@ -10,6 +10,8 @@ if (length(found_dat_log_filepaths) != length(participant_directories)) {
   )
 }
 
+T1_off_participant_regex <- "101|103|106|110|111|114|117|119|122|DAY1_123|DAY1_127|DAY1_130|DAY1_131|DAY1_132|DAY1_134|DAY1_135|DAY1_137|DAY1_144|DAY1_146|DAY1_148|DAY1_149|DAY1_150|DAY1_154|DAY1_158|DAY1_159|DAY1_160|DAY2_133"
+
 for (directory_index in 1:length(participant_directories)) {
   log_file <- read.delim(
     found_dat_log_filepaths[directory_index],
@@ -18,6 +20,13 @@ for (directory_index in 1:length(participant_directories)) {
   )
 
   stim_onset <- log_file$timeSinceFirstTR
+
+  # participants that had a T1 off trigger start and need to have stim time adjusted
+  if (
+    grepl(T1_off_participant_regex, participant_directories[directory_index])
+  ) {
+    stim_onset <- log_file$timeSinceFirstTR + 2
+  }
 
   write(
     x = stim_onset,
@@ -38,6 +47,16 @@ for (directory_index in 1:length(participant_directories)) {
         select = timeSinceFirstTR,
         drop = T
       )
+
+      # participants that had a T1 off trigger start and need to have stim time adjusted
+      if (
+        grepl(
+          T1_off_participant_regex,
+          participant_directories[directory_index]
+        )
+      ) {
+        current_phase_stim_times <- current_phase_stim_times + 2
+      }
 
       write(
         x = current_phase_stim_times,
@@ -68,6 +87,13 @@ if (exists("by_block")) {
     )
 
     stim_onset <- log_file$timeSinceFirstTR
+
+    # participants that had a T1 off trigger start and need to have stim time adjusted
+    if (
+      grepl(T1_off_participant_regex, participant_directories[directory_index])
+    ) {
+      stim_onset <- log_file$timeSinceFirstTR + 2
+    }
 
     write(
       x = stim_onset,
@@ -237,6 +263,13 @@ if (exists("shock_times")) {
       log_file$paired == 1
     ]) +
       2
+
+    # participants that had a T1 off trigger start and need to have stim time adjusted
+    if (
+      grepl(T1_off_participant_regex, participant_directories[directory_index])
+    ) {
+      shock_times_since_first_TR <- shock_times_since_first_TR + 2
+    }
 
     write(
       x = shock_times_since_first_TR,
