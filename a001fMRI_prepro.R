@@ -34,11 +34,11 @@ if (!file.exists(where_results_should_be_saved)) {
 # participants_to_preprocess <- c(101:103,106:130, 135:136)
 # participants_to_preprocess <- c(101:155)
 # participants_to_preprocess <- c(101:103, 105:158)
-participants_to_preprocess <- c(158)
+participants_to_preprocess <- c(101:103, 105:144, 146:155, 157:161)
 
 ## Which days should be processed
+# days_to_preprocess <- c(1)
 days_to_preprocess <- c(1)
-# days_to_preprocess <- c(2)
 #days_to_preprocess <- c(1,2)
 
 # End of user input ####
@@ -123,7 +123,11 @@ if (!all(file.exists(participant_directories))) {
     "Directories that don't exist: ",
     participant_directories[!file.exists(participant_directories)]
   )
-  stop('Not all the participant directories exist in the correct format')
+  stop(paste0(
+    'Participant directories ',
+    participant_directories[!file.exists(participant_directories)],
+    ' do not exist exist in the correct format'
+  ))
 }
 
 ## Check that the correct terminal is available ####
@@ -143,6 +147,8 @@ tryCatch(
 )
 
 # Make stim onset files
+by_block <- T
+shock_times <- T
 source("make_stim_times_files.R", local = T, echo = T)
 
 # Begin data preprocessing ####

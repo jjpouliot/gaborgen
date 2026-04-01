@@ -3,39 +3,38 @@
 data_location <- '/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/fmri_preprocessed'
 where_to_copy <- '/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/roi_timeseries'
 
-# copy design matrices
-full_design_matrix_paths <- list.files(
-  path = data_location,
-  pattern = 'X.nocensor.xmat.1D$',
-  recursive = T
-)
+# copy design matrices; I don't want this to be necessary, it should happen in a006prep_design_matrix.R
+# full_design_matrix_paths <- list.files(
+#   path = data_location,
+#   pattern = 'X.nocensor.xmat.1D$',
+#   recursive = T
+# )
 
-full_design_matrix_new_names <- sub(
-  replacement = "_",
-  pattern = "/",
-  x = full_design_matrix_paths
-)
+# full_design_matrix_new_names <- sub(
+#   replacement = "_",
+#   pattern = "/",
+#   x = full_design_matrix_paths
+# )
 
-file.copy(
-  from = paste0(data_location, "/", full_design_matrix_paths),
-  to = paste0(where_to_copy, "/", full_design_matrix_new_names)
-)
+# file.copy(
+#   from = paste0(data_location, "/", full_design_matrix_paths),
+#   to = paste0(where_to_copy, "/", full_design_matrix_new_names)
+# )
 
-# copy censor info
-censor_info_paths <- list.files(
-  path = data_location,
-  pattern = 'combined_2.1D$',
-  recursive = T
-)
+# # copy censor info
+# censor_info_paths <- list.files(
+#   path = data_location,
+#   pattern = 'combined_2.1D$',
+#   recursive = T
+# )
 
-file.copy(
-  from = paste0(data_location, "/", censor_info_paths),
-  to = paste0(where_to_copy, "/", basename(censor_info_paths))
-)
-
+# file.copy(
+#   from = paste0(data_location, "/", censor_info_paths),
+#   to = paste0(where_to_copy, "/", basename(censor_info_paths))
+# )
 
 # copy functional data
-
+# can also look for my pb files in /home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/pb_files
 processed_functional_paths <- list.files(
   path = data_location,
   pattern = "pb05",
@@ -47,12 +46,122 @@ file.copy(
   to = paste0(where_to_copy, "/", basename(processed_functional_paths))
 )
 
+# add what is necessary here to make proper function HCP SUIT mask for ROI timeseries extractions
+# From emoclips, not so sure about every part of this code. The problem is that the mask may
+# extend beyond some ares, and those areas become new ROIs on the bottom of the atlas list.
+# The reason I want to try this new atlas is that I think it may better fit the MNI template.
+# A manual check suggests it aligns so much better than the previous. I am using HCPex_resam, the same
+# one used for emoclips pilots.
+
+# #remaking atlas
+# # 1) Align HCPex with NN, then force integer type
+# 3dAllineate -base atlas_materials/MNI152_2009_template.nii.gz \
+#   -source atlas_materials/HCPex.nii.gz \
+#   -prefix atlas_materials/HCPex_aligned_tmp.nii.gz \
+#   -final NN -overwrite
+
+# 3dcalc \
+#   -a atlas_materials/HCPex_aligned_tmp.nii.gz \
+#   -expr 'a' \
+#   -datum short \
+#   -prefix atlas_materials/HCPex_aligned_2.nii.gz
+
+# # 2) Resample cerebellum segmentation with NN and integer type
+# 3dresample -rmode NN \
+#   -master atlas_materials/HCPex_aligned.nii.gz \
+#   -inset atlas_materials/Cerebellum-MNIsegment.nii.gz \
+#   -prefix atlas_materials/Cerebellum-MNIsegment_resampled_tmp.nii.gz
+
+# 3dcalc \
+#   -a atlas_materials/Cerebellum-MNIsegment_resampled_tmp.nii.gz \
+#   -expr 'a' \
+#   -datum short \
+#   -prefix atlas_materials/Cerebellum-MNIsegment_resampled_2.nii.gz
+
+# # 3) Merge by replacement (no summed labels)
+# 3dcalc -a atlas_materials/HCPex_aligned_2.nii.gz \
+#   -b atlas_materials/Cerebellum-MNIsegment_resampled_2.nii.gz \
+#   -expr 'a*(1-step(b)) + step(b)*(b+1000)' \
+#   -datum short \
+#   -prefix atlas_materials/HCPex_SUIT_atlas_2.nii.gz
+
+# @Atlasize -dset atlas_materials/HCPex_aligned_2.nii.gz -lab_file atlas_materials/HCPex_labels.txt 1 0 -atlas_name HCPex_2 -atlas_type G -auto_backup
+
+# @Atlasize -dset atlas_materials/HCPex_SUIT_atlas_2.nii.gz -lab_file atlas_materials/HCPex_SUIT_labels.txt 1 0 -atlas_name HCPex_SUIT_2 -atlas_type G -auto_backup
+
+# 3dmaskdump -noijk -mask atlas_materials/HCPex_SUIT_atlas_2.nii.gz \
+#   atlas_materials/HCPex_SUIT_atlas_2.nii.gz | sort -n -u | tail
+
+# cd /home/andrewfarkas/Research_data/multimodal/emoclips/processed
+
+# 3dresample \
+#   -master /home/andrewfarkas/Research_data/multimodal/emoclips/processed/EMOCLIPS001.results/pb04.EMOCLIPS001.r01.scale+tlrc \
+#   -inset  HCPex_SUIT_atlas_2.nii.gz \
+#   -prefix HCPex_resam+tlrc \
+#   -rmode NN
 
 # calculate ROI times series per participant, just day 1 right now
 
-participants_to_process <- c(120, 137, 138, 139, 144, 145, 151, 153, 155, 158)
+participants_to_process <- c(
+  "101", # made
+  "102", # 22% censored# made
+  "103", # made
+  "106", # made
+  "107", # made
+  "108", # made
+  "109", # made
+  "113", # made
+  "114", # 23% censored # made
+  "115", # made
+  "116", # made
+  "117", # made
+  "119", # made
+  "120", # 16% censored # moved over 2 mm # made
+  "121", # made
+  "122", # made
+  "123", # made
+  #"124", # 34% censored moved head to every cue
+  "125", # made
+  "126", # made
+  "127", # made
+  "128", # made
+  "129", # made
+  "131", # made
+  "132", # made
+  "133", # made
+  "134", # made
+  "135", # made
+  # "136", # 50% censored
+  "137", # made
+  "138", # made
+  # "139", # 31% censored, movement over 3mm
+  "140", # 23.7% censored # made
+  "141", # made
+  # double-check these
+  #"142", #probably asleep # made
+  "143", #probably asleep, not convinced enough to keep them out # made
+  #"144", # 29% censored severe TSNR warnings, large pitch shifts above 5 degrees on way out of acquisition
+  #
+  "145", # made
+  #"146", # messed up alignment
+  #"147", #asleep , not aligned right?
+  #"148", #messed up alignment
+  "149", # made
+  "150", # made
+  "151", # made
+  "152", # made
+  "153", # made
+  "154", # made
+  "155", # made
+  "158", # made
+  "159", # made
+  "160", # made
+  "161" # made
+)
+
 
 for (i in 1:length(participants_to_process)) {
+  where_to_copy
   setwd(where_to_copy) # go to ROI folder
 
   # run this terminal command, expect per participant, gets timeseries per ROI into text file
@@ -64,7 +173,8 @@ for (i in 1:length(participants_to_process)) {
       args = c(
         '-c',
         shQuote(paste(
-          '3dROIstats -mask HCPex_SUIT_func_mask.nii.gz -nzmean -median pb05.GABORGEN24_',
+          # '3dROIstats -mask HCPex_SUIT_func_mask.nii.gz -nzmean -median pb05.GABORGEN24_',
+          '3dROIstats -mask HCPex_resam+tlrc -nzmean -median pb05.GABORGEN24_',
           participants_to_process[i],
           ".r01.scale+tlrc > ",
           participants_to_process[i],
@@ -79,7 +189,8 @@ for (i in 1:length(participants_to_process)) {
       args = c(
         '-c',
         shQuote(paste(
-          '3dROIstats -mask HCPex_SUIT_func_mask.nii.gz -nzmean -median pb05.GABORGEN24_DAY1_',
+          # '3dROIstats -mask HCPex_SUIT_func_mask.nii.gz -nzmean -median pb05.GABORGEN24_DAY1_',
+          '3dROIstats -mask HCPex_resam+tlrc -nzmean -median pb05.GABORGEN24_DAY1_',
           participants_to_process[i],
           ".r01.scale+tlrc > ",
           participants_to_process[i],
@@ -93,7 +204,7 @@ for (i in 1:length(participants_to_process)) {
 
 # Make design matrices with shock, BLOCK
 
-participants_to_find <- c(101:154)
+participants_to_find <- c(159:161)
 
 # data_directory <- "~/research_data/gaborgen/raw_data"
 data_directory <- "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/raw_data"
@@ -135,7 +246,7 @@ for (i in 1:length(log_file_paths)) {
   )
 }
 
-
+# below i don't think is necessary because of other 006 script
 #BLOCK(d, p) ; d = duration seconds, p = amplitude, 1 is easiest to understand and should be default unless you know what you're doing
 
 shock_onset_stim_files <- list.files(

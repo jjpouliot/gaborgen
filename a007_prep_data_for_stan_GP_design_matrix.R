@@ -142,7 +142,10 @@ useable_participants <- c(
   "153", # made
   "154", # made
   "155", # made
-  "158" # made
+  "158", # made
+  "159", # made
+  "160", # made
+  "161" # made
 )
 
 # participants used for HBM tech report
@@ -385,15 +388,33 @@ for (i in 1:length(useable_participants)) {
   )
 }
 
+# look at DM
+# all_par_design_matrices %>%
+#   filter(participant == 135) %>%
+#   # pull(shock_1) %>%
+#   pull(shock_2) %>%
+#   plot(x = ., type = "l")
+
 #get which csp trials were paired with the US per participant in order.
 #this is used in model 35 to not select those CS+ column from the design matrix
 #Assuming US is the only driver of activity on paired trials by only using the HDF of the shock column
+number_of_CSP_presentations <- 44
+number_of_participants <- length(useable_participants)
 paired_csp_indices <- tibble(
-  "participant" = character(length = 41 * 44),
-  "trial" = integer(length = 41 * 44),
-  "paired" = logical(length = 41 * 44)
+  "participant" = character(
+    length = number_of_participants * number_of_CSP_presentations
+  ),
+  "trial" = integer(
+    length = number_of_participants * number_of_CSP_presentations
+  ),
+  "paired" = logical(
+    length = number_of_participants * number_of_CSP_presentations
+  )
 )
-paired_csp_matrix <- matrix(nrow = 41, ncol = 44)
+paired_csp_matrix <- matrix(
+  nrow = number_of_participants,
+  ncol = number_of_CSP_presentations
+)
 
 all_log_files <- list.files(
   paste0(data_dir, "/raw_data/"),
@@ -444,7 +465,7 @@ paired_csp_matrix
 rowMeans(paired_csp_matrix)
 
 # create stan list ####
-used_df <- bold_per_roi_df %>%
+used_df_temp <- bold_per_roi_df %>%
   # filter(roi_id %in% c(1, 2)) #
   filter(
     roi_id %in%
@@ -456,40 +477,41 @@ used_df <- bold_per_roi_df %>%
         22, # V5/MT L
         23, # V5/MT L
         202, # V5/MT R
-        203, # V5/MT R
-        8, # V6 L
-        188, # V6 R
-        89, # TE L
-        90, # TE L
-        91, # TE L
-        269, # TE R
-        270, # TE R
-        271, # TE R
-        98, # TPJ L
-        99, # TPJ L
-        278, # TPJ R
-        279, # TPJ R
-        144, # ACC L
-        324, # ACC R
-        387, # Amygdala L
-        420, # Amygdala R
-        157, # Orbital L
-        337, # Orbital R
-        68, # Anterior insula L
-        69, # Anterior insula L
-        73, # Anterior insula L
-        248, # Anterior insula R
-        249, # Anterior insula R
-        253, # Anterior insula R
-        384, # Nucleus Accubems L
-        417, # Nucleus Accubems R
-        80, # Hippocampus L
-        260 # Hippocampus R
+        203 #, # V5/MT R
+        # 8, # V6 L
+        # 188, # V6 R
+        # 89, # TE L
+        # 90, # TE L
+        # 91, # TE L
+        # 269, # TE R
+        # 270, # TE R
+        # 271, # TE R
+        # 98, # TPJ L
+        # 99, # TPJ L
+        # 278, # TPJ R
+        # 279, # TPJ R
+        # 144, # ACC L
+        # 324, # ACC R
+        # 387, # Amygdala L
+        # 420, # Amygdala R
+        # 157, # Orbital L
+        # 337, # Orbital R
+        # 68, # Anterior insula L
+        # 69, # Anterior insula L
+        # 73, # Anterior insula L
+        # 248 , # Anterior insula R
+        # 249, # Anterior insula R
+        # 253, # Anterior insula R
+        # 384, # Nucleus Accubems L
+        # 417, # Nucleus Accubems R
+        # 80, # Hippocampus L
+        # 260 # Hippocampus R
       )
   ) #
 # filter(roi_id %in% c(1:3, 181:183)) # visual
 
-used_df <- used_df %>%
+# this needs to be changed to properly weight rois by the number of voxels before merge.
+used_df_temp <- used_df_temp %>%
   mutate(
     roi_merge = case_when(
       roi_id %in% c(22, 23) ~ "V5_MT_L",
@@ -506,12 +528,12 @@ used_df <- used_df %>%
     )
   )
 
-used_df$roi_merge %>% unique()
+used_df_temp$roi_merge %>% unique()
 
 
 # Currently the merge id doesn't really get used in stan model, it just loops 1 to end.
 # It would be simipler to sort the merge id so that the numbers within participant come in order
-used_df <- used_df %>%
+used_df_temp <- used_df_temp %>%
   mutate(
     roi_merge_id = as.integer(factor(
       roi_merge,
@@ -586,44 +608,48 @@ used_df <- used_df %>%
 #       )
 #   )
 #
-used_df <- used_df %>%
-  filter(
-    roi_merge %in%
-      c(
-        # "Primary_Visual_Cortex_L",
-        # "Primary_Visual_Cortex_R" ,
-        # "Fourth_Visual_Area_L",
-        # "Fourth_Visual_Area_R",
-        "V5_MT_L",
-        "V5_MT_R" #,
-        # "Sixth_Visual_Area_L",
-        # "Sixth_Visual_Area_R",
-        # "TE_L",
-        # "TE_R",
-        # "TPJ_L",
-        # "TPJ_R",
-        # "Hippocampus_L",
-        # "Hippocampus_R",
-        # "Amygdala_L",
-        # "Amygdala_R",
-        # "Nucleus_Accumbens_L",
-        # "Nucleus_Accumbens_R",
-        # "Ant_Ins_L",
-        # "Ant_Ins_R",
-        # "ACC_L",
-        # "ACC_R",
-        # "Orbital_Frontal_Complex_L",
-        # "Orbital_Frontal_Complex_R"
-      )
-  )
 
+used_df <- used_df_temp
+# used_df <- used_df_temp %>%
+#   filter(
+#     roi_merge %in%
+#       c(
+#         "Primary_Visual_Cortex_L",
+#         "Primary_Visual_Cortex_R" #,
+#         # "Fourth_Visual_Area_L",
+#         # "Fourth_Visual_Area_R",
+#         # "V5_MT_L",
+#         # "V5_MT_R" ,
+#         # "Sixth_Visual_Area_L",
+#         # "Sixth_Visual_Area_R",
+#         # "TE_L",
+#         # "TE_R",
+#         # "TPJ_L",
+#         # "TPJ_R",
+#         # "Hippocampus_L",
+#         # "Hippocampus_R",
+#         # "Amygdala_L",
+#         # "Amygdala_R",
+#         # "Nucleus_Accumbens_L",
+#         # "Nucleus_Accumbens_R",
+#         # "Ant_Ins_L",
+#         # "Ant_Ins_R",
+#         # "ACC_L",
+#         # "ACC_R",
+#         # "Orbital_Frontal_Complex_L",
+#         # "Orbital_Frontal_Complex_R"
+#       )
+#   )
 
 fmri_stan_list <- list()
 
 fmri_stan_list$n_par <- used_df$par %>% unique() %>% length()
 
-# fmri_stan_list$n_roi <- used_df$roi_id %>% unique() %>% length()
-fmri_stan_list$n_roi <- used_df$roi_merge_id %>% unique() %>% length()
+if (is.null(used_df$roi_merge_id)) {
+  fmri_stan_list$n_roi <- used_df$roi_id %>% unique() %>% length()
+} else {
+  fmri_stan_list$n_roi <- used_df$roi_merge_id %>% unique() %>% length()
+}
 
 fmri_stan_list$n_bold <- 1070
 
@@ -633,11 +659,14 @@ fmri_stan_list$n <- fmri_stan_list$n_par *
 
 fmri_stan_list$par <- used_df$par %>% as.factor() %>% as.integer()
 
-# fmri_stan_list$roi <- used_df$roi_id %>% as.factor() %>% as.integer()
 
-fmri_stan_list$roi <- used_df$roi_merge_id
+if (is.null(used_df$roi_merge_id)) {
+  fmri_stan_list$roi <- used_df$roi_id %>% as.factor() %>% as.integer()
+} else {
+  fmri_stan_list$roi <- used_df$roi_merge_id %>% as.factor() %>% as.integer()
+}
 
-fmri_stan_list$paired_mat_one_true <- paired_csp_matrix
+# fmri_stan_list$paired_mat_one_true <- paired_csp_matrix
 
 # just vector
 # fmri_stan_list$bold <- used_df$bold
@@ -745,8 +774,7 @@ for (p in 1:fmri_stan_list$n_par) {
 fmri_stan_list$csp_linespace_per_par <- as.matrix(csp_linespace_per_par)
 
 
-fmri_stan_list$useable_cue_betas_per_par
-
+# fmri_stan_list$useable_cue_betas_per_par
 
 # fmri_stan_list$n_beta_stim <- 13
 
@@ -782,14 +810,34 @@ fmri_stan_list$useable_cue_betas_per_par
 #   file = "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_single_trialDM_ant_insulas.json"
 # )
 
+# save(
+#   fmri_stan_list,
+#   file = "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_single_trialDM_V5_2.RData"
+# )
+
+# cmdstanr::write_stan_json(
+#   fmri_stan_list,
+#   file = "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_single_trialDM_V5_2.json"
+# )
+
 save(
   fmri_stan_list,
-  file = "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_single_trialDM_V5_2.RData"
+  file = "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_single_trial_gaborgen24_ant_insula.RData"
 )
 
 cmdstanr::write_stan_json(
   fmri_stan_list,
-  file = "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_single_trialDM_V5_2.json"
+  file = "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_single_trial_gaborgen24_ant_insula.json"
+)
+
+save(
+  fmri_stan_list,
+  file = "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_single_trial_gaborgen24_V1_to_V5.RData"
+)
+
+cmdstanr::write_stan_json(
+  fmri_stan_list,
+  file = "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_single_trial_gaborgen24_V1_to_V5.json"
 )
 
 # cmdstanr::write_stan_json(
@@ -829,7 +877,8 @@ where_to_save_chains <- '/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMR
 # model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model030.stan' # used this model, next few aren't necessary
 # model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model033.stan'
 # model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model034.stan'
-model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model035.stan' #editted model 30
+# model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model035.stan' #editted model 30
+model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model037.stan' #editted model 30 with mu_beta_intercept and zero sum correction
 
 # Fit models
 model <- cmdstanr::cmdstan_model(

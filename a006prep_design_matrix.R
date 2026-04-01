@@ -37,8 +37,9 @@ if (!file.exists(where_results_should_be_saved)) {
 
 ## Put the participant ID numbers that you would like to preprocess (eg c(118,119))
 # participants_to_preprocess <- c(101:103,106:130, 135:136)
-participants_to_preprocess <- c(101:155)
-participants_to_preprocess <- c(101:103, 105:155, 157:158)
+# participants_to_preprocess <- c(101:155)
+# participants_to_preprocess <- c(101:103, 105:155, 157:158)
+participants_to_preprocess <- c(159:161)
 
 ## Which days should be processed
 days_to_preprocess <- c(1)
