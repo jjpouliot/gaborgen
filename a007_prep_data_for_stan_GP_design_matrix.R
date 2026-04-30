@@ -24,8 +24,15 @@ roi_key <- read_delim(paste0(
   data_dir,
   '/roi_data_and_info/HCPex_SUIT_labels.txt'
 ))
-
 colnames(roi_key) <- c("roi_id", "roi")
+
+V1_to_add <- tibble(
+  roi_id = c(1035, 1036),
+  roi = c("HCPex_resam_V1_fovea_L", "HCPex_resam_V1_fovea_R")
+)
+
+roi_key <- rbind(roi_key, V1_to_add)
+
 
 # useable_participants <- c("145")
 # used for a lot of the early testing
@@ -216,6 +223,41 @@ for (i in 1:length(useable_participants)) {
     bold_text_file,
     trim_ws = T
   )
+
+  # add in smaller V1 fovea
+  bold_text_file_HCPex_resam_V1_fovea_R <- gsub(
+    pattern = "roi_stats.txt",
+    replacement = "roi_stats_HCPex_resam_V1_fovea_L.txt",
+    x = bold_text_file
+  )
+  bold_text_file_HCPex_resam_V1_fovea_L <- gsub(
+    pattern = "roi_stats.txt",
+    replacement = "roi_stats_HCPex_resam_V1_fovea_R.txt",
+    x = bold_text_file
+  )
+
+  bold_HCPex_resam_V1_fovea_L <- read_delim(
+    bold_text_file_HCPex_resam_V1_fovea_L,
+    trim_ws = T
+  )
+
+  bold_HCPex_resam_V1_fovea_R <- read_delim(
+    bold_text_file_HCPex_resam_V1_fovea_R,
+    trim_ws = T
+  )
+
+  index_to_add_to <- readr::parse_number(names(all_bold)[ncol(all_bold)])
+
+  V1_fovea_df_to_cbind <- data.frame(
+    "Mean_1035" = bold_HCPex_resam_V1_fovea_L$Mean_1,
+    "NZMean_1035" = bold_HCPex_resam_V1_fovea_L$NZMean_1,
+    "Med_1035" = bold_HCPex_resam_V1_fovea_L$Med_1,
+    "Mean_1036" = bold_HCPex_resam_V1_fovea_R$Mean_1,
+    "NZMean_1036" = bold_HCPex_resam_V1_fovea_R$NZMean_1,
+    "Med_1036" = bold_HCPex_resam_V1_fovea_R$Med_1
+  )
+
+  all_bold <- cbind(all_bold, V1_fovea_df_to_cbind)
 
   all_bold <- all_bold %>%
     select(starts_with("NZMEAN")) %>%
@@ -431,38 +473,38 @@ useable_log_files <- useable_log_files[grepl(
 )]
 
 
-row_index <- 1
-for (i in 1:length(useable_participants)) {
-  current_par <- useable_participants[i]
+# row_index <- 1
+# for (i in 1:length(useable_participants)) {
+#   current_par <- useable_participants[i]
 
-  current_log_file <- read.delim(useable_log_files[i], sep = ",")
+#   current_log_file <- read.delim(useable_log_files[i], sep = ",")
 
-  current_csp_trial <- 1
-  for (j in 1:176) {
-    if (current_log_file$stim[j] == 1 & current_log_file$paired[j] == 0) {
-      paired_csp_indices[row_index, "participant"] <- useable_participants[i]
-      paired_csp_indices[row_index, "trial"] <- current_csp_trial
-      paired_csp_indices[row_index, "paired"] <- F
-      paired_csp_matrix[i, current_csp_trial] <- 0
-      row_index <- row_index + 1
-      current_csp_trial <- current_csp_trial + 1
-    } else if (
-      current_log_file$stim[j] == 1 & current_log_file$paired[j] == 1
-    ) {
-      paired_csp_indices[csp_index, "participant"] <- useable_participants[i]
-      paired_csp_indices[csp_index, "trial"] <- current_csp_trial
-      paired_csp_indices[csp_index, "paired"] <- T
-      paired_csp_matrix[i, current_csp_trial] <- 1
-      row_index <- row_index + 1
-      current_csp_trial <- current_csp_trial + 1
-    }
-  }
-}
+#   current_csp_trial <- 1
+#   for (j in 1:176) {
+#     if (current_log_file$stim[j] == 1 & current_log_file$paired[j] == 0) {
+#       paired_csp_indices[row_index, "participant"] <- useable_participants[i]
+#       paired_csp_indices[row_index, "trial"] <- current_csp_trial
+#       paired_csp_indices[row_index, "paired"] <- F
+#       paired_csp_matrix[i, current_csp_trial] <- 0
+#       row_index <- row_index + 1
+#       current_csp_trial <- current_csp_trial + 1
+#     } else if (
+#       current_log_file$stim[j] == 1 & current_log_file$paired[j] == 1
+#     ) {
+#       paired_csp_indices[csp_index, "participant"] <- useable_participants[i]
+#       paired_csp_indices[csp_index, "trial"] <- current_csp_trial
+#       paired_csp_indices[csp_index, "paired"] <- T
+#       paired_csp_matrix[i, current_csp_trial] <- 1
+#       row_index <- row_index + 1
+#       current_csp_trial <- current_csp_trial + 1
+#     }
+#   }
+# }
 
-paired_csp_indices
-paired_csp_matrix
+# paired_csp_indices
+# paired_csp_matrix
 
-rowMeans(paired_csp_matrix)
+# rowMeans(paired_csp_matrix)
 
 # create stan list ####
 used_df_temp <- bold_per_roi_df %>%
@@ -474,43 +516,94 @@ used_df_temp <- bold_per_roi_df %>%
         181, # V1 R
         4, # V4 L
         184, # V4 R
-        22, # V5/MT L
-        23, # V5/MT L
-        202, # V5/MT R
-        203 #, # V5/MT R
-        # 8, # V6 L
-        # 188, # V6 R
-        # 89, # TE L
-        # 90, # TE L
-        # 91, # TE L
-        # 269, # TE R
-        # 270, # TE R
-        # 271, # TE R
-        # 98, # TPJ L
-        # 99, # TPJ L
-        # 278, # TPJ R
-        # 279, # TPJ R
-        # 144, # ACC L
-        # 324, # ACC R
-        # 387, # Amygdala L
-        # 420, # Amygdala R
-        # 157, # Orbital L
-        # 337, # Orbital R
-        # 68, # Anterior insula L
-        # 69, # Anterior insula L
-        # 73, # Anterior insula L
-        # 248 , # Anterior insula R
-        # 249, # Anterior insula R
-        # 253, # Anterior insula R
-        # 384, # Nucleus Accubems L
-        # 417, # Nucleus Accubems R
-        # 80, # Hippocampus L
-        # 260 # Hippocampus R
+        22, # V5/MT L MST
+        23, # V5/MT L MT
+        202, # V5/MT R MST
+        203, # V5/MT R MT
+        8, # V6 L V6
+        188, # V6 R V6
+        89, # TE L TE1a
+        90, # TE L TE1m
+        91, # TE L TE1p
+        269, # TE R TE1a
+        270, # TE R TE1m
+        271, # TE R TE1p
+        98, # TPJ L TPOJ1
+        99, # TPJ L TPOJ2
+        278, # TPJ R TPOJ1
+        279, # TPJ R TPOJ2
+        144, # ACC L p24
+        324, # ACC R p24
+        387, # Amygdala L
+        420, # Amygdala R
+        157, # Orbital L
+        337, # Orbital R
+        68, # Anterior insula L AAIC
+        69, # Anterior insula L AVI
+        73, # Anterior insula L FOP5
+        248, # Anterior insula R AAIC
+        249, # Anterior insula R AVI
+        253, # Anterior insula R FOP5
+        384, # Nucleus Accubems L NAc
+        417, # Nucleus Accubems R NAc
+        80, # Hippocampus L H
+        260, # Hippocampus R H
+        1035, # V1_fovea L
+        1036 # V1_fovea R
       )
   ) #
 # filter(roi_id %in% c(1:3, 181:183)) # visual
 
 # this needs to be changed to properly weight rois by the number of voxels before merge.
+roi_voxel_key <- read.csv(
+  "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/number_of_voxels_per_ROI.csv"
+)
+
+region_weight_key <-
+  tribble(
+    ~roi , ~weight                                                                                                                                                                                                                      , ~voxel                                               ,
+      # V5_MT_L
+    22 , roi_voxel_key$voxels[roi_voxel_key$region_id == 22] / sum(roi_voxel_key$voxels[roi_voxel_key$region_id == 22], roi_voxel_key$voxels[roi_voxel_key$region_id == 23])                                                          , roi_voxel_key$voxels[roi_voxel_key$region_id == 22]  ,
+      23 , roi_voxel_key$voxels[roi_voxel_key$region_id == 23] / sum(roi_voxel_key$voxels[roi_voxel_key$region_id == 22], roi_voxel_key$voxels[roi_voxel_key$region_id == 23])                                                          , roi_voxel_key$voxels[roi_voxel_key$region_id == 23]  ,
+     # V5_MT_R
+    202 , roi_voxel_key$voxels[roi_voxel_key$region_id == 202] / sum(roi_voxel_key$voxels[roi_voxel_key$region_id == 202], roi_voxel_key$voxels[roi_voxel_key$region_id == 203])                                                       , roi_voxel_key$voxels[roi_voxel_key$region_id == 202] ,
+     203 , roi_voxel_key$voxels[roi_voxel_key$region_id == 203] / sum(roi_voxel_key$voxels[roi_voxel_key$region_id == 202], roi_voxel_key$voxels[roi_voxel_key$region_id == 203])                                                       , roi_voxel_key$voxels[roi_voxel_key$region_id == 203] ,
+      # TE_L
+    89 , roi_voxel_key$voxels[roi_voxel_key$region_id == 89] / sum(roi_voxel_key$voxels[roi_voxel_key$region_id == 89], roi_voxel_key$voxels[roi_voxel_key$region_id == 90], roi_voxel_key$voxels[roi_voxel_key$region_id == 91])     , roi_voxel_key$voxels[roi_voxel_key$region_id == 89]  ,
+      90 , roi_voxel_key$voxels[roi_voxel_key$region_id == 90] / sum(roi_voxel_key$voxels[roi_voxel_key$region_id == 89], roi_voxel_key$voxels[roi_voxel_key$region_id == 90], roi_voxel_key$voxels[roi_voxel_key$region_id == 91])     , roi_voxel_key$voxels[roi_voxel_key$region_id == 90]  ,
+      91 , roi_voxel_key$voxels[roi_voxel_key$region_id == 91] / sum(roi_voxel_key$voxels[roi_voxel_key$region_id == 89], roi_voxel_key$voxels[roi_voxel_key$region_id == 90], roi_voxel_key$voxels[roi_voxel_key$region_id == 91])     , roi_voxel_key$voxels[roi_voxel_key$region_id == 91]  ,
+     # TE_R
+    269 , roi_voxel_key$voxels[roi_voxel_key$region_id == 269] / sum(roi_voxel_key$voxels[roi_voxel_key$region_id == 269], roi_voxel_key$voxels[roi_voxel_key$region_id == 270], roi_voxel_key$voxels[roi_voxel_key$region_id == 271]) , roi_voxel_key$voxels[roi_voxel_key$region_id == 269] ,
+     270 , roi_voxel_key$voxels[roi_voxel_key$region_id == 270] / sum(roi_voxel_key$voxels[roi_voxel_key$region_id == 269], roi_voxel_key$voxels[roi_voxel_key$region_id == 270], roi_voxel_key$voxels[roi_voxel_key$region_id == 271]) , roi_voxel_key$voxels[roi_voxel_key$region_id == 270] ,
+     271 , roi_voxel_key$voxels[roi_voxel_key$region_id == 271] / sum(roi_voxel_key$voxels[roi_voxel_key$region_id == 269], roi_voxel_key$voxels[roi_voxel_key$region_id == 270], roi_voxel_key$voxels[roi_voxel_key$region_id == 271]) , roi_voxel_key$voxels[roi_voxel_key$region_id == 271] ,
+      # TPJ_L
+    98 , roi_voxel_key$voxels[roi_voxel_key$region_id == 98] / sum(roi_voxel_key$voxels[roi_voxel_key$region_id == 98], roi_voxel_key$voxels[roi_voxel_key$region_id == 99])                                                          , roi_voxel_key$voxels[roi_voxel_key$region_id == 98]  ,
+      99 , roi_voxel_key$voxels[roi_voxel_key$region_id == 99] / sum(roi_voxel_key$voxels[roi_voxel_key$region_id == 98], roi_voxel_key$voxels[roi_voxel_key$region_id == 99])                                                          , roi_voxel_key$voxels[roi_voxel_key$region_id == 99]  ,
+     # TPJ_R
+    278 , roi_voxel_key$voxels[roi_voxel_key$region_id == 278] / sum(roi_voxel_key$voxels[roi_voxel_key$region_id == 278], roi_voxel_key$voxels[roi_voxel_key$region_id == 279])                                                       , roi_voxel_key$voxels[roi_voxel_key$region_id == 278] ,
+     279 , roi_voxel_key$voxels[roi_voxel_key$region_id == 279] / sum(roi_voxel_key$voxels[roi_voxel_key$region_id == 278], roi_voxel_key$voxels[roi_voxel_key$region_id == 279])                                                       , roi_voxel_key$voxels[roi_voxel_key$region_id == 279] ,
+      # Ant_Ins_L
+    68 , roi_voxel_key$voxels[roi_voxel_key$region_id == 68] / sum(roi_voxel_key$voxels[roi_voxel_key$region_id == 68], roi_voxel_key$voxels[roi_voxel_key$region_id == 69], roi_voxel_key$voxels[roi_voxel_key$region_id == 73])     , roi_voxel_key$voxels[roi_voxel_key$region_id == 68]  ,
+      69 , roi_voxel_key$voxels[roi_voxel_key$region_id == 69] / sum(roi_voxel_key$voxels[roi_voxel_key$region_id == 68], roi_voxel_key$voxels[roi_voxel_key$region_id == 69], roi_voxel_key$voxels[roi_voxel_key$region_id == 73])     , roi_voxel_key$voxels[roi_voxel_key$region_id == 69]  ,
+      73 , roi_voxel_key$voxels[roi_voxel_key$region_id == 73] / sum(roi_voxel_key$voxels[roi_voxel_key$region_id == 68], roi_voxel_key$voxels[roi_voxel_key$region_id == 69], roi_voxel_key$voxels[roi_voxel_key$region_id == 73])     , roi_voxel_key$voxels[roi_voxel_key$region_id == 73]  ,
+     # Ant_Ins_R
+    248 , roi_voxel_key$voxels[roi_voxel_key$region_id == 248] / sum(roi_voxel_key$voxels[roi_voxel_key$region_id == 248], roi_voxel_key$voxels[roi_voxel_key$region_id == 249], roi_voxel_key$voxels[roi_voxel_key$region_id == 253]) , roi_voxel_key$voxels[roi_voxel_key$region_id == 248] ,
+     249 , roi_voxel_key$voxels[roi_voxel_key$region_id == 249] / sum(roi_voxel_key$voxels[roi_voxel_key$region_id == 248], roi_voxel_key$voxels[roi_voxel_key$region_id == 249], roi_voxel_key$voxels[roi_voxel_key$region_id == 253]) , roi_voxel_key$voxels[roi_voxel_key$region_id == 249] ,
+     253 , roi_voxel_key$voxels[roi_voxel_key$region_id == 253] / sum(roi_voxel_key$voxels[roi_voxel_key$region_id == 248], roi_voxel_key$voxels[roi_voxel_key$region_id == 249], roi_voxel_key$voxels[roi_voxel_key$region_id == 253]) , roi_voxel_key$voxels[roi_voxel_key$region_id == 253]
+  )
+
+used_df_temp <- used_df_temp %>%
+  left_join(region_weight_key, by = c("roi_id" = "roi")) %>%
+  group_by(roi_id) %>%
+  mutate(
+    weighted_bold = case_when(is.na(weight) ~ bold, .default = bold * weight)
+  ) %>%
+  ungroup()
+
+# used_df_temp %>%
+# # group_by(roi_id) %>%
+# mutate(weighted_bold = bold * region_weight_key$weight[region_weight_key$roi == .data$roi_id])
+
 used_df_temp <- used_df_temp %>%
   mutate(
     roi_merge = case_when(
@@ -528,12 +621,9 @@ used_df_temp <- used_df_temp %>%
     )
   )
 
-used_df_temp$roi_merge %>% unique()
 
-
-# Currently the merge id doesn't really get used in stan model, it just loops 1 to end.
-# It would be simipler to sort the merge id so that the numbers within participant come in order
 used_df_temp <- used_df_temp %>%
+  group_by(par, time_sec, censor, roi) %>%
   mutate(
     roi_merge_id = as.integer(factor(
       roi_merge,
@@ -561,12 +651,14 @@ used_df_temp <- used_df_temp %>%
         "ACC_L",
         "ACC_R",
         "Orbital_Frontal_Complex_L",
-        "Orbital_Frontal_Complex_R"
+        "Orbital_Frontal_Complex_R",
+        "HCPex_resam_V1_fovea_L",
+        "HCPex_resam_V1_fovea_R"
       )
     ))
   ) %>%
   group_by(par, time_sec, censor, roi_merge, roi_merge_id) %>%
-  reframe(bold = mean(bold))
+  reframe(bold = sum(weighted_bold)) # sum instead of average because they were multiplied by the weight so smaller
 
 # used_df <- used_df %>%
 #   arrange(par, roi_merge_id)
@@ -609,37 +701,53 @@ used_df_temp <- used_df_temp %>%
 #   )
 #
 
-used_df <- used_df_temp
-# used_df <- used_df_temp %>%
-#   filter(
-#     roi_merge %in%
-#       c(
-#         "Primary_Visual_Cortex_L",
-#         "Primary_Visual_Cortex_R" #,
-#         # "Fourth_Visual_Area_L",
-#         # "Fourth_Visual_Area_R",
-#         # "V5_MT_L",
-#         # "V5_MT_R" ,
-#         # "Sixth_Visual_Area_L",
-#         # "Sixth_Visual_Area_R",
-#         # "TE_L",
-#         # "TE_R",
-#         # "TPJ_L",
-#         # "TPJ_R",
-#         # "Hippocampus_L",
-#         # "Hippocampus_R",
-#         # "Amygdala_L",
-#         # "Amygdala_R",
-#         # "Nucleus_Accumbens_L",
-#         # "Nucleus_Accumbens_R",
-#         # "Ant_Ins_L",
-#         # "Ant_Ins_R",
-#         # "ACC_L",
-#         # "ACC_R",
-#         # "Orbital_Frontal_Complex_L",
-#         # "Orbital_Frontal_Complex_R"
-#       )
-#   )
+# used_df <- used_df_temp
+
+# ROI_name_string <- "V1"
+# ROI_name_string <- "V4"
+# ROI_name_string <- "V5"
+# ROI_name_string <- "V6"
+# ROI_name_string <- "TE"
+# ROI_name_string <- "TPJ"
+# ROI_name_string <- "Hippocampus"
+# ROI_name_string <- "Amygdala"
+# ROI_name_string <- "Nucleus_Accumbens"
+# ROI_name_string <- "Ant_Ins"
+# ROI_name_string <- "ACC"
+ROI_name_string <- "V1_fovea"
+used_df <- used_df_temp %>%
+  filter(
+    roi_merge %in%
+      c(
+        # "Primary_Visual_Cortex_L",
+        # "Primary_Visual_Cortex_R" #,
+        # "Fourth_Visual_Area_L",
+        # "Fourth_Visual_Area_R"#,
+        # "V5_MT_L",
+        # "V5_MT_R" #,
+        # "Sixth_Visual_Area_L",
+        # "Sixth_Visual_Area_R"#,
+        # "TE_L",
+        # "TE_R"#,
+        # "TPJ_L",
+        # "TPJ_R"#,
+        # "Hippocampus_L",
+        # "Hippocampus_R"#,
+        # "Amygdala_L",
+        # "Amygdala_R"#,
+        # "Nucleus_Accumbens_L",
+        # "Nucleus_Accumbens_R" #,
+        # "Ant_Ins_L",
+        # "Ant_Ins_R" #,
+        # "ACC_L",
+        # "ACC_R"#,
+        # "Orbital_Frontal_Complex_L",
+        # "Orbital_Frontal_Complex_R"#,
+        "HCPex_resam_V1_fovea_L",
+        "HCPex_resam_V1_fovea_R"
+      )
+  ) %>%
+  arrange(par, roi_merge_id, time_sec)
 
 fmri_stan_list <- list()
 
@@ -659,6 +767,10 @@ fmri_stan_list$n <- fmri_stan_list$n_par *
 
 fmri_stan_list$par <- used_df$par %>% as.factor() %>% as.integer()
 
+# hold <- used_df %>%
+#   mutate(
+#     roi_int_factor_check = used_df$roi_id %>% as.factor() %>% as.integer()
+#   )
 
 if (is.null(used_df$roi_merge_id)) {
   fmri_stan_list$roi <- used_df$roi_id %>% as.factor() %>% as.integer()
@@ -773,6 +885,15 @@ for (p in 1:fmri_stan_list$n_par) {
 
 fmri_stan_list$csp_linespace_per_par <- as.matrix(csp_linespace_per_par)
 
+cmdstanr::write_stan_json(
+  fmri_stan_list,
+  file = paste0(
+    "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/fmri_stan_list_single_trial_",
+    ROI_name_string,
+    ".json"
+  )
+)
+
 
 # fmri_stan_list$useable_cue_betas_per_par
 
@@ -878,7 +999,8 @@ where_to_save_chains <- '/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMR
 # model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model033.stan'
 # model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model034.stan'
 # model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model035.stan' #editted model 30
-model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model037.stan' #editted model 30 with mu_beta_intercept and zero sum correction
+# model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model037.stan' #editted model 30 with mu_beta_intercept and zero sum correction
+model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model038.stan' #editted model 37 with no zero sum correction
 
 # Fit models
 model <- cmdstanr::cmdstan_model(

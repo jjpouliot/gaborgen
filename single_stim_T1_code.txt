@@ -1,0 +1,50 @@
+# 3dDeconvolve -input pb05.GABORGEN24_DAY2_137.r01.scale+tlrc.HEAD -censor censor_GABORGEN24_DAY2_137_combined_2.1D -ortvec mot_demean.r01.1D mot_demean_r01 -polort 15 -num_stimts 1 -stim_times 1 /home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/raw_data/GABORGEN24_DAY2_137/stim_times.1D 'BLOCK(2,1)' -stim_label 1 stim_1 -fout -tout -x1D X.xmat_single.1D -xjpeg X_single.jpg -x1D_uncensored X.nocensor.xmat.1D -errts errts.GABORGEN24_DAY2_137_single -bucket stats.GABORGEN24_DAY2_137_single
+
+3dREMLfit -matrix X.xmat.1D -input pb05.GABORGEN24_DAY2_137.r01.scale+tlrc.HEAD \
+ -fout -tout -Rbuck stats.GABORGEN24_DAY2_137_single_REML -Rvar stats.GABORGEN24_DAY2_137_single_REMLvar \
+ -Rerrts errts.GABORGEN24_DAY2_137_single_REML -verb $*
+ 
+ # 3dDeconvolve -input pb05.GABORGEN24_DAY2_137.r01.scale+tlrc.HEAD -censor censor_GABORGEN24_DAY2_137_combined_2.1D -ortvec mot_demean.r01.1D mot_demean_r01 -polort 15 -num_stimts 1 -stim_times 1 /home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/raw_data/GABORGEN24_DAY2_137/stim_times_t1off.1D 'BLOCK(2,1)' -stim_label 1 stim_1 -fout -tout -x1D X.xmat_single_t1off.1D -xjpeg X_single_t1off.jpg -x1D_uncensored X.nocensor.xmat_t1off.1D -errts errts.GABORGEN24_DAY2_137_single_t1off -bucket stats.GABORGEN24_DAY2_137_single_t1off
+
+3dREMLfit -matrix X.xmat.1D -input pb05.GABORGEN24_DAY2_137.r01.scale+tlrc.HEAD \
+ -fout -tout -Rbuck stats.GABORGEN24_DAY2_137_single_t1off_REML -Rvar stats.GABORGEN24_DAY2_137_single_t1off_REMLvar \
+ -Rerrts errts.GABORGEN24_DAY2_137_single_t1off_REML -verb $*
+
+###
+# 3dDeconvolve -input pb05.GABORGEN24_DAY2_138.r01.scale+tlrc.HEAD -censor censor_GABORGEN24_DAY2_138_combined_2.1D -ortvec mot_demean.r01.1D mot_demean_r01 -polort 15 -num_stimts 1 -stim_times 1 /home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/raw_data/GABORGEN24_DAY2_138/stim_times.1D 'BLOCK(2,1)' -stim_label 1 stim_1 -fout -tout -x1D X.xmat_single.1D -xjpeg X_single.jpg -x1D_uncensored X.nocensor.xmat.1D -errts errts.GABORGEN24_DAY2_138_single -bucket stats.GABORGEN24_DAY2_138_single
+
+3dREMLfit -matrix X.xmat.1D -input pb05.GABORGEN24_DAY2_138.r01.scale+tlrc.HEAD \
+ -fout -tout -Rbuck stats.GABORGEN24_DAY2_138_single_REML -Rvar stats.GABORGEN24_DAY2_138_single_REMLvar \
+ -Rerrts errts.GABORGEN24_DAY2_138_single_REML -verb $*
+ 
+ # 3dDeconvolve -input pb05.GABORGEN24_DAY2_138.r01.scale+tlrc.HEAD -censor censor_GABORGEN24_DAY2_138_combined_2.1D -ortvec mot_demean.r01.1D mot_demean_r01 -polort 15 -num_stimts 1 -stim_times 1 /home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/raw_data/GABORGEN24_DAY2_138/stim_times_t1off.1D 'BLOCK(2,1)' -stim_label 1 stim_1 -fout -tout -x1D X.xmat_single_t1off.1D -xjpeg X_single_t1off.jpg -x1D_uncensored X.nocensor.xmat_t1off.1D -errts errts.GABORGEN24_DAY2_138_single_t1off -bucket stats.GABORGEN24_DAY2_138_single_t1off
+
+3dREMLfit -matrix X.xmat.1D -input pb05.GABORGEN24_DAY2_138.r01.scale+tlrc.HEAD \
+ -fout -tout -Rbuck stats.GABORGEN24_DAY2_138_single_t1off_REML -Rvar stats.GABORGEN24_DAY2_138_single_t1off_REMLvar \
+ -Rerrts errts.GABORGEN24_DAY2_138_single_t1off_REML -verb $*
+
+###
+# 3dDeconvolve -input pb05.GABORGEN24_DAY2_144.r01.scale+tlrc.HEAD -censor censor_GABORGEN24_DAY2_144_combined_2.1D -ortvec mot_demean.r01.1D mot_demean_r01 -polort 15 -num_stimts 1 -stim_times 1 /home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/raw_data/GABORGEN24_DAY2_144/stim_times.1D 'BLOCK(2,1)' -stim_label 1 stim_1 -fout -tout -x1D X.xmat_single.1D -xjpeg X_single.jpg -x1D_uncensored X.nocensor.xmat.1D -errts errts.GABORGEN24_DAY2_144_single -bucket stats.GABORGEN24_DAY2_144_single
+
+3dREMLfit -matrix X.xmat.1D -input pb05.GABORGEN24_DAY2_144.r01.scale+tlrc.HEAD \
+ -fout -tout -Rbuck stats.GABORGEN24_DAY2_144_single_REML -Rvar stats.GABORGEN24_DAY2_144_single_REMLvar \
+ -Rerrts errts.GABORGEN24_DAY2_144_single_REML -verb $*
+ 
+ # 3dDeconvolve -input pb05.GABORGEN24_DAY2_144.r01.scale+tlrc.HEAD -censor censor_GABORGEN24_DAY2_144_combined_2.1D -ortvec mot_demean.r01.1D mot_demean_r01 -polort 15 -num_stimts 1 -stim_times 1 /home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/raw_data/GABORGEN24_DAY2_144/stim_times_t1off.1D 'BLOCK(2,1)' -stim_label 1 stim_1 -fout -tout -x1D X.xmat_single_t1off.1D -xjpeg X_single_t1off.jpg -x1D_uncensored X.nocensor.xmat_t1off.1D -errts errts.GABORGEN24_DAY2_144_single_t1off -bucket stats.GABORGEN24_DAY2_144_single_t1off
+
+3dREMLfit -matrix X.xmat.1D -input pb05.GABORGEN24_DAY2_144.r01.scale+tlrc.HEAD \
+ -fout -tout -Rbuck stats.GABORGEN24_DAY2_144_single_t1off_REML -Rvar stats.GABORGEN24_DAY2_144_single_t1off_REMLvar \
+ -Rerrts errts.GABORGEN24_DAY2_144_single_t1off_REML -verb $*
+
+###
+# 3dDeconvolve -input pb05.GABORGEN24_DAY2_145.r01.scale+tlrc.HEAD -censor censor_GABORGEN24_DAY2_145_combined_2.1D -ortvec mot_demean.r01.1D mot_demean_r01 -polort 15 -num_stimts 1 -stim_times 1 /home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/raw_data/GABORGEN24_DAY2_145/stim_times.1D 'BLOCK(2,1)' -stim_label 1 stim_1 -fout -tout -x1D X.xmat_single.1D -xjpeg X_single.jpg -x1D_uncensored X.nocensor.xmat.1D -errts errts.GABORGEN24_DAY2_145_single -bucket stats.GABORGEN24_DAY2_145_single
+
+3dREMLfit -matrix X.xmat.1D -input pb05.GABORGEN24_DAY2_145.r01.scale+tlrc.HEAD \
+ -fout -tout -Rbuck stats.GABORGEN24_DAY2_145_single_REML -Rvar stats.GABORGEN24_DAY2_145_single_REMLvar \
+ -Rerrts errts.GABORGEN24_DAY2_145_single_REML -verb $*
+ 
+ # 3dDeconvolve -input pb05.GABORGEN24_DAY2_145.r01.scale+tlrc.HEAD -censor censor_GABORGEN24_DAY2_145_combined_2.1D -ortvec mot_demean.r01.1D mot_demean_r01 -polort 15 -num_stimts 1 -stim_times 1 /home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/raw_data/GABORGEN24_DAY2_145/stim_times_t1off.1D 'BLOCK(2,1)' -stim_label 1 stim_1 -fout -tout -x1D X.xmat_single_t1off.1D -xjpeg X_single_t1off.jpg -x1D_uncensored X.nocensor.xmat_t1off.1D -errts errts.GABORGEN24_DAY2_145_single_t1off -bucket stats.GABORGEN24_DAY2_145_single_t1off
+
+3dREMLfit -matrix X.xmat.1D -input pb05.GABORGEN24_DAY2_145.r01.scale+tlrc.HEAD \
+ -fout -tout -Rbuck stats.GABORGEN24_DAY2_145_single_t1off_REML -Rvar stats.GABORGEN24_DAY2_145_single_t1off_REMLvar \
+ -Rerrts errts.GABORGEN24_DAY2_145_single_t1off_REML -verb $*

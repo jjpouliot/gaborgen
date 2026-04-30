@@ -1,0 +1,64 @@
+
+# select ROIs 
+3dcalc -a Julich_MNI2009c.nii.gz \
+       -expr 'amongst(a,8,208)' \
+       -prefix V1_julich_full.nii.gz
+
+# Even tighter - just the occipital bun tip
+3dcalc -a V1_julich_full.nii.gz \
+       -expr 'a*step(y-89)' \
+       -prefix V1_posterior_5deg.nii.gz
+
+# select ROIs 
+3dcalc -a Julich_MNI2009c.nii.gz \
+       -expr 'amongst(a,8,208)' \
+       -prefix V1_julich_full.nii.gz
+
+# Even tighter - just the occipital bun tip
+3dcalc -a V1_julich_full.nii.gz \
+       -expr 'a*step(y-89)' \
+       -prefix V1_posterior_5deg.nii.gz
+
+# select ROIs 
+3dcalc -a Julich_MNI2009c.nii.gz \
+       -expr 'amongst(a,208)' \
+       -prefix V1_julich_full_L.nii.gz
+
+# Even tighter - just the occipital bun tip
+3dcalc -a V1_julich_full_L.nii.gz \
+       -expr 'a*step(y-89)' \
+       -prefix V1_julich_fovea_L.nii.gz
+
+# select ROIs 
+3dcalc -a Julich_MNI2009c.nii.gz \
+       -expr 'amongst(a,8)' \
+       -prefix V1_julich_full_R.nii.gz
+
+# Even tighter - just the occipital bun tip
+3dcalc -a V1_julich_full_R.nii.gz \
+       -expr 'a*step(y-89)' \
+       -prefix V1_julich_fovea_R.nii.gz
+
+
+
+
+#hcp
+# select ROIs 
+3dcalc -a HCPex_resam+tlrc \
+       -expr 'amongst(a,1)' \
+       -prefix HCPex_resam_V1_L.nii.gz
+
+3dcalc -a HCPex_resam+tlrc \
+       -expr 'amongst(a,181)' \
+       -prefix HCPex_resam_V1_R.nii.gz
+
+
+
+# Even tighter - just the occipital bun tip
+3dcalc -a HCPex_resam_V1_L.nii.gz \
+       -expr 'a*step(y-89)' \
+       -prefix HCPex_resam_V1_fovea_L.nii.gz
+       
+3dcalc -a HCPex_resam_V1_R.nii.gz \
+       -expr 'a*step(y-89)' \
+       -prefix HCPex_resam_V1_fovea_R.nii.gz

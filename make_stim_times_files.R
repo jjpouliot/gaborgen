@@ -10,7 +10,7 @@ if (length(found_dat_log_filepaths) != length(participant_directories)) {
   )
 }
 
-T1_off_participant_regex <- "101|103|106|110|111|114|117|119|122|DAY1_123|DAY1_127|DAY1_130|DAY1_131|DAY1_132|DAY1_134|DAY1_135|DAY1_137|DAY1_144|DAY1_146|DAY1_148|DAY1_149|DAY1_150|DAY1_154|DAY1_158|DAY1_159|DAY1_160|DAY2_133"
+T1_off_participant_regex <- "101|103|106|110|111|114|117|119|122|DAY1_123|DAY1_127|DAY1_130|DAY1_131|DAY1_132|DAY1_134|DAY1_135|DAY1_137|DAY1_144|DAY1_146|DAY1_148|DAY1_149|DAY1_150|DAY1_154|DAY1_158|DAY1_159|DAY1_160|DAY2_126|DAY2_127|DAY2_128|DAY2_130|DAY2_132|DAY2_133|DAY2_136|DAY2_137|DAY2_139|DAY2_143|DAY2_144|DAY2_150|DAY2_159"
 
 for (directory_index in 1:length(participant_directories)) {
   log_file <- read.delim(
@@ -103,7 +103,15 @@ if (exists("by_block")) {
 
     # no for loops because there isn't a proper block (1 to 4) in log file
     write(
-      x = log_file$timeSinceFirstTR[log_file$phase == 1 & log_file$stim == 1],
+      x = (log_file$timeSinceFirstTR[log_file$phase == 1 & log_file$stim == 1] +
+        ifelse(
+          grepl(
+            T1_off_participant_regex,
+            participant_directories[directory_index]
+          ),
+          2,
+          0
+        )),
       ncolumns = 1,
       file = paste0(
         participant_directories[directory_index],
@@ -111,7 +119,15 @@ if (exists("by_block")) {
       )
     )
     write(
-      x = log_file$timeSinceFirstTR[log_file$phase == 1 & log_file$stim == 2],
+      x = (log_file$timeSinceFirstTR[log_file$phase == 1 & log_file$stim == 2] +
+        ifelse(
+          grepl(
+            T1_off_participant_regex,
+            participant_directories[directory_index]
+          ),
+          2,
+          0
+        )),
       ncolumns = 1,
       file = paste0(
         participant_directories[directory_index],
@@ -119,7 +135,15 @@ if (exists("by_block")) {
       )
     )
     write(
-      x = log_file$timeSinceFirstTR[log_file$phase == 1 & log_file$stim == 3],
+      x = (log_file$timeSinceFirstTR[log_file$phase == 1 & log_file$stim == 3] +
+        ifelse(
+          grepl(
+            T1_off_participant_regex,
+            participant_directories[directory_index]
+          ),
+          2,
+          0
+        )),
       ncolumns = 1,
       file = paste0(
         participant_directories[directory_index],
@@ -127,7 +151,15 @@ if (exists("by_block")) {
       )
     )
     write(
-      x = log_file$timeSinceFirstTR[log_file$phase == 1 & log_file$stim == 4],
+      x = (log_file$timeSinceFirstTR[log_file$phase == 1 & log_file$stim == 4] +
+        ifelse(
+          grepl(
+            T1_off_participant_regex,
+            participant_directories[directory_index]
+          ),
+          2,
+          0
+        )),
       ncolumns = 1,
       file = paste0(
         participant_directories[directory_index],
@@ -135,9 +167,17 @@ if (exists("by_block")) {
       )
     )
     write(
-      x = log_file$timeSinceFirstTR[
+      x = (log_file$timeSinceFirstTR[
         log_file$phase == 2 & log_file$block == 1 & log_file$stim == 1
-      ],
+      ] +
+        ifelse(
+          grepl(
+            T1_off_participant_regex,
+            participant_directories[directory_index]
+          ),
+          2,
+          0
+        )),
       ncolumns = 1,
       file = paste0(
         participant_directories[directory_index],
@@ -145,9 +185,17 @@ if (exists("by_block")) {
       )
     )
     write(
-      x = log_file$timeSinceFirstTR[
+      x = (log_file$timeSinceFirstTR[
         log_file$phase == 2 & log_file$block == 1 & log_file$stim == 2
-      ],
+      ] +
+        ifelse(
+          grepl(
+            T1_off_participant_regex,
+            participant_directories[directory_index]
+          ),
+          2,
+          0
+        )),
       ncolumns = 1,
       file = paste0(
         participant_directories[directory_index],
@@ -155,9 +203,17 @@ if (exists("by_block")) {
       )
     )
     write(
-      x = log_file$timeSinceFirstTR[
+      x = (log_file$timeSinceFirstTR[
         log_file$phase == 2 & log_file$block == 1 & log_file$stim == 3
-      ],
+      ] +
+        ifelse(
+          grepl(
+            T1_off_participant_regex,
+            participant_directories[directory_index]
+          ),
+          2,
+          0
+        )),
       ncolumns = 1,
       file = paste0(
         participant_directories[directory_index],
@@ -165,9 +221,17 @@ if (exists("by_block")) {
       )
     )
     write(
-      x = log_file$timeSinceFirstTR[
+      x = (log_file$timeSinceFirstTR[
         log_file$phase == 2 & log_file$block == 1 & log_file$stim == 4
-      ],
+      ] +
+        ifelse(
+          grepl(
+            T1_off_participant_regex,
+            participant_directories[directory_index]
+          ),
+          2,
+          0
+        )),
       ncolumns = 1,
       file = paste0(
         participant_directories[directory_index],
@@ -175,9 +239,17 @@ if (exists("by_block")) {
       )
     )
     write(
-      x = log_file$timeSinceFirstTR[
+      x = (log_file$timeSinceFirstTR[
         log_file$phase == 2 & log_file$block == 2 & log_file$stim == 1
-      ],
+      ] +
+        ifelse(
+          grepl(
+            T1_off_participant_regex,
+            participant_directories[directory_index]
+          ),
+          2,
+          0
+        )),
       ncolumns = 1,
       file = paste0(
         participant_directories[directory_index],
@@ -185,9 +257,17 @@ if (exists("by_block")) {
       )
     )
     write(
-      x = log_file$timeSinceFirstTR[
+      x = (log_file$timeSinceFirstTR[
         log_file$phase == 2 & log_file$block == 2 & log_file$stim == 2
-      ],
+      ] +
+        ifelse(
+          grepl(
+            T1_off_participant_regex,
+            participant_directories[directory_index]
+          ),
+          2,
+          0
+        )),
       ncolumns = 1,
       file = paste0(
         participant_directories[directory_index],
@@ -195,9 +275,17 @@ if (exists("by_block")) {
       )
     )
     write(
-      x = log_file$timeSinceFirstTR[
+      x = (log_file$timeSinceFirstTR[
         log_file$phase == 2 & log_file$block == 2 & log_file$stim == 3
-      ],
+      ] +
+        ifelse(
+          grepl(
+            T1_off_participant_regex,
+            participant_directories[directory_index]
+          ),
+          2,
+          0
+        )),
       ncolumns = 1,
       file = paste0(
         participant_directories[directory_index],
@@ -205,9 +293,17 @@ if (exists("by_block")) {
       )
     )
     write(
-      x = log_file$timeSinceFirstTR[
+      x = (log_file$timeSinceFirstTR[
         log_file$phase == 2 & log_file$block == 2 & log_file$stim == 4
-      ],
+      ] +
+        ifelse(
+          grepl(
+            T1_off_participant_regex,
+            participant_directories[directory_index]
+          ),
+          2,
+          0
+        )),
       ncolumns = 1,
       file = paste0(
         participant_directories[directory_index],
@@ -215,7 +311,15 @@ if (exists("by_block")) {
       )
     )
     write(
-      x = log_file$timeSinceFirstTR[log_file$phase == 3 & log_file$stim == 1],
+      x = (log_file$timeSinceFirstTR[log_file$phase == 3 & log_file$stim == 1] +
+        ifelse(
+          grepl(
+            T1_off_participant_regex,
+            participant_directories[directory_index]
+          ),
+          2,
+          0
+        )),
       ncolumns = 1,
       file = paste0(
         participant_directories[directory_index],
@@ -223,7 +327,15 @@ if (exists("by_block")) {
       )
     )
     write(
-      x = log_file$timeSinceFirstTR[log_file$phase == 3 & log_file$stim == 2],
+      x = (log_file$timeSinceFirstTR[log_file$phase == 3 & log_file$stim == 2] +
+        ifelse(
+          grepl(
+            T1_off_participant_regex,
+            participant_directories[directory_index]
+          ),
+          2,
+          0
+        )),
       ncolumns = 1,
       file = paste0(
         participant_directories[directory_index],
@@ -231,7 +343,15 @@ if (exists("by_block")) {
       )
     )
     write(
-      x = log_file$timeSinceFirstTR[log_file$phase == 3 & log_file$stim == 3],
+      x = (log_file$timeSinceFirstTR[log_file$phase == 3 & log_file$stim == 3] +
+        ifelse(
+          grepl(
+            T1_off_participant_regex,
+            participant_directories[directory_index]
+          ),
+          2,
+          0
+        )),
       ncolumns = 1,
       file = paste0(
         participant_directories[directory_index],
@@ -239,7 +359,15 @@ if (exists("by_block")) {
       )
     )
     write(
-      x = log_file$timeSinceFirstTR[log_file$phase == 3 & log_file$stim == 4],
+      x = (log_file$timeSinceFirstTR[log_file$phase == 3 & log_file$stim == 4] +
+        ifelse(
+          grepl(
+            T1_off_participant_regex,
+            participant_directories[directory_index]
+          ),
+          2,
+          0
+        )),
       ncolumns = 1,
       file = paste0(
         participant_directories[directory_index],
