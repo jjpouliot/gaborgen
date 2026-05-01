@@ -10,6 +10,12 @@ library(cmdstanr)
 # cut off frequency = 0.026 * .25 (nyquist) = .0065 Hz
 highpass <- signal::butter(n = 5, W = 0.026, type = "high")
 
+# Set to TRUE to use unblurred/unscaled pb03 functional data (and apply
+# AFNI-style percent-signal-change scaling). Set to FALSE to use pb05 data
+# (already scaled to mean=100 by AFNI, so just subtract 100).
+use_pb03 <- TRUE
+
+# ...existing code...
 
 # load data from text files ####
 
@@ -211,13 +217,24 @@ bold_per_roi_df <- data.frame(
 
 
 for (i in 1:length(useable_participants)) {
-  bold_text_file <- list.files(
-    path = paste0(data_dir, "/roi_data_and_info/roi_timeseries"),
-    pattern = paste0(useable_participants[i], "_roi_stats.txt"),
-    recursive = T,
-    full.names = T,
-    include.dirs = F
-  )
+  # Select the correct roi_stats file based on which functional was used
+  if (use_pb03) {
+    bold_text_file <- list.files(
+      path = paste0(data_dir, "/roi_data_and_info/roi_timeseries"),
+      pattern = paste0(useable_participants[i], "_roi_stats_pb03\\.txt"),
+      recursive = T,
+      full.names = T,
+      include.dirs = F
+    )
+  } else {
+    bold_text_file <- list.files(
+      path = paste0(data_dir, "/roi_data_and_info/roi_timeseries"),
+      pattern = paste0(useable_participants[i], "_roi_stats\\.txt"),
+      recursive = T,
+      full.names = T,
+      include.dirs = F
+    )
+  }
 
   all_bold <- read_delim(
     bold_text_file,
@@ -225,16 +242,29 @@ for (i in 1:length(useable_participants)) {
   )
 
   # add in smaller V1 fovea
-  bold_text_file_HCPex_resam_V1_fovea_R <- gsub(
-    pattern = "roi_stats.txt",
-    replacement = "roi_stats_HCPex_resam_V1_fovea_L.txt",
-    x = bold_text_file
-  )
-  bold_text_file_HCPex_resam_V1_fovea_L <- gsub(
-    pattern = "roi_stats.txt",
-    replacement = "roi_stats_HCPex_resam_V1_fovea_R.txt",
-    x = bold_text_file
-  )
+  if (use_pb03) {
+    bold_text_file_HCPex_resam_V1_fovea_R <- gsub(
+      pattern = "roi_stats_pb03\\.txt",
+      replacement = "roi_stats_pb03_HCPex_resam_V1_fovea_L.txt",
+      x = bold_text_file
+    )
+    bold_text_file_HCPex_resam_V1_fovea_L <- gsub(
+      pattern = "roi_stats_pb03\\.txt",
+      replacement = "roi_stats_pb03_HCPex_resam_V1_fovea_R.txt",
+      x = bold_text_file
+    )
+  } else {
+    bold_text_file_HCPex_resam_V1_fovea_R <- gsub(
+      pattern = "roi_stats\\.txt",
+      replacement = "roi_stats_HCPex_resam_V1_fovea_L.txt",
+      x = bold_text_file
+    )
+    bold_text_file_HCPex_resam_V1_fovea_L <- gsub(
+      pattern = "roi_stats\\.txt",
+      replacement = "roi_stats_HCPex_resam_V1_fovea_R.txt",
+      x = bold_text_file
+    )
+  }
 
   bold_HCPex_resam_V1_fovea_L <- read_delim(
     bold_text_file_HCPex_resam_V1_fovea_L,
@@ -259,10 +289,27 @@ for (i in 1:length(useable_participants)) {
 
   all_bold <- cbind(all_bold, V1_fovea_df_to_cbind)
 
-  all_bold <- all_bold %>%
-    select(starts_with("NZMEAN")) %>%
-    mutate(across(everything(), ~ . - 100)) %>%
-    mutate(across(everything(), ~ signal::filtfilt(highpass, .)))
+  if (use_pb03) {
+    # pb03 is unscaled raw signal: compute AFNI-style percent signal change
+    # per ROI (column), then center to zero mean.
+    # roi_pct    = 100 * raw / mean(raw)   → mean=100, units are % of mean
+    # roi_centered = roi_pct - 100         → mean=0, sign matches pb05 output
+    all_bold <- all_bold %>%
+      select(starts_with("NZMEAN")) %>%
+      mutate(across(
+        everything(),
+        ~ 100 * . / mean(., na.rm = TRUE) - 100
+      )) %>%
+      mutate(across(everything(), ~ signal::filtfilt(highpass, .)))
+  } else {
+    # pb05 is already scaled by AFNI to mean=100; just subtract 100
+    all_bold <- all_bold %>%
+      select(starts_with("NZMEAN")) %>%
+      mutate(across(everything(), ~ . - 100)) %>%
+      mutate(across(everything(), ~ signal::filtfilt(highpass, .)))
+  }
+
+  # ...existing code...
 
   # why are there extra areas that are not in the key?
   long_mean_bold <- all_bold %>%
@@ -714,7 +761,11 @@ used_df_temp <- used_df_temp %>%
 # ROI_name_string <- "Nucleus_Accumbens"
 # ROI_name_string <- "Ant_Ins"
 # ROI_name_string <- "ACC"
-ROI_name_string <- "V1_fovea"
+ROI_name_string <- if (use_pb03) {
+  "V1_fovea_pb03"
+} else {
+  "V1_fovea"
+}
 used_df <- used_df_temp %>%
   filter(
     roi_merge %in%
