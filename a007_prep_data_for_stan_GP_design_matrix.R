@@ -9,6 +9,10 @@ library(cmdstanr)
 # fifth order (n = 5)
 # cut off frequency = 0.026 * .25 (nyquist) = .0065 Hz
 highpass <- signal::butter(n = 5, W = 0.026, type = "high")
+# Or residualize data with polort lm
+use_polort_residualize_highpass <- T
+# In R, before write_stan_json:
+# Pass bold_residualized to Stan instead of bold
 
 # Set to TRUE to use unblurred/unscaled pb03 functional data (and apply
 # AFNI-style percent-signal-change scaling). Set to FALSE to use pb05 data
@@ -276,8 +280,6 @@ for (i in 1:length(useable_participants)) {
     trim_ws = T
   )
 
-  index_to_add_to <- readr::parse_number(names(all_bold)[ncol(all_bold)])
-
   V1_fovea_df_to_cbind <- data.frame(
     "Mean_1035" = bold_HCPex_resam_V1_fovea_L$Mean_1,
     "NZMean_1035" = bold_HCPex_resam_V1_fovea_L$NZMean_1,
@@ -299,17 +301,48 @@ for (i in 1:length(useable_participants)) {
       mutate(across(
         everything(),
         ~ 100 * . / mean(., na.rm = TRUE) - 100
-      )) %>%
-      mutate(across(everything(), ~ signal::filtfilt(highpass, .)))
+      ))
   } else {
     # pb05 is already scaled by AFNI to mean=100; just subtract 100
     all_bold <- all_bold %>%
       select(starts_with("NZMEAN")) %>%
-      mutate(across(everything(), ~ . - 100)) %>%
-      mutate(across(everything(), ~ signal::filtfilt(highpass, .)))
+      mutate(across(everything(), ~ . - 100))
   }
 
-  # ...existing code...
+  if (use_polort_residualize_highpass) {
+    #first 2:17 columns are the polort regression highpass
+    if (useable_participants[i] < 123) {
+      polort_cols <- as.matrix(read_delim(
+        paste0(
+          paste0(data_dir, "/roi_data_and_info/design_matrices"),
+          '/GABORGEN24_',
+          useable_participants[i],
+          '.results_X.nocensor.xmat.1D'
+        ),
+        skip = 64,
+        col_names = F,
+      )[1:1070, 2:17]) %>%
+        apply(2, as.numeric)
+    } else {
+      polort_cols <- as.matrix(read_delim(
+        paste0(
+          paste0(data_dir, "/roi_data_and_info/design_matrices"),
+          '/GABORGEN24_DAY1_',
+          useable_participants[i],
+          '.results_X.nocensor.xmat.1D'
+        ),
+        skip = 64,
+        col_names = F,
+      )[1:1070, 2:17]) %>%
+        apply(2, as.numeric)
+    }
+
+    all_bold <- all_bold %>%
+      mutate(across(everything(), ~ residuals(lm(. ~ polort_cols))))
+  } else {
+    all_bold <- all_bold %>%
+      mutate(across(everything(), ~ signal::filtfilt(highpass, .)))
+  }
 
   # why are there extra areas that are not in the key?
   long_mean_bold <- all_bold %>%
@@ -761,11 +794,21 @@ used_df_temp <- used_df_temp %>%
 # ROI_name_string <- "Nucleus_Accumbens"
 # ROI_name_string <- "Ant_Ins"
 # ROI_name_string <- "ACC"
+ROI_name_string <- "OFC"
+# ROI_name_string <- "V1_fovea"
+
 ROI_name_string <- if (use_pb03) {
-  "V1_fovea_pb03"
+  paste0(ROI_name_string, "_pb03")
 } else {
-  "V1_fovea"
+  paste0(ROI_name_string, "_pb05")
 }
+
+ROI_name_string <- if (use_polort_residualize_highpass) {
+  paste0(ROI_name_string, "_res")
+} else {
+  ROI_name_string
+}
+
 used_df <- used_df_temp %>%
   filter(
     roi_merge %in%
@@ -773,7 +816,7 @@ used_df <- used_df_temp %>%
         # "Primary_Visual_Cortex_L",
         # "Primary_Visual_Cortex_R" #,
         # "Fourth_Visual_Area_L",
-        # "Fourth_Visual_Area_R"#,
+        # "Fourth_Visual_Area_R" #,
         # "V5_MT_L",
         # "V5_MT_R" #,
         # "Sixth_Visual_Area_L",
@@ -792,10 +835,10 @@ used_df <- used_df_temp %>%
         # "Ant_Ins_R" #,
         # "ACC_L",
         # "ACC_R"#,
-        # "Orbital_Frontal_Complex_L",
-        # "Orbital_Frontal_Complex_R"#,
-        "HCPex_resam_V1_fovea_L",
-        "HCPex_resam_V1_fovea_R"
+        "Orbital_Frontal_Complex_L",
+        "Orbital_Frontal_Complex_R" #,
+        # "HCPex_resam_V1_fovea_L",
+        # "HCPex_resam_V1_fovea_R"
       )
   ) %>%
   arrange(par, roi_merge_id, time_sec)

@@ -39,12 +39,71 @@ if (!file.exists(where_results_should_be_saved)) {
 # participants_to_preprocess <- c(101:103,106:130, 135:136)
 # participants_to_preprocess <- c(101:155)
 # participants_to_preprocess <- c(101:103, 105:155, 157:158)
-participants_to_preprocess <- c(159:161)
+participants_to_preprocess <- c(
+  "101", # made
+  "102", # 22% censored# made
+  "103", # made
+  "106", # made
+  "107", # made
+  "108", # made
+  "109", # made
+  "113", # made
+  "114", # 23% censored # made
+  "115", # made
+  "116", # made
+  "117", # made
+  "119", # made
+  "120", # 16% censored # moved over 2 mm # made
+  "121", # made
+  "122", # made
+  "123", # made
+  #"124", # 34% censored moved head to every cue
+  "125", # made
+  "126", # made
+  "127", # made
+  "128", # made
+  "129", # made
+  "131", # made
+  "132", # made
+  "133", # made
+  "134", # made
+  "135", # made
+  # "136", # 50% censored
+  "137", # made
+  "138", # made
+  # "139", # 31% censored, movement over 3mm
+  "140", # 23.7% censored # made
+  "141", # made
+  # double-check these
+  #"142", #probably asleep # made
+  "143", #probably asleep, not convinced enough to keep them out # made
+  #"144", # 29% censored severe TSNR warnings, large pitch shifts above 5 degrees on way out of acquisition
+  #
+  "145", # made
+  #"146", # messed up alignment
+  #"147", #asleep , not aligned right?
+  #"148", #messed up alignment
+  "149", # made
+  "150", # made
+  "151", # made
+  "152", # made
+  "153", # made
+  "154", # made
+  "155", # made
+  "158", # made
+  "159", # made
+  "160", # made
+  "161" # made
+)
 
 ## Which days should be processed
 days_to_preprocess <- c(1)
 # days_to_preprocess <- c(2)
 #days_to_preprocess <- c(1,2)
+
+## Toggle: TRUE = one parameter per trial (IM solution)
+##         FALSE = one parameter per cue per block (standard solution)
+by_trial <- FALSE
 
 # End of user input ####
 
@@ -156,131 +215,152 @@ source("make_stim_times_files.R", local = T, echo = T)
 for (participant_index in 1:length(participant_directories)) {
   setwd(participant_directories[participant_index])
 
-  design_matrix_script <- paste0(
-    '3dDeconvolve
-    -nodata 1070 2
-    -num_stimts 17
-    -stim_times_IM 1 ',
+  stim_flag <- if (by_trial) "-stim_times_IM" else "-stim_times"
+
+  make_stim_entry <- function(index, label, filename, hrf) {
     paste0(
+      "    ",
+      stim_flag,
+      " ",
+      index,
+      " ",
       participant_directories[participant_index],
-      "/habituation_CS+_stim_times_for_stan.1D "
+      "/",
+      filename,
+      " ",
+      '"',
+      hrf,
+      '"',
+      "\n",
+      "    -stim_label ",
+      index,
+      " ",
+      label
+    )
+  }
+
+  stim_entries <- paste(
+    c(
+      make_stim_entry(
+        1,
+        "habituation_CS+",
+        "habituation_CS+_stim_times_for_stan.1D",
+        "BLOCK(2,1)"
+      ),
+      make_stim_entry(
+        2,
+        "habituation_GS1",
+        "habituation_GS1_stim_times_for_stan.1D",
+        "BLOCK(2,1)"
+      ),
+      make_stim_entry(
+        3,
+        "habituation_GS2",
+        "habituation_GS2_stim_times_for_stan.1D",
+        "BLOCK(2,1)"
+      ),
+      make_stim_entry(
+        4,
+        "habituation_GS3",
+        "habituation_GS3_stim_times_for_stan.1D",
+        "BLOCK(2,1)"
+      ),
+      make_stim_entry(
+        5,
+        "acquisition_block_1_CS+",
+        "acquisition_block_1_CS+_stim_times_for_stan.1D",
+        "BLOCK(2,1)"
+      ),
+      make_stim_entry(
+        6,
+        "acquisition_block_1_GS1",
+        "acquisition_block_1_GS1_stim_times_for_stan.1D",
+        "BLOCK(2,1)"
+      ),
+      make_stim_entry(
+        7,
+        "acquisition_block_1_GS2",
+        "acquisition_block_1_GS2_stim_times_for_stan.1D",
+        "BLOCK(2,1)"
+      ),
+      make_stim_entry(
+        8,
+        "acquisition_block_1_GS3",
+        "acquisition_block_1_GS3_stim_times_for_stan.1D",
+        "BLOCK(2,1)"
+      ),
+      make_stim_entry(
+        9,
+        "acquisition_block_2_CS+",
+        "acquisition_block_2_CS+_stim_times_for_stan.1D",
+        "BLOCK(2,1)"
+      ),
+      make_stim_entry(
+        10,
+        "acquisition_block_2_GS1",
+        "acquisition_block_2_GS1_stim_times_for_stan.1D",
+        "BLOCK(2,1)"
+      ),
+      make_stim_entry(
+        11,
+        "acquisition_block_2_GS2",
+        "acquisition_block_2_GS2_stim_times_for_stan.1D",
+        "BLOCK(2,1)"
+      ),
+      make_stim_entry(
+        12,
+        "acquisition_block_2_GS3",
+        "acquisition_block_2_GS3_stim_times_for_stan.1D",
+        "BLOCK(2,1)"
+      ),
+      make_stim_entry(
+        13,
+        "extinction_CS+",
+        "extinction_CS+_stim_times_for_stan.1D",
+        "BLOCK(2,1)"
+      ),
+      make_stim_entry(
+        14,
+        "extinction_GS1",
+        "extinction_GS1_stim_times_for_stan.1D",
+        "BLOCK(2,1)"
+      ),
+      make_stim_entry(
+        15,
+        "extinction_GS2",
+        "extinction_GS2_stim_times_for_stan.1D",
+        "BLOCK(2,1)"
+      ),
+      make_stim_entry(
+        16,
+        "extinction_GS3",
+        "extinction_GS3_stim_times_for_stan.1D",
+        "BLOCK(2,1)"
+      ),
+      make_stim_entry(17, "shock", "shock_times_for_stan.1D", "BLOCK(.1,1)")
     ),
-    '"BLOCK(2,1)"
-    -stim_label 1 habituation_CS+
-    -stim_times_IM 2 ',
-    paste0(
-      participant_directories[participant_index],
-      "/habituation_GS1_stim_times_for_stan.1D "
-    ),
-    '"BLOCK(2,1)"
-    -stim_label 2 habituation_GS1
-    -stim_times_IM 3 ',
-    paste0(
-      participant_directories[participant_index],
-      "/habituation_GS2_stim_times_for_stan.1D "
-    ),
-    '"BLOCK(2,1)"
-    -stim_label 3 habituation_GS2
-    -stim_times_IM 4 ',
-    paste0(
-      participant_directories[participant_index],
-      "/habituation_GS3_stim_times_for_stan.1D "
-    ),
-    '"BLOCK(2,1)"
-    -stim_label 4 habituation_GS3
-    -stim_times_IM 5 ',
-    paste0(
-      participant_directories[participant_index],
-      "/acquisition_block_1_CS+_stim_times_for_stan.1D "
-    ),
-    '"BLOCK(2,1)"
-    -stim_label 5 acquisition_block_1_CS+
-    -stim_times_IM 6 ',
-    paste0(
-      participant_directories[participant_index],
-      "/acquisition_block_1_GS1_stim_times_for_stan.1D "
-    ),
-    '"BLOCK(2,1)"
-    -stim_label 6 acquisition_block_1_GS1
-    -stim_times_IM 7 ',
-    paste0(
-      participant_directories[participant_index],
-      "/acquisition_block_1_GS2_stim_times_for_stan.1D "
-    ),
-    '"BLOCK(2,1)"
-    -stim_label 7 acquisition_block_1_GS2
-    -stim_times_IM 8 ',
-    paste0(
-      participant_directories[participant_index],
-      "/acquisition_block_1_GS3_stim_times_for_stan.1D "
-    ),
-    '"BLOCK(2,1)"
-    -stim_label 8 acquisition_block_1_GS3
-    -stim_times_IM 9 ',
-    paste0(
-      participant_directories[participant_index],
-      "/acquisition_block_2_CS+_stim_times_for_stan.1D "
-    ),
-    '"BLOCK(2,1)"
-    -stim_label 9 acquisition_block_2_CS+
-    -stim_times_IM 10 ',
-    paste0(
-      participant_directories[participant_index],
-      "/acquisition_block_2_GS1_stim_times_for_stan.1D "
-    ),
-    '"BLOCK(2,1)"
-    -stim_label 10 acquisition_block_2_GS1
-    -stim_times_IM 11 ',
-    paste0(
-      participant_directories[participant_index],
-      "/acquisition_block_2_GS2_stim_times_for_stan.1D "
-    ),
-    '"BLOCK(2,1)"
-    -stim_label 11 acquisition_block_2_GS2
-    -stim_times_IM 12 ',
-    paste0(
-      participant_directories[participant_index],
-      "/acquisition_block_2_GS3_stim_times_for_stan.1D "
-    ),
-    '"BLOCK(2,1)"
-    -stim_label 12 acquisition_block_2_GS3
-    -stim_times_IM 13 ',
-    paste0(
-      participant_directories[participant_index],
-      "/extinction_CS+_stim_times_for_stan.1D "
-    ),
-    '"BLOCK(2,1)"
-    -stim_label 13 extinction_CS+
-    -stim_times_IM 14 ',
-    paste0(
-      participant_directories[participant_index],
-      "/extinction_GS1_stim_times_for_stan.1D "
-    ),
-    '"BLOCK(2,1)"
-    -stim_label 14 extinction_GS1
-    -stim_times_IM 15 ',
-    paste0(
-      participant_directories[participant_index],
-      "/extinction_GS2_stim_times_for_stan.1D "
-    ),
-    '"BLOCK(2,1)"
-    -stim_label 15 extinction_GS2
-    -stim_times_IM 16 ',
-    paste0(
-      participant_directories[participant_index],
-      "/extinction_GS3_stim_times_for_stan.1D "
-    ),
-    '"BLOCK(2,1)"
-    -stim_label 16 extinction_GS3
-    -stim_times_IM 17 ',
-    paste0(
-      participant_directories[participant_index],
-      "/shock_times_for_stan.1D "
-    ),
-    '"BLOCK(.1,1)"
-    -stim_label 17 shock
-    -x1D X_IM.xmat.1D -xjpeg X_IM.jpg -x1D_uncensored X_IM.nocensor.xmat.1D'
+    collapse = "\n"
   )
+
+  xmat_prefix <- if (by_trial) "X_IM" else "X"
+
+  design_matrix_script <- paste0(
+    "3dDeconvolve",
+    " -nodata 1070 2",
+    " -num_stimts 17\n",
+    stim_entries,
+    "\n",
+    "    -x1D ",
+    xmat_prefix,
+    ".xmat.1D",
+    " -xjpeg ",
+    xmat_prefix,
+    ".jpg",
+    " -x1D_uncensored ",
+    xmat_prefix,
+    ".nocensor.xmat.1D"
+  )
+
   design_matrix_script <- gsub(
     pattern = "\n",
     replacement = "",
