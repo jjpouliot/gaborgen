@@ -105,6 +105,18 @@ days_to_preprocess <- c(1)
 ##         FALSE = one parameter per cue per block (standard solution)
 by_trial <- FALSE
 
+## Toggle (only applies when by_trial = FALSE):
+##   TRUE  = find the earliest CS+ onset across all of acquisition and treat
+##           all cue trials (for every cue) that occurred at or before that
+##           onset as habituation. The rationale is that no conditioning can
+##           have occurred until the first CS+/US pairing is possible, so any
+##           GS or CS+ trials preceding that moment should behave like
+##           naive habituation responses. Modified stim-times files are written
+##           with a "_first_to_hab" suffix and the output xmat prefix also gets
+##           "_first_to_hab" appended, so originals are preserved.
+##   FALSE = standard treatment (no onsets are reassigned across phases)
+first_acq_to_hab <- FALSE
+
 # End of user input ####
 
 # Begin checking that everything is correctly organized ####
@@ -342,11 +354,16 @@ for (participant_index in 1:length(participant_directories)) {
     collapse = "\n"
   )
 
-  xmat_prefix <- if (by_trial) "X_IM" else "X"
+  xmat_prefix <- paste0(
+    basename(participant_directories[participant_index]),
+    "_",
+    if (by_trial) "X_IM" else "X"
+  )
 
   design_matrix_script <- paste0(
     "3dDeconvolve",
     " -nodata 1070 2",
+    " -polort 15",
     " -num_stimts 17\n",
     stim_entries,
     "\n",
@@ -383,4 +400,11 @@ for (participant_index in 1:length(participant_directories)) {
       )
     }
   )
+
+  design_matrices_dir <- "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/roi_data_and_info/design_matrices"
+  nocensor_file <- file.path(
+    participant_directories[participant_index],
+    paste0(xmat_prefix, ".nocensor.xmat.1D")
+  )
+  file.copy(nocensor_file, design_matrices_dir, overwrite = TRUE)
 }

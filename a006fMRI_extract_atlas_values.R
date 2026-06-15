@@ -174,7 +174,7 @@ participants_to_process <- c(
   "161" # made
 )
 
-skip_all_but_v1_bun <- F
+skip_all_but_v1_bun <- T
 if (use_unblurred_and_unscaled_func) {
   for (i in 1:length(participants_to_process)) {
     where_to_copy
@@ -201,32 +201,48 @@ if (use_unblurred_and_unscaled_func) {
           )
         )
       }
-      # V1 fovea L HCPex
+      # # V1 fovea L HCPex
+      # system2(
+      #   'tcsh',
+      #   args = c(
+      #     '-c',
+      #     shQuote(paste(
+      #       '3dROIstats -mask HCPex_resam_V1_fovea_L.nii.gz -nzmean -median pb03.GABORGEN24_',
+      #       participants_to_process[i],
+      #       ".r01.volreg+tlrc > ",
+      #       participants_to_process[i],
+      #       "_roi_stats_pb03_HCPex_resam_V1_fovea_L.txt",
+      #       sep = ""
+      #     ))
+      #   )
+      # )
+      # # V1 fovea R HCPex
+      # system2(
+      #   'tcsh',
+      #   args = c(
+      #     '-c',
+      #     shQuote(paste(
+      #       '3dROIstats -mask HCPex_resam_V1_fovea_R.nii.gz -nzmean -median pb03.GABORGEN24_',
+      #       participants_to_process[i],
+      #       ".r01.volreg+tlrc > ",
+      #       participants_to_process[i],
+      #       "_roi_stats_pb03_HCPex_resam_V1_fovea_R.txt",
+      #       sep = ""
+      #     ))
+      #   )
+      # )
+
+      # V1 fovea HCPex custom
       system2(
         'tcsh',
         args = c(
           '-c',
           shQuote(paste(
-            '3dROIstats -mask HCPex_resam_V1_fovea_L.nii.gz -nzmean -median pb03.GABORGEN24_',
+            '3dROIstats -mask V1_F_custom_resam+tlrc -nzmean -median pb03.GABORGEN24_',
             participants_to_process[i],
             ".r01.volreg+tlrc > ",
             participants_to_process[i],
-            "_roi_stats_pb03_HCPex_resam_V1_fovea_L.txt",
-            sep = ""
-          ))
-        )
-      )
-      # V1 fovea R HCPex
-      system2(
-        'tcsh',
-        args = c(
-          '-c',
-          shQuote(paste(
-            '3dROIstats -mask HCPex_resam_V1_fovea_R.nii.gz -nzmean -median pb03.GABORGEN24_',
-            participants_to_process[i],
-            ".r01.volreg+tlrc > ",
-            participants_to_process[i],
-            "_roi_stats_pb03_HCPex_resam_V1_fovea_R.txt",
+            "_roi_stats_pb03_HCPex_resam_V1_fovea.txt",
             sep = ""
           ))
         )
@@ -282,32 +298,48 @@ if (use_unblurred_and_unscaled_func) {
         )
       }
 
-      # V1 fovea L HCPex
+      # # V1 fovea L HCPex
+      # system2(
+      #   'tcsh',
+      #   args = c(
+      #     '-c',
+      #     shQuote(paste(
+      #       '3dROIstats -mask HCPex_resam_V1_fovea_L.nii.gz -nzmean -median pb03.GABORGEN24_DAY1_',
+      #       participants_to_process[i],
+      #       ".r01.volreg+tlrc > ",
+      #       participants_to_process[i],
+      #       "_roi_stats_pb03_HCPex_resam_V1_fovea_L.txt",
+      #       sep = ""
+      #     ))
+      #   )
+      # )
+      # # V1 fovea R HCPex
+      # system2(
+      #   'tcsh',
+      #   args = c(
+      #     '-c',
+      #     shQuote(paste(
+      #       '3dROIstats -mask HCPex_resam_V1_fovea_R.nii.gz -nzmean -median pb03.GABORGEN24_DAY1_',
+      #       participants_to_process[i],
+      #       ".r01.volreg+tlrc > ",
+      #       participants_to_process[i],
+      #       "_roi_stats_pb03_HCPex_resam_V1_fovea_R.txt",
+      #       sep = ""
+      #     ))
+      #   )
+      # )
+
+      # V1 fovea HCPex custom
       system2(
         'tcsh',
         args = c(
           '-c',
           shQuote(paste(
-            '3dROIstats -mask HCPex_resam_V1_fovea_L.nii.gz -nzmean -median pb03.GABORGEN24_DAY1_',
+            '3dROIstats -mask V1_F_custom_resam+tlrc -nzmean -median pb03.GABORGEN24_DAY1_',
             participants_to_process[i],
             ".r01.volreg+tlrc > ",
             participants_to_process[i],
-            "_roi_stats_pb03_HCPex_resam_V1_fovea_L.txt",
-            sep = ""
-          ))
-        )
-      )
-      # V1 fovea R HCPex
-      system2(
-        'tcsh',
-        args = c(
-          '-c',
-          shQuote(paste(
-            '3dROIstats -mask HCPex_resam_V1_fovea_R.nii.gz -nzmean -median pb03.GABORGEN24_DAY1_',
-            participants_to_process[i],
-            ".r01.volreg+tlrc > ",
-            participants_to_process[i],
-            "_roi_stats_pb03_HCPex_resam_V1_fovea_R.txt",
+            "_roi_stats_pb03_HCPex_resam_V1_fovea.txt",
             sep = ""
           ))
         )
@@ -340,32 +372,48 @@ if (use_unblurred_and_unscaled_func) {
           )
         )
       }
-      # V1 fovea L HCPex
+      # # V1 fovea L HCPex
+      # system2(
+      #   'tcsh',
+      #   args = c(
+      #     '-c',
+      #     shQuote(paste(
+      #       '3dROIstats -mask HCPex_resam_V1_fovea_L.nii.gz -nzmean -median pb05.GABORGEN24_',
+      #       participants_to_process[i],
+      #       ".r01.scale+tlrc > ",
+      #       participants_to_process[i],
+      #       "_roi_stats_HCPex_resam_V1_fovea_L.txt",
+      #       sep = ""
+      #     ))
+      #   )
+      # )
+      # # V1 fovea R HCPex
+      # system2(
+      #   'tcsh',
+      #   args = c(
+      #     '-c',
+      #     shQuote(paste(
+      #       '3dROIstats -mask HCPex_resam_V1_fovea_R.nii.gz -nzmean -median pb05.GABORGEN24_',
+      #       participants_to_process[i],
+      #       ".r01.scale+tlrc > ",
+      #       participants_to_process[i],
+      #       "_roi_stats_HCPex_resam_V1_fovea_R.txt",
+      #       sep = ""
+      #     ))
+      #   )
+      # )
+
+      # V1 fovea HCPex custom
       system2(
         'tcsh',
         args = c(
           '-c',
           shQuote(paste(
-            '3dROIstats -mask HCPex_resam_V1_fovea_L.nii.gz -nzmean -median pb05.GABORGEN24_',
+            '3dROIstats -mask V1_F_custom_resam+tlrc -nzmean -median pb05.GABORGEN24_',
             participants_to_process[i],
-            ".r01.scale+tlrc > ",
+            ".r01.volreg+tlrc > ",
             participants_to_process[i],
-            "_roi_stats_HCPex_resam_V1_fovea_L.txt",
-            sep = ""
-          ))
-        )
-      )
-      # V1 fovea R HCPex
-      system2(
-        'tcsh',
-        args = c(
-          '-c',
-          shQuote(paste(
-            '3dROIstats -mask HCPex_resam_V1_fovea_R.nii.gz -nzmean -median pb05.GABORGEN24_',
-            participants_to_process[i],
-            ".r01.scale+tlrc > ",
-            participants_to_process[i],
-            "_roi_stats_HCPex_resam_V1_fovea_R.txt",
+            "_roi_stats_pb03_HCPex_resam_V1_fovea.txt",
             sep = ""
           ))
         )
@@ -421,32 +469,48 @@ if (use_unblurred_and_unscaled_func) {
         )
       }
 
-      # V1 fovea L HCPex
+      # # V1 fovea L HCPex
+      # system2(
+      #   'tcsh',
+      #   args = c(
+      #     '-c',
+      #     shQuote(paste(
+      #       '3dROIstats -mask HCPex_resam_V1_fovea_L.nii.gz -nzmean -median pb05.GABORGEN24_DAY1_',
+      #       participants_to_process[i],
+      #       ".r01.scale+tlrc > ",
+      #       participants_to_process[i],
+      #       "_roi_stats_HCPex_resam_V1_fovea_L.txt",
+      #       sep = ""
+      #     ))
+      #   )
+      # )
+      # # V1 fovea R HCPex
+      # system2(
+      #   'tcsh',
+      #   args = c(
+      #     '-c',
+      #     shQuote(paste(
+      #       '3dROIstats -mask HCPex_resam_V1_fovea_R.nii.gz -nzmean -median pb05.GABORGEN24_DAY1_',
+      #       participants_to_process[i],
+      #       ".r01.scale+tlrc > ",
+      #       participants_to_process[i],
+      #       "_roi_stats_HCPex_resam_V1_fovea_R.txt",
+      #       sep = ""
+      #     ))
+      #   )
+      # )
+
+      # V1 fovea HCPex custom
       system2(
         'tcsh',
         args = c(
           '-c',
           shQuote(paste(
-            '3dROIstats -mask HCPex_resam_V1_fovea_L.nii.gz -nzmean -median pb05.GABORGEN24_DAY1_',
+            '3dROIstats -mask V1_F_custom_resam+tlrc -nzmean -median pb05.GABORGEN24_DAY1_',
             participants_to_process[i],
-            ".r01.scale+tlrc > ",
+            ".r01.volreg+tlrc > ",
             participants_to_process[i],
-            "_roi_stats_HCPex_resam_V1_fovea_L.txt",
-            sep = ""
-          ))
-        )
-      )
-      # V1 fovea R HCPex
-      system2(
-        'tcsh',
-        args = c(
-          '-c',
-          shQuote(paste(
-            '3dROIstats -mask HCPex_resam_V1_fovea_R.nii.gz -nzmean -median pb05.GABORGEN24_DAY1_',
-            participants_to_process[i],
-            ".r01.scale+tlrc > ",
-            participants_to_process[i],
-            "_roi_stats_HCPex_resam_V1_fovea_R.txt",
+            "_roi_stats_pb03_HCPex_resam_V1_fovea.txt",
             sep = ""
           ))
         )

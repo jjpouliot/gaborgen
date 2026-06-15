@@ -210,6 +210,16 @@ useable_participants <- c(
 
 add_shock <- T
 
+# the by trial setting changes the design matrix used
+# by trial is used for the gaussian process over time
+# no by trial, is used for looking at cue by block by participant
+by_trial <- T
+design_matrix_suffix <- if_else(
+  by_trial,
+  "_X_IM.nocensor.xmat.1D",
+  "_X.nocensor.xmat.1D"
+)
+
 bold_per_roi_df <- data.frame(
   "par" = numeric(),
   "roi" = character(),
@@ -246,47 +256,44 @@ for (i in 1:length(useable_participants)) {
   )
 
   # add in smaller V1 fovea
+  # New combined files have L (roi _1) and R (roi _2) in a single text file.
   if (use_pb03) {
-    bold_text_file_HCPex_resam_V1_fovea_R <- gsub(
-      pattern = "roi_stats_pb03\\.txt",
-      replacement = "roi_stats_pb03_HCPex_resam_V1_fovea_L.txt",
-      x = bold_text_file
-    )
-    bold_text_file_HCPex_resam_V1_fovea_L <- gsub(
-      pattern = "roi_stats_pb03\\.txt",
-      replacement = "roi_stats_pb03_HCPex_resam_V1_fovea_R.txt",
-      x = bold_text_file
+    bold_text_file_V1_fovea <- list.files(
+      path = paste0(data_dir, "/roi_data_and_info/roi_timeseries"),
+      pattern = paste0(
+        useable_participants[i],
+        "_roi_stats_pb03_HCPex_resam_V1_fovea\\.txt"
+      ),
+      recursive = T,
+      full.names = T,
+      include.dirs = F
     )
   } else {
-    bold_text_file_HCPex_resam_V1_fovea_R <- gsub(
-      pattern = "roi_stats\\.txt",
-      replacement = "roi_stats_HCPex_resam_V1_fovea_L.txt",
-      x = bold_text_file
-    )
-    bold_text_file_HCPex_resam_V1_fovea_L <- gsub(
-      pattern = "roi_stats\\.txt",
-      replacement = "roi_stats_HCPex_resam_V1_fovea_R.txt",
-      x = bold_text_file
+    bold_text_file_V1_fovea <- list.files(
+      path = paste0(data_dir, "/roi_data_and_info/roi_timeseries"),
+      pattern = paste0(
+        useable_participants[i],
+        "_roi_stats_HCPex_resam_V1_fovea\\.txt"
+      ),
+      recursive = T,
+      full.names = T,
+      include.dirs = F
     )
   }
 
-  bold_HCPex_resam_V1_fovea_L <- read_delim(
-    bold_text_file_HCPex_resam_V1_fovea_L,
+  bold_V1_fovea <- read_delim(
+    bold_text_file_V1_fovea,
     trim_ws = T
   )
 
-  bold_HCPex_resam_V1_fovea_R <- read_delim(
-    bold_text_file_HCPex_resam_V1_fovea_R,
-    trim_ws = T
-  )
-
+  # _1 = L (roi_id 1035), _2 = R (roi_id 1036)
   V1_fovea_df_to_cbind <- data.frame(
-    "Mean_1035" = bold_HCPex_resam_V1_fovea_L$Mean_1,
-    "NZMean_1035" = bold_HCPex_resam_V1_fovea_L$NZMean_1,
-    "Med_1035" = bold_HCPex_resam_V1_fovea_L$Med_1,
-    "Mean_1036" = bold_HCPex_resam_V1_fovea_R$Mean_1,
-    "NZMean_1036" = bold_HCPex_resam_V1_fovea_R$NZMean_1,
-    "Med_1036" = bold_HCPex_resam_V1_fovea_R$Med_1
+    "Mean_1035" = bold_V1_fovea$Mean_1,
+    "NZMean_1035" = bold_V1_fovea$NZMean_1,
+    "Med_1035" = bold_V1_fovea$Med_1,
+    "Mean_1036" = bold_V1_fovea$Mean_2,
+    "NZMean_1036" = bold_V1_fovea$NZMean_2,
+    "Med_1036" = bold_V1_fovea$Med_2
   )
 
   all_bold <- cbind(all_bold, V1_fovea_df_to_cbind)
@@ -317,9 +324,9 @@ for (i in 1:length(useable_participants)) {
           paste0(data_dir, "/roi_data_and_info/design_matrices"),
           '/GABORGEN24_',
           useable_participants[i],
-          '.results_X.nocensor.xmat.1D'
+          design_matrix_suffix
         ),
-        skip = 64,
+        skip = 84,
         col_names = F,
       )[1:1070, 2:17]) %>%
         apply(2, as.numeric)
@@ -329,9 +336,9 @@ for (i in 1:length(useable_participants)) {
           paste0(data_dir, "/roi_data_and_info/design_matrices"),
           '/GABORGEN24_DAY1_',
           useable_participants[i],
-          '.results_X.nocensor.xmat.1D'
+          design_matrix_suffix
         ),
-        skip = 64,
+        skip = 84,
         col_names = F,
       )[1:1070, 2:17]) %>%
         apply(2, as.numeric)
@@ -399,36 +406,30 @@ all_par_design_matrices <- tibble()
 
 for (i in 1:length(useable_participants)) {
   if (useable_participants[i] < 123) {
-    old_design_matrix <- read_delim(
+    motion_design_matrix <- read_delim(
       paste0(
-        paste0(data_dir, "/roi_data_and_info/design_matrices"),
+        paste0(data_dir, "/roi_data_and_info/default_afni_movement_censor"),
         '/GABORGEN24_',
         useable_participants[i],
-        '.results_X.nocensor.xmat.1D'
+        '.results.mot_demean.r01.1D'
       ),
-      skip = 64,
       col_names = F
     )
-    # just keep the last few columns that are for motion
-    motion_design_matrix <- old_design_matrix[
-      1:(nrow(old_design_matrix) - 1),
-      (ncol(old_design_matrix) - 5):(ncol(old_design_matrix))
-    ]
 
     # Add in per stimulus variables
     stimulus_design_matrix <- read_delim(
       paste0(
-        paste0(data_dir, "/raw_data/"),
+        paste0(data_dir, "/roi_data_and_info/design_matrices"),
         '/GABORGEN24_',
         useable_participants[i],
-        '/X_IM.nocensor.xmat.1D'
+        design_matrix_suffix
       ),
       skip = 84,
       col_names = F
     )
     stimulus_design_matrix <- stimulus_design_matrix[
       1:(nrow(stimulus_design_matrix) - 1),
-      4:ncol(stimulus_design_matrix)
+      18:ncol(stimulus_design_matrix)
     ]
 
     current_design_matrix <- cbind(
@@ -436,36 +437,30 @@ for (i in 1:length(useable_participants)) {
       motion_design_matrix
     )
   } else {
-    old_design_matrix <- read_delim(
+    motion_design_matrix <- read_delim(
       paste0(
-        paste0(data_dir, "/roi_data_and_info/design_matrices"),
+        paste0(data_dir, "/roi_data_and_info/default_afni_movement_censor"),
         '/GABORGEN24_DAY1_',
         useable_participants[i],
-        '.results_X.nocensor.xmat.1D'
+        '.results.mot_demean.r01.1D'
       ),
-      skip = 64,
       col_names = F
     )
-    # just keep the last few columns that are for motion
-    motion_design_matrix <- old_design_matrix[
-      1:(nrow(old_design_matrix) - 1),
-      (ncol(old_design_matrix) - 5):(ncol(old_design_matrix))
-    ]
 
     # Add in per stimulus variables
     stimulus_design_matrix <- read_delim(
       paste0(
-        paste0(data_dir, "/raw_data/"),
+        paste0(data_dir, "/roi_data_and_info/design_matrices"),
         '/GABORGEN24_DAY1_',
         useable_participants[i],
-        '/X_IM.nocensor.xmat.1D'
+        design_matrix_suffix
       ),
       skip = 84,
       col_names = F
     )
     stimulus_design_matrix <- stimulus_design_matrix[
       1:(nrow(stimulus_design_matrix) - 1),
-      4:ncol(stimulus_design_matrix)
+      18:ncol(stimulus_design_matrix)
     ]
 
     current_design_matrix <- cbind(
@@ -474,31 +469,59 @@ for (i in 1:length(useable_participants)) {
     )
   }
 
-  colnames(current_design_matrix) <- c(
-    paste0("habituation_CS+_", c(1:8)),
-    paste0("habituation_GS1_", c(1:8)),
-    paste0("habituation_GS2_", c(1:8)),
-    paste0("habituation_GS3_", c(1:8)),
-    paste0("acquisition_block1_CS+_", c(1:12)),
-    paste0("acquisition_block1_GS1_", c(1:12)),
-    paste0("acquisition_block1_GS2_", c(1:12)),
-    paste0("acquisition_block1_GS3_", c(1:12)),
-    paste0("acquisition_block2_CS+_", c(1:12)),
-    paste0("acquisition_block2_GS1_", c(1:12)),
-    paste0("acquisition_block2_GS2_", c(1:12)),
-    paste0("acquisition_block2_GS3_", c(1:12)),
-    paste0("extinction_CS+_", c(1:12)),
-    paste0("extinction_GS1_", c(1:12)),
-    paste0("extinction_GS2_", c(1:12)),
-    paste0("extinction_GS3_", c(1:12)),
-    paste0("shock_", c(1:15)),
-    "mot_demean_r01_0",
-    "mot_demean_r01_1",
-    "mot_demean_r01_2",
-    "mot_demean_r01_3",
-    "mot_demean_r01_4",
-    "mot_demean_r01_5"
-  )
+  if (by_trial) {
+    colnames(current_design_matrix) <- c(
+      paste0("habituation_CS+_", c(1:8)),
+      paste0("habituation_GS1_", c(1:8)),
+      paste0("habituation_GS2_", c(1:8)),
+      paste0("habituation_GS3_", c(1:8)),
+      paste0("acquisition_block1_CS+_", c(1:12)),
+      paste0("acquisition_block1_GS1_", c(1:12)),
+      paste0("acquisition_block1_GS2_", c(1:12)),
+      paste0("acquisition_block1_GS3_", c(1:12)),
+      paste0("acquisition_block2_CS+_", c(1:12)),
+      paste0("acquisition_block2_GS1_", c(1:12)),
+      paste0("acquisition_block2_GS2_", c(1:12)),
+      paste0("acquisition_block2_GS3_", c(1:12)),
+      paste0("extinction_CS+_", c(1:12)),
+      paste0("extinction_GS1_", c(1:12)),
+      paste0("extinction_GS2_", c(1:12)),
+      paste0("extinction_GS3_", c(1:12)),
+      paste0("shock_", c(1:15)),
+      "mot_demean_r01_0",
+      "mot_demean_r01_1",
+      "mot_demean_r01_2",
+      "mot_demean_r01_3",
+      "mot_demean_r01_4",
+      "mot_demean_r01_5"
+    )
+  } else {
+    colnames(current_design_matrix) <- c(
+      "habituation_CS+",
+      "habituation_GS1",
+      "habituation_GS2",
+      "habituation_GS3",
+      "acquisition_block1_CS+",
+      "acquisition_block1_GS1",
+      "acquisition_block1_GS2",
+      "acquisition_block1_GS3",
+      "acquisition_block2_CS+",
+      "acquisition_block2_GS1",
+      "acquisition_block2_GS2",
+      "acquisition_block2_GS3",
+      "extinction_CS+",
+      "extinction_GS1",
+      "extinction_GS2",
+      "extinction_GS3",
+      "shock",
+      "mot_demean_r01_0",
+      "mot_demean_r01_1",
+      "mot_demean_r01_2",
+      "mot_demean_r01_3",
+      "mot_demean_r01_4",
+      "mot_demean_r01_5"
+    )
+  }
 
   current_design_matrix <- current_design_matrix %>%
     mutate(time = seq(0, 1069 * 2, by = 2), .before = 1) %>%
@@ -794,8 +817,14 @@ used_df_temp <- used_df_temp %>%
 # ROI_name_string <- "Nucleus_Accumbens"
 # ROI_name_string <- "Ant_Ins"
 # ROI_name_string <- "ACC"
-ROI_name_string <- "OFC"
-# ROI_name_string <- "V1_fovea"
+# ROI_name_string <- "OFC"
+ROI_name_string <- "V1_fovea"
+
+ROI_name_string <- if (!by_trial) {
+  paste0(ROI_name_string, "_by_cue")
+} else {
+  ROI_name_string
+}
 
 ROI_name_string <- if (use_pb03) {
   paste0(ROI_name_string, "_pb03")
@@ -834,11 +863,11 @@ used_df <- used_df_temp %>%
         # "Ant_Ins_L",
         # "Ant_Ins_R" #,
         # "ACC_L",
-        # "ACC_R"#,
-        "Orbital_Frontal_Complex_L",
-        "Orbital_Frontal_Complex_R" #,
-        # "HCPex_resam_V1_fovea_L",
-        # "HCPex_resam_V1_fovea_R"
+        # "ACC_R" #,
+        # "Orbital_Frontal_Complex_L",
+        # "Orbital_Frontal_Complex_R" #,
+        "HCPex_resam_V1_fovea_L",
+        "HCPex_resam_V1_fovea_R"
       )
   ) %>%
   arrange(par, roi_merge_id, time_sec)
@@ -1094,7 +1123,8 @@ where_to_save_chains <- '/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMR
 # model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model034.stan'
 # model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model035.stan' #editted model 30
 # model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model037.stan' #editted model 30 with mu_beta_intercept and zero sum correction
-model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model038.stan' #editted model 37 with no zero sum correction
+# model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model038.stan' #editted model 37 with no zero sum correction
+model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model039.stan' #editted model 18 cue by
 
 # Fit models
 model <- cmdstanr::cmdstan_model(
@@ -1144,7 +1174,7 @@ model_fit <- model$sample(
   # metric = "dense_e", # not default
   iter_warmup = warmup_samples_per_chain,
   iter_sampling = posterior_samples_per_chain,
-  save_warmup = T,
+  save_warmup = F,
   show_messages = T,
   # opencl_ids = c(0, 0),
   output_dir = where_to_save_chains,

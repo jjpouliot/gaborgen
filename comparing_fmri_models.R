@@ -3,6 +3,8 @@ library(cmdstanr)
 library(patchwork)
 library(ggridges)
 library(posterior)
+library(loo)
+library(tidybayes)
 
 # we recommend running this in a fresh R session or restarting your current session
 # install.packages("cmdstanr", repos = c('https://stan-dev.r-universe.dev', getOption("repos")))
@@ -18,6 +20,373 @@ cue_color <- c("red1", "green1", "purple1", "blue1", "black")
 
 # data_dir <- "/home/andrewfarkas/tmp/restore3/home/andrewf/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains"
 data_dir <- "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/stan_chains"
+# #for model039
+# n_beta <- 23
+# n_roi <- 2
+# n_par <- 44
+# grid <- expand.grid(j = 1:2, i = 1:44, k = 1:17)
+# betas <- sprintf("betas[%d,%d,%d]", grid$i, grid$j, grid$k)
+
+# model_fit_parameters_to_keep <-
+#   c(
+#     paste0("mu_betas[", rep(c(1:2), 17), ",", rep(c(1:17), each = 2), "]"),
+#     betas,
+#     "log_lik"
+#   )
+
+# log_lik_array <- model039_ant_insula$post_warmup_draws %>%
+#   subset_draws(variable = "log_lik") %>%
+#   as_draws_array() # iterations x chains x observations — what loo wants
+
+# r_eff <- relative_eff(exp(log_lik_array))
+# loo_result <- loo(log_lik_array, r_eff = r_eff)
+
+# print(loo_result)
+
+model039_V4 <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model039_V4_pb03_res_chain_32674652_1.csv"),
+    paste0(data_dir, "/model039_V4_pb03_res_chain_32674652_2.csv")
+  ),
+  variables = c("mu_betas", "betas")
+)
+
+model039_V4_draws <- model039_V4$post_warmup_draws
+
+model039_V4_summary <- summarise_draws(
+  model039_V4_draws
+)
+
+model040_V4 <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model040_V4_pb03_res_chain_32816165_1.csv")
+  ),
+  variables = c("mu_betas", "betas")
+)
+
+model040_V4_draws <- model040_V4$post_warmup_draws
+
+model040_V4_summary <- summarise_draws(
+  model040_V4_draws
+)
+
+model039_V5 <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model039_V5_pb03_res_chain_32674687_1.csv"),
+    paste0(data_dir, "/model039_V5_pb03_res_chain_32674687_2.csv")
+  ),
+  variables = c("mu_betas", "betas")
+)
+
+model039_V5_draws <- model039_V5$post_warmup_draws
+
+model039_V5_summary <- summarise_draws(
+  model039_V5_draws
+)
+
+
+model039_V6 <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model039_V6_pb03_res_chain_32674694_1.csv"),
+    paste0(data_dir, "/model039_V6_pb03_res_chain_32674694_2.csv")
+  ),
+  variables = c("mu_betas", "betas")
+)
+
+model039_V6_draws <- model039_V6$post_warmup_draws
+
+model039_V6_summary <- summarise_draws(
+  model039_V6_draws
+)
+
+
+model039_TE <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model039_TE_pb03_res_chain_32674818_1.csv"),
+    paste0(data_dir, "/model039_TE_pb03_res_chain_32674818_2.csv")
+  ),
+  variables = c("mu_betas", "betas")
+)
+
+model039_TE_draws <- model039_TE$post_warmup_draws
+
+model039_TE_summary <- summarise_draws(
+  model039_TE_draws
+)
+
+
+model039_TPJ <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model039_TPJ_pb03_res_chain_32674863_1.csv"),
+    paste0(data_dir, "/model039_TPJ_pb03_res_chain_32674863_2.csv")
+  ),
+  variables = c("mu_betas", "betas")
+)
+
+model039_TPJ_draws <- model039_TPJ$post_warmup_draws
+
+model039_TPJ_summary <- summarise_draws(
+  model039_TPJ_draws
+)
+
+
+model039_ACC <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model039_ACC_pb03_res_chain_32675094_1.csv"),
+    paste0(data_dir, "/model039_ACC_pb03_res_chain_32675094_2.csv")
+  ),
+  variables = c("mu_betas", "betas")
+)
+
+model039_ACC_draws <- model039_ACC$post_warmup_draws
+
+model039_ACC_summary <- summarise_draws(
+  model039_ACC_draws
+)
+
+
+model039_NA <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model039_NA_pb03_res_chain_32675096_1.csv"),
+    paste0(data_dir, "/model039_NA_pb03_res_chain_32675096_2.csv")
+  ),
+  variables = c("mu_betas", "betas")
+)
+
+model039_NA_draws <- model039_NA$post_warmup_draws
+
+model039_NA_summary <- summarise_draws(
+  model039_NA_draws
+)
+
+
+model039_AMY <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model039_AMY_pb03_res_chain_32675097_1.csv"),
+    paste0(data_dir, "/model039_AMY_pb03_res_chain_32675097_2.csv")
+  ),
+  variables = c("mu_betas", "betas")
+)
+
+model039_AMY_draws <- model039_AMY$post_warmup_draws
+
+model039_AMY_summary <- summarise_draws(
+  model039_AMY_draws
+)
+
+
+model039_HIP <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model039_HIP_pb03_res_chain_32675098_1.csv"),
+    paste0(data_dir, "/model039_HIP_pb03_res_chain_32675098_2.csv")
+  ),
+  variables = c("mu_betas", "betas")
+)
+
+model039_HIP_draws <- model039_HIP$post_warmup_draws
+
+model039_HIP_summary <- summarise_draws(
+  model039_HIP_draws
+)
+
+
+model039_ant_insula <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model039_ant_insula_pb03_res_chain_32658847_1.csv"),
+    paste0(data_dir, "/model039_ant_insula_pb03_res_chain_32658847_2.csv")
+  ),
+  variables = c("mu_betas", "betas")
+)
+
+
+model039_ant_insula_draws <- model039_ant_insula$post_warmup_draws
+
+model039_ant_insula_summary <- summarise_draws(
+  model039_ant_insula_draws
+)
+
+
+model039_OFC <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model039_OFC_pb03_res_chain_32675123_1.csv"),
+    paste0(data_dir, "/model039_OFC_pb03_res_chain_32675123_2.csv")
+  ),
+  variables = c("mu_betas", "betas")
+)
+
+model039_OFC_draws <- model039_OFC$post_warmup_draws
+
+model039_OFC_summary <- summarise_draws(
+  model039_OFC_draws
+)
+
+
+# betas_long <- model039_V4_draws %>%
+# betas_long <- model040_V4_draws %>%
+# betas_long <- model039_ant_insula_draws %>%
+betas_long <- model039_AMY_draws %>%
+  spread_draws(mu_betas[i, j]) %>%
+  mutate(
+    "roi" = as.factor(i),
+    "beta" = as.factor(j)
+  )
+
+
+row_means <- betas_long %>%
+  group_by(.draw, .chain, .iteration, beta) %>%
+  summarise(mu_beta = mean(mu_betas), .groups = "drop")
+
+# Now you have a posterior for each row-mean
+row_means %>%
+  group_by(beta) %>%
+  median_qi(mu_beta)
+
+row_means %>%
+  ggplot(aes(x = mu_beta, y = factor(beta))) +
+  stat_halfeye() +
+  labs(y = "row i", x = "mean over j")
+
+
+# --- 1. Map each beta index to its phase + cue --------------------------------
+#anterior insula
+shared_ylimits <- c(-0.05, .33)
+#amygdala
+# shared_ylimits <- c(-0.075, .33)
+beta_meta <- tibble(
+  j = 1:17,
+  phase = factor(
+    c(
+      rep("Habituation", 4),
+      rep("Acquisition #1", 4),
+      rep("Acquisition #2", 4),
+      rep("Extinction", 4),
+      "Shock"
+    ), # j = 17
+    levels = c(
+      "Habituation",
+      "Acquisition #1",
+      "Acquisition #2",
+      "Shock",
+      "Extinction"
+    ) # Shock sits between Acq1 & Acq2
+  ),
+  cue = factor(
+    c(rep(c("CS+", "GS1", "GS2", "GS3"), 4), "Shock"),
+    levels = c("CS+", "GS1", "GS2", "GS3", "Shock")
+  )
+)
+
+cue_color_cue_by_block <- c(
+  "CS+" = "red1",
+  "GS1" = "green1",
+  "GS2" = "purple1",
+  "GS3" = "blue1",
+  "Shock" = "black"
+)
+
+# --- 2. Average over ROI (i) within each draw, then attach phase/cue labels ---
+mu_beta_by_cue <- model039_ant_insula_draws %>%
+  # mu_beta_by_cue <- model039_AMY_draws %>%
+  spread_draws(mu_betas[i, j]) %>%
+  group_by(.draw, j) %>%
+  summarise(mu_beta = mean(mu_betas), .groups = "drop") %>%
+  left_join(beta_meta, by = "j") %>%
+  filter(j <= 17)
+
+# Quick numeric summary if you want it
+mu_beta_by_cue %>%
+  group_by(phase, cue) %>%
+  median_qi(mu_beta)
+
+# --- 3. Posterior plot to sit next to the time-series -------------------------
+posterior_plot <- mu_beta_by_cue %>%
+  ggplot(aes(x = cue, y = mu_beta, fill = cue, color = cue)) +
+  # stat_halfeye(.width = c(0.66, 0.95), slab_alpha = 0.55) +
+  stat_halfeye(
+    .width = c(.341),
+    slab_alpha = 0.55,
+    point_colour = "black",
+    point_size = 3,
+    interval_colour = "black",
+    interval_size_range = c(1, 2) # thin = 95%, thick = 66%
+  ) +
+  geom_hline(yintercept = 0) +
+  facet_grid(. ~ phase, scales = "free_x", space = "free_x", switch = "x") +
+  scale_color_manual(values = cue_color) +
+  scale_fill_manual(values = cue_color) +
+  coord_cartesian(ylim = shared_ylimits) +
+  labs(x = NULL, y = "Posterior of mean β (avg. over ROI)") +
+  ggtitle(paste0(ROI_name_string, " Cue by Block Posteriors")) +
+  theme_minimal(base_size = 12) +
+  theme(
+    text = element_text(size = 20),
+    axis.text.x = element_blank(), # cue is already encoded by color
+    axis.ticks.x = element_blank(),
+    panel.spacing.x = unit(0.2, "lines"),
+    strip.placement = "outside",
+    legend.position = "right"
+  )
+
+posterior_plot
+# --- 4. time-series plot -------------------
+
+ts_plot <- model_fit_beta_draws_long %>%
+  # filter(roi %in% roi_pair_to_plot, cue != "shock") %>%
+  group_by(.draw, cue, trial_per_cue, trial_index) %>%
+  reframe(
+    avg_roi_draw = mean(beta_value)
+  ) %>%
+  group_by(cue, trial_per_cue, trial_index) %>%
+  reframe(
+    median_posterior = median(avg_roi_draw),
+    lower_2_5 = quantile(avg_roi_draw, lower_bound),
+    lower_97_5 = quantile(avg_roi_draw, upper_bound)
+    # lower_2_5 = quantile(beta_value, .1),
+    # lower_97_5 = quantile(beta_value, .9)
+  ) %>%
+  ggplot(aes(x = trial_per_cue, color = cue, fill = cue)) +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = c(9, 21, 32)) +
+  geom_ribbon(
+    aes(ymin = lower_2_5, ymax = lower_97_5),
+    alpha = 0.12,
+    color = NA
+  ) +
+  geom_line(aes(y = median_posterior), linewidth = 0.4, alpha = 0.35) +
+  geom_smooth(
+    aes(y = median_posterior),
+    se = FALSE,
+    linewidth = 1.3,
+    span = 0.4
+  ) +
+  # facet_wrap(~ cue) +
+  scale_fill_manual(values = cue_color) +
+  scale_color_manual(values = cue_color) +
+  coord_cartesian(ylim = shared_ylimits) +
+  ggtitle(paste0("Change in average ", ROI_name_string, " Over Trials")) +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+# --- 5. Patchwork it next to your existing time-series plot -------------------
+# assuming your time-series ggplot object is called `ts_plot`
+posterior_plot + ts_plot
+
+ggsave(
+  filename = paste0(
+    "/home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/misc/mod38_39_",
+    ROI_name_string,
+    ".png"
+  ),
+  device = "png",
+  scale = 3,
+  width = 8,
+  height = 4
+)
+
+# ts_plot +
+#   posterior_plot +
+#   plot_layout(widths = c(1.2, 1), guides = "collect") &
+#   theme(legend.position = "right")
 
 # model here to get the parameters before loading the csv
 # model_path <- '/home/andrewfarkas/Repositories/gaborgen/stan_models/fMRI/Model030.stan'
@@ -55,6 +424,189 @@ model_fit_parameters_to_keep <-
   )
 
 
+model038_V1F_pb03_res <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model038_V1F_pb03_res_chain_31602869_1.csv")
+    # paste0(data_dir, "/model038_V1F_chain_29269849_2.csv"),
+  ),
+  variables = model_fit_parameters_to_keep
+)
+
+
+model038_V1F_pb03_res_draws <- model038_V1F_pb03_res$post_warmup_draws
+
+model038_V1F_pb03_res_summary <- summarise_draws(
+  model038_V1F_pb03_res_draws
+)
+
+
+model038_V4_pb03_res <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model038_V4_pb03_res_chain_31836148_1.csv"),
+    paste0(data_dir, "/model038_V4_pb03_res_chain_31836148_2.csv")
+  ),
+  variables = model_fit_parameters_to_keep
+)
+
+model038_V4_pb03_res_draws <- model038_V4_pb03_res$post_warmup_draws
+
+model038_V4_pb03_res_summary <- summarise_draws(
+  model038_V4_pb03_res_draws
+)
+
+model038_V5_pb03_res <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model038_V5_pb03_res_chain_29368744_1.csv"),
+    paste0(data_dir, "/model038_V5_pb03_res_chain_29368744_2.csv")
+  ),
+  variables = model_fit_parameters_to_keep
+)
+
+model038_V5_pb03_res_draws <- model038_V5_pb03_res$post_warmup_draws
+
+model038_V5_pb03_res_summary <- summarise_draws(
+  model038_V5_pb03_res_draws
+)
+
+model038_V6_pb03_res <- read_cmdstan_csv(
+  files = c(
+    # paste0(data_dir, "/model038_V6_pb03_chain_32236921_1.csv"),
+    paste0(data_dir, "/model038_V6_pb03_chain_32236921_2.csv")
+  ),
+  variables = model_fit_parameters_to_keep
+)
+
+model038_V6_pb03_res_draws <- model038_V6_pb03_res$post_warmup_draws
+
+model038_V6_pb03_res_summary <- summarise_draws(
+  model038_V6_pb03_res_draws
+)
+
+model038_TE_pb03_res <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model038_TE_pb03_res_chain_29575122_1.csv"),
+    paste0(data_dir, "/model038_TE_pb03_res_chain_29575122_2.csv")
+  ),
+  variables = model_fit_parameters_to_keep
+)
+
+model038_TE_pb03_res_draws <- model038_TE_pb03_res$post_warmup_draws
+
+model038_TE_pb03_res_summary <- summarise_draws(
+  model038_TE_pb03_res_draws
+)
+
+model038_TPJ_pb03_res <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model038_TPJ_pb03_res_chain_32236922_1.csv"),
+    paste0(data_dir, "/model038_TPJ_pb03_res_chain_32236922_2.csv")
+  ),
+  variables = model_fit_parameters_to_keep
+)
+
+model038_TPJ_pb03_res_draws <- model038_TPJ_pb03_res$post_warmup_draws
+
+model038_TPJ_pb03_res_summary <- summarise_draws(
+  model038_TPJ_pb03_res_draws
+)
+
+model038_ACC_pb03_res <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model038_ACC_pb03_res_chain_32236924_1.csv"),
+    paste0(data_dir, "/model038_ACC_pb03_res_chain_32236924_2.csv")
+  ),
+  variables = model_fit_parameters_to_keep
+)
+
+model038_ACC_pb03_res_draws <- model038_ACC_pb03_res$post_warmup_draws
+
+model038_ACC_pb03_res_summary <- summarise_draws(
+  model038_ACC_pb03_res_draws
+)
+
+
+model038_ant_insula_pb03_res <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model038_ant_insula_pb03_res_chain_31603369_1.csv"),
+    paste0(data_dir, "/model038_ant_insula_pb03_res_chain_31603369_2.csv")
+  ),
+  variables = model_fit_parameters_to_keep
+)
+
+model038_ant_insula_pb03_res_draws <- model038_ant_insula_pb03_res$post_warmup_draws
+
+model038_ant_insula_pb03_res_summary <- summarise_draws(
+  model038_ant_insula_pb03_res_draws
+)
+
+
+model038_Amygdala_pb03_res <- read_cmdstan_csv(
+  files = c(
+    # paste0(data_dir, "/model038_Amygdala_chain_29368808_1.csv"),
+    paste0(data_dir, "/model038_Amygdala_pb03_res_chain_31811588_1.csv")
+  ),
+  variables = model_fit_parameters_to_keep
+)
+
+model038_Amygdala_pb03_res_draws <- model038_Amygdala_pb03_res$post_warmup_draws
+
+model038_Amygdala_pb03_res_summary <- summarise_draws(
+  model038_Amygdala_pb03_res_draws
+)
+
+
+model038_OFC_pb03_res <- read_cmdstan_csv(
+  files = c(
+    paste0(
+      data_dir,
+      "/model038_Orbital_Frontal_Complex_pb03_res_chain_32315249_1.csv"
+    ),
+    paste0(
+      data_dir,
+      "/model038_Orbital_Frontal_Complex_pb03_res_chain_32315249_2.csv"
+    )
+  ),
+  variables = model_fit_parameters_to_keep
+)
+
+model038_OFC_pb03_res_draws <- model038_OFC_pb03_res$post_warmup_draws
+
+model038_OFC_pb03_res_summary <- summarise_draws(
+  model038_OFC_pb03_res_draws
+)
+
+
+model038_NA_pb03_res <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model038_Nucleus_Accumbens_chain_29368812_1.csv"),
+    paste0(data_dir, "/model038_Nucleus_Accumbens_chain_29368812_2.csv")
+  ),
+  variables = model_fit_parameters_to_keep
+)
+
+model038_NA_pb03_res_draws <- model038_NA_pb03_res$post_warmup_draws
+
+model038_NA_pb03_res_summary <- summarise_draws(
+  model038_NA_pb03_res_draws
+)
+
+
+model038_Hippocampus_pb03_res <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model038_Hippocampus_pb03_res_chain_31835580_1.csv"),
+    paste0(data_dir, "/model038_Hippocampus_pb03_res_chain_31835580_2.csv")
+  ),
+  variables = model_fit_parameters_to_keep
+)
+
+model038_Hippocampus_pb03_res_draws <- model038_Hippocampus_pb03_res$post_warmup_draws
+
+model038_Hippocampus_pb03_res_summary <- summarise_draws(
+  model038_Hippocampus_pb03_res_draws
+)
+
+#####
+
 model038_V1 <- read_cmdstan_csv(
   files = c(
     paste0(data_dir, "/model038_V1_chain_29269849_1.csv")
@@ -83,6 +635,36 @@ model038_V1F_draws <- model038_V1F$post_warmup_draws
 
 model038_V1F_summary <- summarise_draws(
   model038_V1F_draws
+)
+
+model038_V1F_pb03 <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model038_V1F_pb03_chain_31463221_1.csv")
+    # paste0(data_dir, "/model038_V1F_chain_29269849_2.csv"),
+  ),
+  variables = model_fit_parameters_to_keep
+)
+
+
+model038_V1F_pb03_draws <- model038_V1F_pb03$post_warmup_draws
+
+model038_V1F_pb03_summary <- summarise_draws(
+  model038_V1F_pb03_draws
+)
+
+model038_V1F_pb03_res <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model038_V1F_pb03_res_chain_31602869_1.csv")
+    # paste0(data_dir, "/model038_V1F_chain_29269849_2.csv"),
+  ),
+  variables = model_fit_parameters_to_keep
+)
+
+
+model038_V1F_pb03_res_draws <- model038_V1F_pb03_res$post_warmup_draws
+
+model038_V1F_pb03_res_summary <- summarise_draws(
+  model038_V1F_pb03_res_draws
 )
 
 
@@ -184,6 +766,20 @@ model038_ant_insula_summary <- summarise_draws(
   model038_ant_insula_draws
 )
 
+model038_ant_insula_pb03_res <- read_cmdstan_csv(
+  files = c(
+    paste0(data_dir, "/model038_ant_insula_pb03_res_chain_31603369_1.csv"),
+    paste0(data_dir, "/model038_ant_insula_pb03_res_chain_31603369_2.csv")
+  ),
+  variables = model_fit_parameters_to_keep
+)
+
+model038_ant_insula_pb03_res_draws <- model038_ant_insula_pb03_res$post_warmup_draws
+
+model038_ant_insula_pb03_res_summary <- summarise_draws(
+  model038_ant_insula_pb03_res_draws
+)
+
 
 model038_Amygdala <- read_cmdstan_csv(
   files = c(
@@ -197,6 +793,21 @@ model038_Amygdala_draws <- model038_Amygdala$post_warmup_draws
 
 model038_Amygdala_summary <- summarise_draws(
   model038_Amygdala_draws
+)
+
+
+model038_Amygdala_pb03_res <- read_cmdstan_csv(
+  files = c(
+    # paste0(data_dir, "/model038_Amygdala_chain_29368808_1.csv"),
+    paste0(data_dir, "/model038_Amygdala_pb03_res_chain_31811588_1.csv")
+  ),
+  variables = model_fit_parameters_to_keep
+)
+
+model038_Amygdala_pb03_res_draws <- model038_Amygdala_pb03_res$post_warmup_draws
+
+model038_Amygdala_pb03_res_summary <- summarise_draws(
+  model038_Amygdala_pb03_res_draws
 )
 
 
@@ -242,6 +853,20 @@ model038_Hippocampus_draws <- model038_Hippocampus$post_warmup_draws
 
 model038_Hippocampus_summary <- summarise_draws(
   model038_Hippocampus_draws
+)
+
+model038_Hippocampus_pb03_res <- read_cmdstan_csv(
+  files = c(
+    # paste0(data_dir, "/model038_Hippocampus_chain_29575150_1.csv"),
+    paste0(data_dir, "/model038_Hippocampus_chain_29575150_2.csv")
+  ),
+  variables = model_fit_parameters_to_keep
+)
+
+model038_Hippocampus_pb03_res_draws <- model038_Hippocampus_pb03_res$post_warmup_draws
+
+model038_Hippocampus_pb03_res_summary <- summarise_draws(
+  model038_Hippocampus_pb03_res_draws
 )
 
 
@@ -312,6 +937,7 @@ beta_key <- data.frame(
 # a standard deviation
 lower_bound <- .5 - .341
 upper_bound <- .5 + .341
+#each roi
 ROI_name_string <- "V1"
 model038_draws_df <- posterior::as_draws_df(
   model038_V1_draws
@@ -320,6 +946,16 @@ model038_draws_df <- posterior::as_draws_df(
 ROI_name_string <- "V1F"
 model038_draws_df <- posterior::as_draws_df(
   model038_V1F_draws
+)
+
+ROI_name_string <- "V1F_pb03"
+model038_draws_df <- posterior::as_draws_df(
+  model038_V1F_pb03_draws
+)
+
+ROI_name_string <- "V1F_pb03_res"
+model038_draws_df <- posterior::as_draws_df(
+  model038_V1F_pb03_res_draws
 )
 
 
@@ -362,6 +998,11 @@ model038_draws_df <- posterior::as_draws_df(
   model038_ant_insula_draws
 )
 
+ROI_name_string <- "Anterior Insula_pb03_res"
+model038_draws_df <- posterior::as_draws_df(
+  model038_ant_insula_pb03_res_draws
+)
+
 ROI_name_string <- "OFC"
 model038_draws_df <- posterior::as_draws_df(
   model038_OFC_draws
@@ -373,9 +1014,20 @@ model038_draws_df <- posterior::as_draws_df(
   model038_Amygdala_draws
 )
 
+
+ROI_name_string <- "Amygdala_pb03_res"
+model038_draws_df <- posterior::as_draws_df(
+  model038_Amygdala_pb03_res_draws
+)
+
 ROI_name_string <- "Hippocampus"
 model038_draws_df <- posterior::as_draws_df(
   model038_Hippocampus_draws
+)
+
+ROI_name_string <- "Hippocampus_pb03_res"
+model038_draws_df <- posterior::as_draws_df(
+  model038_Hippocampus_pb03_res_draws
 )
 
 
@@ -447,7 +1099,160 @@ model_fit_beta_draws_long <- merge(
   all.x = T
 )
 
+#
+model_fit_beta_draws_long <- model_fit_beta_draws_long %>%
+  mutate(
+    trial_per_cue = case_when(
+      trial_index == 177 ~ 9, #1
+      trial_index == 178 ~ 10, #2
+      trial_index == 179 ~ 11, #3
+      trial_index == 180 ~ 12, #4
+      trial_index == 181 ~ 13, #5
+      trial_index == 182 ~ 14, #6
+      trial_index == 183 ~ 16, #7
+      trial_index == 184 ~ 18, #8
+      trial_index == 185 ~ 20, #9
+      trial_index == 186 ~ 22, #10
+      trial_index == 187 ~ 24, #11
+      trial_index == 188 ~ 26, #12
+      trial_index == 189 ~ 28, #13
+      trial_index == 190 ~ 30, #14
+      trial_index == 191 ~ 32, #15
+      .default = trial_per_cue
+    )
+  )
 
+# new plot
+model_fit_beta_draws_long %>%
+  # filter(roi %in% roi_pair_to_plot, cue != "shock") %>%
+  group_by(.draw, cue, trial_per_cue, trial_index) %>%
+  reframe(
+    avg_roi_draw = mean(beta_value)
+  ) %>%
+  group_by(cue, trial_per_cue, trial_index) %>%
+  reframe(
+    median_posterior = median(avg_roi_draw),
+    lower_2_5 = quantile(avg_roi_draw, lower_bound),
+    lower_97_5 = quantile(avg_roi_draw, upper_bound)
+    # lower_2_5 = quantile(beta_value, .1),
+    # lower_97_5 = quantile(beta_value, .9)
+  ) %>%
+  ggplot(aes(x = trial_per_cue, color = cue, fill = cue)) +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = c(9, 21, 32)) +
+  geom_ribbon(
+    aes(ymin = lower_2_5, ymax = lower_97_5),
+    alpha = 0.12,
+    color = NA
+  ) +
+  geom_line(aes(y = median_posterior), linewidth = 0.4, alpha = 0.35) +
+  geom_smooth(
+    aes(y = median_posterior),
+    se = FALSE,
+    linewidth = 1.3,
+    span = 0.4
+  ) +
+  # facet_wrap(~ cue) +
+  scale_fill_manual(values = cue_color) +
+  scale_color_manual(values = cue_color) +
+  ggtitle(paste0("Change in average ", ROI_name_string, " Over Trials")) +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+# ggplot(aes(x = trial_per_cue, color = cue, fill = cue)) +
+#   geom_hline(yintercept = 0) +
+#   geom_vline(xintercept = 9) +
+#   geom_vline(xintercept = 9 + 12) +
+#   geom_vline(xintercept = 9 + 12 + 12) +
+#   geom_ribbon(
+#     aes(ymin = lower_2_5, ymax = lower_97_5),
+#     alpha = 0.15,
+#     color = NA
+#   ) +
+#   # Dotted lines for the ribbon edges
+#   geom_line(aes(y = lower_2_5), linetype = "dotted", linewidth = 0.4) +
+#   geom_line(aes(y = lower_97_5), linetype = "dotted", linewidth = 0.4) +
+#   # Prominent median line on top
+#   geom_line(aes(y = median_posterior), linewidth = 1) +
+#   scale_fill_manual(values = cue_color) +
+#   scale_color_manual(values = cue_color) +
+#   ggtitle(paste0("Change in average ", ROI_name_string, " Over Trials")) +
+#   theme_bw() +
+#   theme(text = element_text(family = "Arial", size = 20))
+
+# generalization_df <-
+
+metrics_long <- model_fit_beta_draws_long %>%
+  filter(cue != "shock") %>%
+  group_by(.draw, trial_per_cue) %>%
+  summarise(
+    csp = mean(beta_value[cue == "csp"]),
+    gs1 = mean(beta_value[cue == "gs1"]),
+    gs2 = mean(beta_value[cue == "gs2"]),
+    gs3 = mean(beta_value[cue == "gs3"]),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    gen = (csp + gs1 + gs2 + gs3) / 4,
+    selectivity = csp - (gs1 + gs2 + gs3) / 3,
+    sharpening = csp - gs1 - gs2 + gs3
+  ) %>%
+  select(.draw, trial_per_cue, gen, selectivity, sharpening) %>%
+  pivot_longer(
+    cols = c(gen, selectivity, sharpening),
+    names_to = "metric",
+    values_to = "value"
+  )
+
+(model_fit_beta_draws_long %>%
+  # filter(roi %in% roi_pair_to_plot, cue != "shock") %>%
+  group_by(.draw, cue, trial_per_cue, trial_index) %>%
+  reframe(
+    avg_roi_draw = mean(beta_value)
+  ) %>%
+  group_by(cue, trial_per_cue, trial_index) %>%
+  reframe(
+    median_posterior = median(avg_roi_draw),
+    lower_2_5 = quantile(avg_roi_draw, lower_bound),
+    lower_97_5 = quantile(avg_roi_draw, upper_bound)
+    # lower_2_5 = quantile(beta_value, .1),
+    # lower_97_5 = quantile(beta_value, .9)
+  ) %>%
+  ggplot(aes(x = trial_per_cue, color = cue, fill = cue)) +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = c(9, 21, 32)) +
+  geom_ribbon(
+    aes(ymin = lower_2_5, ymax = lower_97_5),
+    alpha = 0.12,
+    color = NA
+  ) +
+  geom_line(aes(y = median_posterior), linewidth = 0.4, alpha = 0.35) +
+  geom_smooth(
+    aes(y = median_posterior),
+    se = FALSE,
+    linewidth = 1.3,
+    span = 0.4
+  ) +
+  # facet_wrap(~ cue) +
+  scale_fill_manual(values = cue_color) +
+  scale_color_manual(values = cue_color) +
+  ggtitle(paste0("Change in average ", ROI_name_string, " Over Trials")) +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))) /
+
+  metrics_long %>%
+    ggplot(aes(x = trial_per_cue, y = value, fill = metric, color = metric)) +
+  geom_vline(xintercept = c(9, 21, 32)) +
+  tidybayes::stat_lineribbon(
+    .width = c(.341),
+    alpha = 0.25
+  ) +
+  geom_hline(yintercept = 0) +
+  theme_bw() +
+  theme(text = element_text(family = "Arial", size = 20))
+
+
+# old plots
 left_roi_plot <- model_fit_beta_draws_long %>%
   filter(roi %in% roi_pair_to_plot, cue != "shock", side == "left") %>%
   group_by(
