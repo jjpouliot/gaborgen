@@ -62,3 +62,9 @@
 3dcalc -a HCPex_resam_V1_R.nii.gz \
        -expr 'a*step(y-89)' \
        -prefix HCPex_resam_V1_fovea_R.nii.gz
+
+
+
+# Custom drawn ROIs, just need to be resampled
+3dresample -master /home/andrewfarkas/Research_data/EEG/Gaborgen24_EEG_fMRI/fmri_preprocessed/GABORGEN24_DAY1_148.results/pb04.GABORGEN24_DAY1_148.r01.blur+tlrc -prefix V1_F_custom_resam -rmode NN -input V1_F_custom+tlrc
+

@@ -213,12 +213,20 @@ add_shock <- T
 # the by trial setting changes the design matrix used
 # by trial is used for the gaussian process over time
 # no by trial, is used for looking at cue by block by participant
-by_trial <- T
-design_matrix_suffix <- if_else(
-  by_trial,
-  "_X_IM.nocensor.xmat.1D",
+by_trial <- F
+
+# Set to TRUE to use the design matrices produced by a006 with first_acq_to_hab
+# = TRUE (i.e., all cue trials before and including the first CS+ in acquisition
+# are treated as habituation). Only applies when by_trial = FALSE.
+first_acq_to_hab <- T
+
+design_matrix_suffix <- if (by_trial) {
+  "_X_IM.nocensor.xmat.1D"
+} else if (first_acq_to_hab) {
+  "_X_first_to_hab.nocensor.xmat.1D"
+} else {
   "_X.nocensor.xmat.1D"
-)
+}
 
 bold_per_roi_df <- data.frame(
   "par" = numeric(),
@@ -815,10 +823,10 @@ used_df_temp <- used_df_temp %>%
 # ROI_name_string <- "Hippocampus"
 # ROI_name_string <- "Amygdala"
 # ROI_name_string <- "Nucleus_Accumbens"
-# ROI_name_string <- "Ant_Ins"
+ROI_name_string <- "Ant_Ins"
 # ROI_name_string <- "ACC"
 # ROI_name_string <- "OFC"
-ROI_name_string <- "V1_fovea"
+# ROI_name_string <- "V1_fovea"
 
 ROI_name_string <- if (!by_trial) {
   paste0(ROI_name_string, "_by_cue")
@@ -834,6 +842,12 @@ ROI_name_string <- if (use_pb03) {
 
 ROI_name_string <- if (use_polort_residualize_highpass) {
   paste0(ROI_name_string, "_res")
+} else {
+  ROI_name_string
+}
+
+ROI_name_string <- if (!by_trial && first_acq_to_hab) {
+  paste0(ROI_name_string, "_first_to_hab")
 } else {
   ROI_name_string
 }
@@ -860,14 +874,14 @@ used_df <- used_df_temp %>%
         # "Amygdala_R"#,
         # "Nucleus_Accumbens_L",
         # "Nucleus_Accumbens_R" #,
-        # "Ant_Ins_L",
-        # "Ant_Ins_R" #,
+        "Ant_Ins_L",
+        "Ant_Ins_R" #,
         # "ACC_L",
         # "ACC_R" #,
         # "Orbital_Frontal_Complex_L",
         # "Orbital_Frontal_Complex_R" #,
-        "HCPex_resam_V1_fovea_L",
-        "HCPex_resam_V1_fovea_R"
+        # "HCPex_resam_V1_fovea_L",
+        # "HCPex_resam_V1_fovea_R"
       )
   ) %>%
   arrange(par, roi_merge_id, time_sec)

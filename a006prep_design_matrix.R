@@ -115,7 +115,7 @@ by_trial <- FALSE
 ##           with a "_first_to_hab" suffix and the output xmat prefix also gets
 ##           "_first_to_hab" appended, so originals are preserved.
 ##   FALSE = standard treatment (no onsets are reassigned across phases)
-first_acq_to_hab <- FALSE
+first_acq_to_hab <- TRUE
 
 # End of user input ####
 
@@ -223,11 +223,117 @@ by_block <- T
 shock_times <- T
 source("make_stim_times_files.R", local = T, echo = T)
 
+# When first_acq_to_hab is requested, write modified stim-times files.
+# The cutoff is the earliest CS+ onset anywhere in acquisition. Every cue
+# onset (across both acquisition blocks) that falls at or before that time
+# is moved into the habituation regressor for that cue. Separate
+# "_first_to_hab" files are written for habituation, acquisition block 1,
+# and acquisition block 2; all other files (extinction, shock) are unchanged.
+if (!by_trial && first_acq_to_hab) {
+  cues <- c("CS+", "GS1", "GS2", "GS3")
+
+  # Small helper: write a stim-times file, using an asterisk placeholder if
+  # there are no remaining onsets (AFNI requires a non-empty file).
+  write_stim_file <- function(times, path) {
+    if (length(times) == 0) {
+      writeLines("*", path)
+    } else {
+      write(times, ncolumns = 1, file = path)
+    }
+  }
+
+  for (participant_index in 1:length(participant_directories)) {
+    pdir <- participant_directories[participant_index]
+
+    # Temporal cutoff: the first CS+ presentation anywhere in acquisition
+    acq1_csplus_times <- scan(
+      file.path(pdir, "acquisition_block_1_CS+_stim_times_for_stan.1D"),
+      quiet = TRUE
+    )
+    acq2_csplus_times <- scan(
+      file.path(pdir, "acquisition_block_2_CS+_stim_times_for_stan.1D"),
+      quiet = TRUE
+    )
+    first_csplus_time <- min(c(acq1_csplus_times, acq2_csplus_times))
+
+    message(
+      basename(pdir),
+      ": first CS+ onset in acquisition = ",
+      first_csplus_time,
+      "s"
+    )
+
+    for (cue in cues) {
+      hab_times <- scan(
+        file.path(pdir, paste0("habituation_", cue, "_stim_times_for_stan.1D")),
+        quiet = TRUE
+      )
+      acq1_times <- scan(
+        file.path(
+          pdir,
+          paste0("acquisition_block_1_", cue, "_stim_times_for_stan.1D")
+        ),
+        quiet = TRUE
+      )
+      acq2_times <- scan(
+        file.path(
+          pdir,
+          paste0("acquisition_block_2_", cue, "_stim_times_for_stan.1D")
+        ),
+        quiet = TRUE
+      )
+
+      # Any acquisition onset at or before the first CS+ goes to habituation
+      hab_modified <- sort(c(
+        hab_times,
+        acq1_times[acq1_times <= first_csplus_time],
+        acq2_times[acq2_times <= first_csplus_time]
+      ))
+      acq1_modified <- acq1_times[acq1_times > first_csplus_time]
+      acq2_modified <- acq2_times[acq2_times > first_csplus_time]
+
+      write_stim_file(
+        hab_modified,
+        file.path(
+          pdir,
+          paste0("habituation_", cue, "_stim_times_for_stan_first_to_hab.1D")
+        )
+      )
+      write_stim_file(
+        acq1_modified,
+        file.path(
+          pdir,
+          paste0(
+            "acquisition_block_1_",
+            cue,
+            "_stim_times_for_stan_first_to_hab.1D"
+          )
+        )
+      )
+      write_stim_file(
+        acq2_modified,
+        file.path(
+          pdir,
+          paste0(
+            "acquisition_block_2_",
+            cue,
+            "_stim_times_for_stan_first_to_hab.1D"
+          )
+        )
+      )
+    }
+  }
+}
+
 # Make design matrix minus movement
 for (participant_index in 1:length(participant_directories)) {
   setwd(participant_directories[participant_index])
 
   stim_flag <- if (by_trial) "-stim_times_IM" else "-stim_times"
+
+  # Suffix for stim-times files that are modified by first_acq_to_hab.
+  # Extinction and shock files are never modified so they always use "".
+  fth_suffix <- if (!by_trial && first_acq_to_hab) "_first_to_hab" else ""
 
   make_stim_entry <- function(index, label, filename, hrf) {
     paste0(
@@ -256,73 +362,105 @@ for (participant_index in 1:length(participant_directories)) {
       make_stim_entry(
         1,
         "habituation_CS+",
-        "habituation_CS+_stim_times_for_stan.1D",
+        paste0("habituation_CS+_stim_times_for_stan", fth_suffix, ".1D"),
         "BLOCK(2,1)"
       ),
       make_stim_entry(
         2,
         "habituation_GS1",
-        "habituation_GS1_stim_times_for_stan.1D",
+        paste0("habituation_GS1_stim_times_for_stan", fth_suffix, ".1D"),
         "BLOCK(2,1)"
       ),
       make_stim_entry(
         3,
         "habituation_GS2",
-        "habituation_GS2_stim_times_for_stan.1D",
+        paste0("habituation_GS2_stim_times_for_stan", fth_suffix, ".1D"),
         "BLOCK(2,1)"
       ),
       make_stim_entry(
         4,
         "habituation_GS3",
-        "habituation_GS3_stim_times_for_stan.1D",
+        paste0("habituation_GS3_stim_times_for_stan", fth_suffix, ".1D"),
         "BLOCK(2,1)"
       ),
       make_stim_entry(
         5,
         "acquisition_block_1_CS+",
-        "acquisition_block_1_CS+_stim_times_for_stan.1D",
+        paste0(
+          "acquisition_block_1_CS+_stim_times_for_stan",
+          fth_suffix,
+          ".1D"
+        ),
         "BLOCK(2,1)"
       ),
       make_stim_entry(
         6,
         "acquisition_block_1_GS1",
-        "acquisition_block_1_GS1_stim_times_for_stan.1D",
+        paste0(
+          "acquisition_block_1_GS1_stim_times_for_stan",
+          fth_suffix,
+          ".1D"
+        ),
         "BLOCK(2,1)"
       ),
       make_stim_entry(
         7,
         "acquisition_block_1_GS2",
-        "acquisition_block_1_GS2_stim_times_for_stan.1D",
+        paste0(
+          "acquisition_block_1_GS2_stim_times_for_stan",
+          fth_suffix,
+          ".1D"
+        ),
         "BLOCK(2,1)"
       ),
       make_stim_entry(
         8,
         "acquisition_block_1_GS3",
-        "acquisition_block_1_GS3_stim_times_for_stan.1D",
+        paste0(
+          "acquisition_block_1_GS3_stim_times_for_stan",
+          fth_suffix,
+          ".1D"
+        ),
         "BLOCK(2,1)"
       ),
       make_stim_entry(
         9,
         "acquisition_block_2_CS+",
-        "acquisition_block_2_CS+_stim_times_for_stan.1D",
+        paste0(
+          "acquisition_block_2_CS+_stim_times_for_stan",
+          fth_suffix,
+          ".1D"
+        ),
         "BLOCK(2,1)"
       ),
       make_stim_entry(
         10,
         "acquisition_block_2_GS1",
-        "acquisition_block_2_GS1_stim_times_for_stan.1D",
+        paste0(
+          "acquisition_block_2_GS1_stim_times_for_stan",
+          fth_suffix,
+          ".1D"
+        ),
         "BLOCK(2,1)"
       ),
       make_stim_entry(
         11,
         "acquisition_block_2_GS2",
-        "acquisition_block_2_GS2_stim_times_for_stan.1D",
+        paste0(
+          "acquisition_block_2_GS2_stim_times_for_stan",
+          fth_suffix,
+          ".1D"
+        ),
         "BLOCK(2,1)"
       ),
       make_stim_entry(
         12,
         "acquisition_block_2_GS3",
-        "acquisition_block_2_GS3_stim_times_for_stan.1D",
+        paste0(
+          "acquisition_block_2_GS3_stim_times_for_stan",
+          fth_suffix,
+          ".1D"
+        ),
         "BLOCK(2,1)"
       ),
       make_stim_entry(
@@ -357,7 +495,8 @@ for (participant_index in 1:length(participant_directories)) {
   xmat_prefix <- paste0(
     basename(participant_directories[participant_index]),
     "_",
-    if (by_trial) "X_IM" else "X"
+    if (by_trial) "X_IM" else "X",
+    fth_suffix
   )
 
   design_matrix_script <- paste0(

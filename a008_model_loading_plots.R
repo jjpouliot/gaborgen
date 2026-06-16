@@ -34,7 +34,7 @@ library(patchwork)
 library(posterior)
 library(loo)
 library(tidybayes)
-
+library(brms)
 
 # ---- 2. Configuration ------------------------------------------------------
 
@@ -231,7 +231,8 @@ chain_registry <- tibble::tribble(
   "model042" , "AMY"                     , "Amygdala"          , "pb03_res" , "33099488" , "1,2"       ,
   "model042" , "HIP"                     , "Hippocampus"       , "pb03_res" , "33233131" , "1,2"       ,
   "model042" , "ant_insula"              , "Anterior Insula"   , "pb03_res" , "33066991" , "1,2"       ,
-  "model042" , "OFC"                     , "OFC"               , "pb03_res" , "33349421" , "1"         ,
+  # "model042" , "ant_insula"              , "Anterior Insula"   , "pb03_res_first_to_hab" , "34728655" , "1,2"  , # When you move the first paired CS+ and preceding cues to habituation, that one cue pushes the CS+ in habiutation to be positive. Two explanations 1) misattributes US to CS+, 2) first cue presentation per block is elevated because of shock context (supported by time series models of all cues for first cue of habituation)
+  "model042" , "OFC"                     , "OFC"               , "pb03_res" , "33349421" , "1,2"       ,
 
   # --- model039 (hierarchical: mu_betas + per-subject betas) ---------------
   "model039" , "V4"                      , "V4"                , "pb03_res" , "32674652" , "1,2"       ,
@@ -889,8 +890,21 @@ df <- df %>%
     exp_btw10 = (exp_btw - gm) / 10 # person mean, centered
   )
 
-#extra models for exp testing
-library(brms)
+zc <- function(x) as.numeric(scale(x)) # standardize so val & ar contribute equally
+
+df <- df %>%
+  mutate(
+    val_btw10 = (val_btw - mean(val)) / 10,
+    ar_btw10 = (ar_btw - mean(ar)) / 10,
+    aff_wth = rowMeans(cbind(zc(val_wth), zc(ar_wth))), # within-person "aversiveness"
+    aff_btw = rowMeans(cbind(zc(val_btw), zc(ar_btw)))
+  ) %>%
+  group_by(participant) %>%
+  mutate(
+    aff_wth_pm = mean(aff_wth), # person-mean of the composite (Mundlak guard)
+    expXaff_pm = mean(exp_wth10 * aff_wth)
+  ) %>% # person-mean of the PRODUCT
+  ungroup()
 
 ctrl <- list(adapt_delta = 0.95)
 common <- function(form) {
@@ -904,6 +918,158 @@ common <- function(form) {
     control = ctrl
   )
 }
+
+# synergy, pooled across blocks first (your incremental style)
+m_syn <- common(
+  brain_mean | se(brain_sd, sigma = TRUE) ~
+    exp_wth10 *
+    aff_wth +
+    exp_btw10 +
+    aff_btw +
+    expXaff_pm +
+    (1 + exp_wth10 | participant)
+)
+
+# then localize it: is the synergy acquisition-specific, like your expectancy coupling was?
+m_syn_blk <- common(
+  brain_mean | se(brain_sd, sigma = TRUE) ~
+    exp_wth10 *
+    aff_wth *
+    block +
+    exp_btw10 +
+    aff_btw +
+    expXaff_pm +
+    (1 + exp_wth10 | participant)
+)
+
+# B The unified construct model
+df <- df %>%
+  mutate(
+    threat_wth = rowMeans(cbind(zc(exp_wth), zc(val_wth), zc(ar_wth))),
+    threat_btw = rowMeans(cbind(zc(exp_btw), zc(val_btw), zc(ar_btw)))
+  )
+
+m_threat <- common(
+  brain_mean | se(brain_sd, sigma = TRUE) ~
+    threat_wth * block + threat_btw + (1 + threat_wth | participant)
+)
+
+
+# M3  absolute main slope + person mean as a confound guard (best of both)
+m_abs_btw <- common(
+  brain_mean | se(brain_sd, sigma = TRUE) ~
+    exp_abs * block + exp_btw10 + (1 + exp_abs | participant)
+)
+m_syn <- add_criterion(m_syn, "loo", moment_match = TRUE)
+m_syn_blk <- add_criterion(m_syn_blk, "loo", moment_match = TRUE)
+m_threat <- add_criterion(m_threat, "loo", moment_match = TRUE)
+m_abs_btw <- add_criterion(m_abs_btw, "loo", moment_match = TRUE)
+
+loo_compare(m_syn, m_syn_blk, m_threat, m_abs_btw)
+
+m_syn$criteria$loo
+m_syn_blk$criteria$loo
+m_threat$criteria$loo
+m_abs_btw$criteria$loo
+
+m_syn <- add_criterion(m_syn, "loo", reloo = TRUE, overwrite = TRUE)
+m_syn_blk <- add_criterion(m_syn_blk, "loo", reloo = TRUE, overwrite = TRUE)
+m_threat <- add_criterion(m_threat, "loo", reloo = TRUE, overwrite = TRUE)
+m_abs_btw <- add_criterion(m_abs_btw, "loo", reloo = TRUE, overwrite = TRUE)
+
+m_syn$criteria$loo
+m_syn_blk$criteria$loo
+m_threat$criteria$loo
+m_abs_btw$criteria$loo
+
+loo_compare(m_syn, m_syn_blk, m_threat, m_abs_btw)
+
+# cood that it is a cloud and not a line because allows for variation for interaction term
+plot(df$exp_wth10, df$aff_wth)
+cor(df$exp_wth10, df$aff_wth)
+cor.test(df$exp_wth10, df$aff_wth)
+
+m_syn_blkmain <- common(
+  brain_mean | se(brain_sd, sigma = TRUE) ~
+    exp_wth10 *
+    aff_wth +
+    block +
+    exp_btw10 +
+    aff_btw +
+    expXaff_pm +
+    (1 + exp_wth10 | participant)
+)
+m_syn_blkmain <- add_criterion(m_syn_blkmain, "loo", moment_match = TRUE)
+m_syn_blkmain$criteria$loo
+m_syn_blkmain <- add_criterion(
+  m_syn_blkmain,
+  "loo",
+  reloo = TRUE,
+  overwrite = TRUE
+)
+loo_compare(m_syn_blk, m_syn_blkmain, m_threat)
+
+
+library(emmeans)
+emt <- emtrends(
+  m_syn_blk,
+  ~ aff_wth | block,
+  var = "exp_wth10",
+  at = list(aff_wth = c(-1, 0, 1)),
+  epred = TRUE
+)
+summary(emt) # expectancy→insula slope per block × affect level, with CrIs
+pairs(emt, by = "block") # (high − low affect) slope difference = the synergy, per block
+
+ce <- conditional_effects(
+  m_syn_blk,
+  effects = "exp_wth10:aff_wth",
+  int_conditions = list(aff_wth = c(-1, 0, 1)),
+  conditions = make_conditions(m_syn_blk, "block")
+)
+plot(ce, points = FALSE)
+plot(ce, points = T)
+
+variables(m_syn_blk) # confirm the exact term names first
+hypothesis(
+  m_syn_blk,
+  c(
+    "exp_wth10:aff_wth:blockext < 0", # is ext synergy weaker than acq_1?
+    "exp_wth10:aff_wth:blockhab < 0"
+  )
+) # is hab synergy weaker than acq_1?
+
+#Both acquisition blocks show the synergy and both non-acquisition blocks lack it, so contrast the average of the two phases directly
+hypothesis(
+  m_syn_blk,
+  "0.5 * exp_wth10:aff_wth:blockacq_2 -
+   0.5 * (exp_wth10:aff_wth:blockext + exp_wth10:aff_wth:blockhab) > 0"
+)
+
+# acq_1 vs hab  — this is exactly the test you already ran (it equals  blockhab < 0)
+hypothesis(m_syn_blk, "exp_wth10:aff_wth:blockhab < 0") # Post.Prob 0.92
+
+# acq_2 vs hab
+hypothesis(
+  m_syn_blk,
+  "exp_wth10:aff_wth:blockacq_2 - exp_wth10:aff_wth:blockhab > 0"
+)
+
+# pooled: mean(acq_1, acq_2) vs hab  — the cleanest single claim
+hypothesis(
+  m_syn_blk,
+  "0.5 * exp_wth10:aff_wth:blockacq_2 - exp_wth10:aff_wth:blockhab > 0"
+)
+
+emtrends(
+  m_syn_blk,
+  ~block,
+  var = "aff_wth",
+  at = list(exp_wth10 = 0),
+  epred = TRUE
+)
+
+#extra models for exp testing
 
 # M1  current: within/between split (reference)
 m_wb <- common(
@@ -2182,9 +2348,12 @@ acc_42_loo <- compute_loo(acc_42_log_lik)
 na_42_loo <- compute_loo(na_42_log_lik)
 amy_42_loo <- compute_loo(amy_42_log_lik)
 hip_42_loo <- compute_loo(hip_42_log_lik)
-ai_42_loo <- compute_loo(ai_42_log_lik)
+# ai_42_loo <- compute_loo(ai_42_log_lik)
+ai_42_loo_2 <- compute_loo(ai_42_log_lik)
 ofc_42_loo <- compute_loo(ofc_42_log_lik)
 
+ai_42_loo
+ai_42_loo_2
 
 # roi_label <- "V4"
 # roi_label <- "V5"
