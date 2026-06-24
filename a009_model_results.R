@@ -1276,16 +1276,46 @@ plot_partial_effects <- function(
   list(exp = p_exp, aff = p_aff, syn = p_syn)
 }
 
-# ── plot_surface() ────────────────────────────────────────────────────────────
+# ── plot_surface() ── rebuilt from the working a008 figure ────────────────────
 #
-# 2-D expectancy × affect surface (median posterior prediction) with
-# observed data overlaid. Dots sized by |residual|.
+# Faithful to the a008 plot that renders vividly. The ONLY generalization is the
+# colour ladder: instead of the hard-coded seq(-0.05, 0.35, 0.05) (perfect for
+# the insula, useless for the amygdala) it derives a "nice" round ladder from the
+# surface so each ROI fills the turbo ramp on its own scale.
 #
-# Arguments
-#   by_cue      : FALSE = single CS+ surface (1×4 block panels, default)
-#                 TRUE  = 4-row cue × block grid — makes between-cue intercept
-#                         differences directly visible as color differences
-#   fill_limits : e.g. c(-0.01, 0.10) to fix the color range; NULL = auto
+# The vividness rule from a008: `limits` stay TIGHT to range(surf$epred); the
+# round ladder is used ONLY to label the colourbar and draw contours. Widening
+# `limits` out to the ladder is what desaturates everything — so don't.
+#
+#   model       : a brmsfit (e.g. m_final_less / m_ai)
+#   df_fit      : the data frame that model was fit on
+#   roi_label   : axis / legend label, e.g. "Anterior Insula"
+#   n_draws     : posterior draws for the surface (a008 used 400)
+#   by_cue      : FALSE = single CS+ surface (1×4 block panels)
+#                 TRUE  = cue × block grid
+#   fill_limits : c(lo, hi) to FIX the colour range; NULL = tight to the surface
+#   fill_step   : ladder spacing; NULL = auto nice 1/2/2.5/5 × 10^k step
+#   n_breaks    : target tick count when fill_step is auto
+# ── plot_surface() ── rebuilt from the working a008 figure ────────────────────
+#
+# Faithful to the a008 plot that renders vividly. The ONLY generalization is the
+# colour ladder: instead of the hard-coded seq(-0.05, 0.35, 0.05) (perfect for
+# the insula, useless for the amygdala) it derives a "nice" round ladder from the
+# surface so each ROI fills the turbo ramp on its own scale.
+#
+# The vividness rule from a008: `limits` stay TIGHT to range(surf$epred); the
+# round ladder is used ONLY to label the colourbar and draw contours. Widening
+# `limits` out to the ladder is what desaturates everything — so don't.
+#
+#   model       : a brmsfit (e.g. m_final_less / m_ai)
+#   df_fit      : the data frame that model was fit on
+#   roi_label   : axis / legend label, e.g. "Anterior Insula"
+#   n_draws     : posterior draws for the surface (a008 used 400)
+#   by_cue      : FALSE = single CS+ surface (1×4 block panels)
+#                 TRUE  = cue × block grid
+#   fill_limits : c(lo, hi) to FIX the colour range; NULL = tight to the surface
+#   fill_step   : ladder spacing; NULL = auto nice 1/2/2.5/5 × 10^k step
+#   n_breaks    : target tick count when fill_step is auto
 
 plot_surface <- function(
   model,
@@ -1293,52 +1323,37 @@ plot_surface <- function(
   roi_label,
   n_draws = 400,
   by_cue = FALSE,
-  fill_limits = NULL
+  fill_limits = NULL,
+  fill_step = NULL,
+  n_breaks = 8
 ) {
   mean_bsd <- mean(df_fit$brain_sd)
   y_lab <- paste0(roi_label, " \u03b2")
+  cues_in_grid <- if (by_cue) .beh_cue_levels else "CS+"
 
-  df_obs <- df_fit |>
+  # ── observed points + residuals (a008) ─────────────────────────────────────
+  res_obs <- df_fit |>
     mutate(
-      cue = factor(cue, levels = .beh_cue_levels),
+      .fitted = fitted(model, re_formula = NA)[, "Estimate"],
+      .resid = brain_mean - .fitted,
       block = factor(
         block,
         levels = .beh_block_order,
         labels = .beh_block_labels
-      )
+      ),
+      cue = factor(cue, levels = .beh_cue_levels)
     )
 
-  # ── y-axis in raw rating points instead of SD ────────────────────────────────
-  # aff_wth is a z-composite, so it has no natural unit. Relabel its axis in the
-  # average within-person change of valence & arousal (0–10 points) using the
-  # linear map between the z-composite and the raw-averaged composite. The printed
-  # R² says how exact the relabel is (≈1 when valence & arousal have similar
-  # within-person SDs; if it drops, the two composites diverge and the raw-point
-  # labels become approximate).
-  aff_lin <- lm((val_wth + ar_wth) / 2 ~ aff_wth, data = df_fit)
-  b0 <- coef(aff_lin)[[1]]
-  b1 <- coef(aff_lin)[[2]]
-  raw_brks <- seq(-4, 5, by = 1)
-  z_pos <- (raw_brks - b0) / b1
-  keepy <- z_pos >= min(df_fit$aff_wth) & z_pos <= max(df_fit$aff_wth)
-  raw_labs <- ifelse(
-    raw_brks > 0,
-    paste0("+", raw_brks),
-    as.character(raw_brks)
-  )
-
-  # Build prediction grid — include all cues when by_cue = TRUE
-  cues_in_grid <- if (by_cue) .beh_cue_levels else "CS+"
-
+  # ── prediction grid (a008; cue added so by_cue works) ──────────────────────
   surf_grid <- crossing(
     block = factor(.beh_block_order, levels = .beh_block_order),
     cue = factor(cues_in_grid, levels = .beh_cue_levels),
     exp_wth10 = seq(
       min(df_fit$exp_wth10),
       max(df_fit$exp_wth10),
-      length.out = 40
+      length.out = 60
     ),
-    aff_wth = seq(min(df_fit$aff_wth), max(df_fit$aff_wth), length.out = 40)
+    aff_wth = seq(min(df_fit$aff_wth), max(df_fit$aff_wth), length.out = 60)
   ) |>
     mutate(exp_btw10 = 0, aff_btw = 0, brain_sd = mean_bsd)
 
@@ -1358,15 +1373,28 @@ plot_surface <- function(
       )
     )
 
-  res_obs <- df_obs |>
-    mutate(
-      .fitted = fitted(model, re_formula = NA)[, "Estimate"],
-      .resid = brain_mean - .fitted
-    )
+  # HARD GUARD: the raster/contour/colour range must be a SINGLE cue surface,
+  # otherwise the 1×4 facet overlays all cues and the last-drawn GS overpaints
+  # CS+, pooling the level down (the "washed out" bug). Dots stay all-cue.
+  surf_fill <- if (by_cue) surf else dplyr::filter(surf, cue == "CS+")
 
+  # ── y-axis relabel: z-composite → raw rating points (a008) ─────────────────
+  aff_lin <- lm((val_wth + ar_wth) / 2 ~ aff_wth, data = df_fit)
+  b0 <- coef(aff_lin)[[1]]
+  b1 <- coef(aff_lin)[[2]]
+  raw_brks <- seq(-4, 5, by = 1)
+  z_pos <- (raw_brks - b0) / b1
+  keepy <- z_pos >= min(df_fit$aff_wth) & z_pos <= max(df_fit$aff_wth)
+  raw_labs <- ifelse(
+    raw_brks > 0,
+    paste0("+", raw_brks),
+    as.character(raw_brks)
+  )
+
+  # ── dot size = |residual| (a008), but ROI-adaptive legend keys ─────────────
   r_max <- max(abs(res_obs$.resid))
-  halo_width <- 1.5
   vsize <- function(x) 1.8 + pmin(x^2 / r_max^2, 1) * 5.7
+  halo_width <- 1.5
 
   obs_pts <- res_obs |>
     transmute(
@@ -1379,14 +1407,40 @@ plot_surface <- function(
       size_black = vsize(abs(.resid)) + halo_width
     )
 
-  # pretty() gives clean round-number contour breaks robust to small signal range
-  contour_breaks <- pretty(surf$epred, n = 6)
+  size_breaks <- pretty(c(0, r_max), n = 4)
+  size_breaks <- size_breaks[size_breaks > 0 & size_breaks <= r_max]
+  size_legend_breaks <- vsize(size_breaks)
 
-  p <- ggplot(surf, aes(exp_wth10, aff_wth)) +
+  # ── colour range + ladder ──────────────────────────────────────────────────
+  # limits TIGHT to the surface (this is what makes it vivid); the round ladder
+  # is only for labels/contours and auto-clips to the limits. For the insula the
+  # auto path reproduces a008's -0.05..0.35 / 0.05; the amygdala collapses to a
+  # ~0.01 ladder on its own.
+  if (is.null(fill_limits)) {
+    fill_limits <- range(surf_fill$epred, na.rm = TRUE)
+  }
+
+  if (is.null(fill_step)) {
+    raw_step <- diff(fill_limits) / n_breaks
+    mag <- 10^floor(log10(raw_step))
+    cand <- c(1, 2, 2.5, 5, 10) * mag
+    fill_step <- cand[which.min(abs(cand - raw_step))]
+  }
+
+  ladder_lo <- floor(fill_limits[1] / fill_step) * fill_step
+  ladder_hi <- ceiling(fill_limits[2] / fill_step) * fill_step
+  fill_breaks <- seq(ladder_lo, ladder_hi, by = fill_step)
+
+  step_str <- sub("0+$", "", format(fill_step, scientific = FALSE, trim = TRUE))
+  dec <- if (grepl("\\.", step_str)) nchar(sub("^.*\\.", "", step_str)) else 0
+  fill_labels <- sprintf(paste0("%.", dec, "f"), fill_breaks)
+
+  # ── plot (a008 layering) ───────────────────────────────────────────────────
+  p <- ggplot(surf_fill, aes(exp_wth10, aff_wth)) +
     geom_raster(aes(fill = epred), interpolate = TRUE) +
     geom_contour(
       aes(z = epred),
-      breaks = contour_breaks,
+      breaks = fill_breaks,
       colour = "black",
       linewidth = 0.5,
       alpha = 0.6
@@ -1407,8 +1461,10 @@ plot_surface <- function(
     scale_fill_viridis_c(
       option = "turbo",
       name = y_lab,
-      breaks = contour_breaks,
-      labels = sprintf("%.2f", contour_breaks),
+      limits = fill_limits, # tight → vivid
+      oob = scales::squish,
+      breaks = fill_breaks,
+      labels = fill_labels,
       guide = guide_colourbar(
         order = 1,
         barheight = unit(6, "cm"),
@@ -1418,26 +1474,40 @@ plot_surface <- function(
     scale_colour_manual(
       values = .beh_cue_colors,
       name = "Cue",
-      guide = guide_legend(override.aes = list(shape = 16, size = 4))
+      guide = guide_legend(order = 2, override.aes = list(shape = 16, size = 4))
     ) +
-    scale_size_identity(guide = "none") +
+    scale_size_identity(
+      name = "|obs \u2212 fitted|",
+      breaks = size_legend_breaks,
+      labels = size_breaks,
+      guide = guide_legend(
+        order = 3,
+        override.aes = list(shape = 16, colour = "grey40")
+      )
+    ) +
     scale_x_continuous(
       breaks = c(-4, 0, 4, 8),
       labels = c("\u221240", "0", "+40", "+80"),
-      name = "Within-person \u0394 expectancy (pp)",
+      name = "Within-person \u0394 expectancy (percentage points)",
       expand = c(0, 0)
     ) +
     scale_y_continuous(
       breaks = z_pos[keepy],
       labels = raw_labs[keepy],
-      name = "Within-person \u0394 affect (rating pts)",
+      name = "Within-person \u0394 affect\n(rating points, avg. of unpleasantness & arousal)",
       expand = c(0, 0)
     ) +
     .beh_shared_theme +
     theme(
       panel.grid = element_blank(),
+      axis.text.x = element_text(angle = 0, hjust = 0.5),
       legend.position = "right",
-      legend.box = "vertical"
+      legend.box = "vertical",
+      legend.box.just = "left",
+      legend.spacing.y = unit(0.3, "cm"),
+      legend.key.height = unit(0.65, "cm"),
+      legend.key.width = unit(0.5, "cm"),
+      legend.text = element_text(size = 9)
     )
 
   if (by_cue) {
@@ -1458,10 +1528,10 @@ plot_surface <- function(
       facet_wrap(~block, nrow = 1) +
       labs(
         title = paste0(
-          "Expectancy \u00d7 affect surface (CS+ level) \u2014 ",
+          "Combined expectancy \u00d7 affect surface (CS+ level) \u2014 ",
           roi_label
         ),
-        subtitle = "Model prediction for CS+; dots = all cues, coloured; size \u221d |residual|\u00b2"
+        subtitle = "Shape identical across cues (no cue\u00d7exp / cue\u00d7aff term); only the level shifts. Dots = observations coloured by cue; size \u221d |residual|\u00b2 (bigger = worse fit)."
       )
   }
 }
